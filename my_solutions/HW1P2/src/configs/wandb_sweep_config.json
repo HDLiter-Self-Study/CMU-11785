@@ -1,0 +1,67 @@
+{
+    "method": "random",
+    "name": "complex_model_sweep",
+    "metric": {"goal": "minimize", "name": "val_loss"},
+    "parameters": {
+        "batch_size": {"values": [8192]},
+        "num_hidden_layers": {"values":[9]},
+        "hidden_shape": {
+            "values": ["custom_9_layers_cylinder_with_heads"]
+        },
+        "num_epochs": {"values": [16]},
+        "lr": {"values":[8e-4]},
+        "context": {"values": [25]},
+        "hidden_dropout": {"values": [0.1]},
+        "optimizer_name": {
+            "values":["adamw"]
+        },
+        "batch_norm": {
+            "value": true
+        },
+        "max_total_parameters": {
+            "value": 2e7
+        },
+        "activation": {
+            "values": ["gelu"]
+        },
+        "scheduler_name": {
+            "values": ["plateau"]
+        },
+        "layer_wise_dropout": {
+            "value": true
+        },
+        "label_smoothing": {
+            "value": 0.1
+        },
+        "frequency_masking": {
+            "values": [0.0]
+        },
+        "time_masking": {
+            "values": [0.0]
+        },
+        "mixup_alpha": {
+            "values": [0.4]
+        },
+        "mixup_prob": {
+            "values": [0.0]
+        },
+        "use_focal_loss": {
+            "values":[false]
+        },
+        "focal_alpha": {
+            "value": 1.0
+        },
+        "focal_gamma": {
+            "value": 2.0
+        },
+        "use_confusion_heads": {
+            "value": true
+        },
+        "confusion_weight": {
+            "values":[0.4, 0.2]
+        },
+        "confusion_dropout": {
+            "values":[0.2]
+        }
+    }
+}

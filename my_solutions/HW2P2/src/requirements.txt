@@ -1,0 +1,10 @@
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+pandas>=1.3.0
+scikit-learn>=1.0.0
+scipy>=1.7.0
+tqdm>=4.62.0
+Pillow>=8.3.0
+wandb>=0.12.0
+pytorch_metric_learning>=1.3.0
