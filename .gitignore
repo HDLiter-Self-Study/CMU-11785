@@ -139,7 +139,8 @@ my_solutions/HW2P2/data/
 my_solutions/HW2P2/src/multirun/
 
 # Wandb logs
-wandb/
+my_solutions/HW2P2/src/wandb/
+my_solutions/HW1P2/src/wandb/
 
 # Model checkpoints and outputs
 my_solutions/HW2P2/checkpoints/
