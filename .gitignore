@@ -136,7 +136,7 @@ my_solutions/HW1P2/data/
 my_solutions/HW2P2/data/
 
 # HW2P2 hydra multirun logs
-my_solutions/HW2P2/multirun/
+my_solutions/HW2P2/src/multirun/
 
 # Wandb logs
 wandb/
