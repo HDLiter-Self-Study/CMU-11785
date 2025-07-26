@@ -1,0 +1,42 @@
+# SENet Stem configuration
+# @package blocks.stem
+
+name: "SENetStem"
+description: "Initial stem layers for SENet"
+
+# Stem specific parameters
+params:
+  channels:
+    param_name: "stem_channels"
+    type: "categorical"
+    choices: [32, 64, 96, 128]
+    description: "Number of channels in stem convolution"
+    
+  activation:
+    param_name: "stem_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "leaky_relu"]
+    description: "Activation function for stem"
+    
+  normalization:
+    param_name: "stem_normalization"
+    type: "categorical"
+    choices: ["batch_norm", "group_norm", "layer_norm"]
+    description: "Normalization method for stem"
+    
+  # Stem architecture options
+  kernel_size:
+    param_name: "stem_kernel_size"
+    type: "categorical"
+    choices: [3, 5, 7]
+    description: "Kernel size for initial convolution"
+    
+  use_se_in_stem:
+    param_name: "stem_use_se"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to add SE module to stem"
+
+# Stem parameter estimation
+parameter_estimation:
+  base_params: 9600

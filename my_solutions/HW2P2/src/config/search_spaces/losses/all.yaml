@@ -1,0 +1,138 @@
+# Loss Functions Search Space
+# Classification and verification loss functions
+
+# Classification losses
+classification:
+  cross_entropy:
+    name: "CrossEntropyLoss"
+    description: "Standard cross-entropy loss"
+    
+    params:
+      label_smoothing:
+        param_name: "cls_label_smoothing"
+        type: "float"
+        min: 0.0
+        max: 0.3
+        description: "Label smoothing factor"
+        
+      class_weights:
+        param_name: "cls_use_class_weights"
+        type: "categorical"
+        choices: [true, false]
+        description: "Whether to use class weights"
+  
+  focal_loss:
+    name: "FocalLoss"
+    description: "Focal loss for imbalanced classification"
+    
+    params:
+      alpha:
+        param_name: "cls_focal_alpha"
+        type: "float"
+        min: 0.1
+        max: 1.0
+        description: "Focal loss alpha parameter"
+        
+      gamma:
+        param_name: "cls_focal_gamma"
+        type: "float"
+        min: 1.0
+        max: 5.0
+        description: "Focal loss gamma parameter"
+
+# Verification losses  
+verification:
+  contrastive:
+    name: "ContrastiveLoss"
+    description: "Contrastive loss for verification"
+    
+    params:
+      margin:
+        param_name: "ver_contrastive_margin"
+        type: "float"
+        min: 0.5
+        max: 2.0
+        description: "Contrastive loss margin"
+        
+      pos_weight:
+        param_name: "ver_contrastive_pos_weight"
+        type: "float"
+        min: 0.5
+        max: 2.0
+        description: "Weight for positive pairs"
+  
+  triplet:
+    name: "TripletLoss"
+    description: "Triplet loss for verification"
+    
+    params:
+      margin:
+        param_name: "ver_triplet_margin"
+        type: "float"
+        min: 0.1
+        max: 1.0
+        description: "Triplet loss margin"
+        
+      mining_strategy:
+        param_name: "ver_triplet_mining"
+        type: "categorical"
+        choices: ["random", "hard", "semi_hard", "distance_weighted"]
+        description: "Triplet mining strategy"
+        
+      distance_metric:
+        param_name: "ver_triplet_distance"
+        type: "categorical"
+        choices: ["euclidean", "cosine", "manhattan"]
+        description: "Distance metric for triplet loss"
+  
+  arcface:
+    name: "ArcFaceLoss"
+    description: "ArcFace loss for verification"
+    
+    params:
+      scale:
+        param_name: "ver_arcface_scale"
+        type: "float"
+        min: 10.0
+        max: 64.0
+        description: "ArcFace scale parameter"
+        
+      margin:
+        param_name: "ver_arcface_margin"
+        type: "float"
+        min: 0.1
+        max: 0.8
+        description: "ArcFace margin parameter"
+  
+  binary_cross_entropy:
+    name: "BinaryCrossEntropyLoss"
+    description: "Binary cross-entropy for verification"
+    
+    params:
+      pos_weight:
+        param_name: "ver_bce_pos_weight"
+        type: "float"
+        min: 0.5
+        max: 2.0
+        description: "Weight for positive class"
+        
+      label_smoothing:
+        param_name: "ver_bce_label_smoothing"
+        type: "float"
+        min: 0.0
+        max: 0.2
+        description: "Label smoothing for BCE"
+
+# Loss type selection
+loss_type:
+  classification:
+    param_name: "classification_loss_type"
+    type: "categorical"
+    choices: ["cross_entropy", "focal_loss"]
+    description: "Classification loss function"
+    
+  verification:
+    param_name: "verification_loss_type"
+    type: "categorical"
+    choices: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
+    description: "Verification loss function"

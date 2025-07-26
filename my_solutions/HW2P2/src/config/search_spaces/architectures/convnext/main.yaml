@@ -1,0 +1,36 @@
+# ConvNeXt architecture main configuration
+# @package architectures.convnext
+
+defaults:
+  - _self_
+  - blocks/convnext_block@blocks.convnext_block
+  - blocks/convnext_stem@blocks.stem
+
+name: "ConvNeXt"
+description: "ConvNeXt architecture with modern design principles"
+
+# Global architecture parameters
+structure_params:
+  variant:
+    param_name: "convnext_variant"
+    type: "categorical"
+    choices: ["tiny", "small", "base", "large"]
+    description: "ConvNeXt model variant"
+    
+  width_multiplier:
+    param_name: "width_multiplier"
+    type: "float"
+    min: 0.5
+    max: 2.0
+    description: "Channel width multiplier"
+
+# Display configuration for logging
+display:
+  key_params: ["variant", "width_multiplier"]
+  template: "ConvNeXt config: variant={variant}, width={width_multiplier}"
+  secondary_params: ["stem_activation", "convnext_activation"]
+
+# Parameter estimation hints
+parameter_estimation:
+  base_params_per_layer: 800
+  width_scaling_factor: 1.4

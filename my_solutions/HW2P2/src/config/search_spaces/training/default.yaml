@@ -1,0 +1,101 @@
+# Training Parameters Search Space
+# Universal training hyperparameters for all tasks
+
+# Optimizer configuration search space
+optimizer:
+  type:
+    param_name: "optimizer_type"
+    type: "categorical" 
+    choices: ["adam", "sgd", "adamw", "rmsprop"]
+    description: "Optimizer type"
+    
+  learning_rate:
+    param_name: "learning_rate"
+    type: "float"
+    min: 1e-5
+    max: 1e-1
+    log: true
+    description: "Initial learning rate"
+    
+  weight_decay:
+    param_name: "weight_decay"
+    type: "float"
+    min: 1e-6
+    max: 1e-2
+    log: true
+    description: "Weight decay coefficient"
+    
+  momentum:
+    param_name: "momentum"
+    type: "float"
+    min: 0.8
+    max: 0.99
+    description: "Momentum for SGD optimizer"
+    condition: "optimizer_type == 'sgd'"
+
+# Training strategy search space
+batch_size:
+  param_name: "batch_size"
+  type: "categorical"
+  choices: [16, 32, 64, 128, 256]
+  description: "Training batch size"
+
+epochs:
+  param_name: "epochs"
+  type: "int"
+  min: 50
+  max: 200
+  description: "Maximum training epochs"
+
+# Learning rate scheduling
+lr_scheduler:
+  type:
+    param_name: "lr_scheduler_type"
+    type: "categorical"
+    choices: ["cosine", "step", "plateau", "exponential"]
+    description: "Learning rate scheduler type"
+    
+  warmup_epochs:
+    param_name: "warmup_epochs"
+    type: "int"
+    min: 0
+    max: 10
+    description: "Number of warmup epochs"
+
+# Data augmentation
+augmentation:
+  strength:
+    param_name: "aug_strength"
+    type: "float"
+    min: 0.3
+    max: 1.5
+    description: "Data augmentation strength"
+    
+  mixup_alpha:
+    param_name: "mixup_alpha"
+    type: "float"
+    min: 0.0
+    max: 0.4
+    description: "Mixup alpha parameter"
+    
+  cutmix_beta:
+    param_name: "cutmix_beta"
+    type: "float"
+    min: 0.0
+    max: 1.0
+    description: "CutMix beta parameter"
+
+# Regularization
+dropout:
+  rate:
+    param_name: "dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.6
+    description: "Dropout rate"
+    
+  schedule:
+    param_name: "dropout_schedule"
+    type: "categorical"
+    choices: ["fixed", "linear_decay", "cosine_decay"]
+    description: "Dropout scheduling strategy"

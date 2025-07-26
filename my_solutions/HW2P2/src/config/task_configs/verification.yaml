@@ -1,0 +1,105 @@
+# Verification Task Configuration
+# @package _global_
+
+defaults:
+  - ../search_spaces/architectures/resnet: main  # Default architecture search space (shared with classification)
+  - ../search_spaces/training: default     # Training parameters search space (shared)
+  - ../search_spaces/verification_heads: all  # Verification heads search space
+  - ../search_spaces/losses: all           # Loss functions search space (shared)
+  - _self_
+
+# Task identification  
+task: verification
+
+# Verification-specific settings
+verification:
+  pair_sampling: "balanced"  # balanced, hard_negative, random
+  positive_ratio: 0.5
+  hard_negative_ratio: 0.2
+  
+  # Siamese network configuration
+  shared_weights: true
+  
+  # Feature processing
+  normalize_features: true
+  feature_dim: 512
+
+# Optuna optimization settings
+optuna:
+  study_name: "verification_optimization"  
+  n_trials: 100
+  param_limit: 20000000  # 20M parameters
+  direction: "maximize"  # Maximize AUC
+  
+  # Pruning configuration
+  pruner:
+    type: "median"
+    n_startup_trials: 10
+    n_warmup_steps: 5
+
+# WandB logging
+wandb:
+  use_wandb: true
+  project: "hw2p2_verification"
+  entity: null  # Set your wandb entity
+  tags: ["verification", "siamese", "face_verification", "optuna"]
+  log_code: true
+
+# Data configuration
+data:
+  task: "verification"
+  batch_size: 64  # Default, will be overridden by search space
+  num_workers: 4
+  pin_memory: true
+  
+  # Data paths
+  train_pairs: "data/train_pairs.txt"
+  val_pairs: "data/val_pairs.txt"
+  images_dir: "data/ver_data"
+  
+  # Data augmentation
+  image_size: 224
+  normalize: true
+  augmentation_sync: true  # Apply same augmentation to both images in pair
+
+# Training configuration
+training:
+  max_epochs: 50  # Typically fewer epochs for verification
+  early_stopping_patience: 8
+  early_stopping_metric: "val_auc"
+  early_stopping_mode: "max"
+  
+  # Mixed precision training
+  use_amp: true
+  
+  # Gradient clipping
+  grad_clip_norm: 1.0
+  
+  # Verification-specific training settings
+  verification_margin: 1.0  # Default margin for contrastive/triplet loss
+
+# Model saving
+checkpoints:
+  save_top_k: 3
+  monitor: "val_auc"
+  mode: "max" 
+  save_dir: "./checkpoints/verification"
+
+# Evaluation metrics
+metrics:
+  primary: "auc"  # Primary metric for optimization
+  track:
+    - "auc"
+    - "accuracy"
+    - "eer"  # Equal Error Rate
+    - "threshold_accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+
+# Threshold optimization
+threshold_optimization:
+  enabled: true
+  range: [0.1, 0.9]
+  steps: 50
+  metric: "accuracy"  # Metric to optimize threshold for

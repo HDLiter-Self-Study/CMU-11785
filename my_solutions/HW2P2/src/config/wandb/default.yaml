@@ -1,0 +1,6 @@
+# WandB logging configuration  
+# @package wandb
+
+use_wandb: true           # Set to True to enable WandB logging
+wandb_online: true        # Set to True for online logging, False for offline
+wandb_project: "CMU_11785_HW2P2"

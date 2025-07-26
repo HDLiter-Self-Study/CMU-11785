@@ -1,0 +1,6 @@
+# Disabled WandB logging configuration  
+# @package wandb
+
+use_wandb: false         # Disable WandB logging
+wandb_online: false      
+wandb_project: "CMU_11785_HW2P2"

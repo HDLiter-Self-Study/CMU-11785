@@ -1,0 +1,71 @@
+# ResNet Stem configuration
+# @package blocks.stem
+
+name: "ResNetStem"
+description: "Initial stem layers for ResNet (conv + pool)"
+
+# Stem specific parameters
+params:
+  channels:
+    param_name: "stem_channels"
+    type: "categorical"
+    choices: [32, 64, 96, 128]
+    description: "Number of channels in stem convolution"
+    
+  activation:
+    param_name: "stem_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "leaky_relu", "elu"]
+    description: "Activation function for stem"
+    
+  normalization:
+    param_name: "stem_normalization"
+    type: "categorical"
+    choices: ["batch_norm", "group_norm", "layer_norm"]
+    description: "Normalization method for stem"
+    
+  # Stem architecture options
+  kernel_size:
+    param_name: "stem_kernel_size"
+    type: "categorical"
+    choices: [3, 5, 7]
+    description: "Kernel size for initial convolution"
+    
+  stride:
+    param_name: "stem_stride"
+    type: "categorical"
+    choices: [1, 2]
+    description: "Stride for initial convolution"
+    
+  use_maxpool:
+    param_name: "stem_use_maxpool"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to use max pooling after initial conv"
+    
+  pool_size:
+    param_name: "stem_pool_size"
+    type: "categorical"
+    choices: [2, 3]
+    description: "Max pool kernel size"
+    condition: "stem_use_maxpool == true"
+    
+  # Advanced stem options
+  use_stem_dropout:
+    param_name: "stem_dropout"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to apply dropout in stem"
+    
+  stem_dropout_rate:
+    param_name: "stem_dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.2
+    description: "Dropout rate in stem"
+    condition: "stem_dropout == true"
+
+# Stem parameter estimation
+parameter_estimation:
+  params_per_channel: 147  # Rough estimate
+  base_params: 9408

@@ -11,6 +11,16 @@ src/
 ├── train.py                   # Main training script
 ├── evaluate.py                # Evaluation script for test dataset
 ├── training_functions.py      # Training and validation functions
+├── optimizers/                # Optimizer modules (Optuna-based)
+│   ├── __init__.py
+│   ├── base_optimizer.py      # Base optimizer class
+│   ├── classification_optimizer.py    # Classification-specific optimizer
+│   └── verification_optimizer.py     # Verification-specific optimizer
+├── adapters/                  # Task adapter modules (Adapter Pattern)
+│   ├── __init__.py
+│   ├── base_adapter.py        # Base adapter interface
+│   ├── classification_adapter.py     # Classification task adapter
+│   └── verification_adapter.py      # Verification task adapter
 ├── data/                      # Data handling modules
 │   ├── __init__.py
 │   ├── datasets.py            # Dataset classes

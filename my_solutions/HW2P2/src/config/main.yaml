@@ -1,0 +1,18 @@
+# Main configuration file
+# @package _global_
+
+defaults:
+  - data: default  
+  - wandb: default
+  - _self_
+
+# Global settings
+device: cuda  # Will be auto-detected if not specified
+seed: 42
+
+# Evaluation flags  
+eval_cls: true    # Whether to evaluate classification task
+eval_ver: true    # Whether to evaluate verification task
+
+# Resume training
+resume_from: null  # Path to checkpoint to resume from (e.g., "./checkpoints/last.pth")

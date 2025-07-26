@@ -1,0 +1,80 @@
+# Classification Task Configuration
+# @package _global_
+
+defaults:
+  - ../search_spaces/architectures/resnet: main  # Default architecture search space
+  - ../search_spaces/training: default     # Training parameters search space  
+  - ../search_spaces/classification_heads: all  # Classification heads search space
+  - ../search_spaces/losses: all           # Loss functions search space
+  - _self_
+
+# Task identification
+task: classification
+
+# Classification-specific settings
+num_classes: 11785  # Adjust based on your dataset
+
+# Optuna optimization settings
+optuna:
+  study_name: "classification_optimization"
+  n_trials: 100
+  param_limit: 20000000  # 20M parameters
+  direction: "maximize"  # Maximize accuracy
+  
+  # Pruning configuration
+  pruner:
+    type: "median"
+    n_startup_trials: 10
+    n_warmup_steps: 5
+
+# WandB logging
+wandb:
+  use_wandb: true
+  project: "hw2p2_classification"
+  entity: null  # Set your wandb entity
+  tags: ["classification", "optuna", "hyperparameter_search"]
+  log_code: true
+
+# Data configuration
+data:
+  task: "classification"
+  batch_size: 64  # Default, will be overridden by search space
+  num_workers: 4
+  pin_memory: true
+  
+  # Data paths
+  train_dir: "data/cls_data/train"
+  val_dir: "data/cls_data/dev"
+  
+  # Data augmentation (basic settings, detailed search in search_spaces)
+  image_size: 224
+  normalize: true
+
+# Training configuration  
+training:
+  max_epochs: 100  # Default, will be overridden by search space
+  early_stopping_patience: 10
+  early_stopping_metric: "val_accuracy"
+  early_stopping_mode: "max"
+  
+  # Mixed precision training
+  use_amp: true
+  
+  # Gradient clipping
+  grad_clip_norm: 1.0
+
+# Model saving
+checkpoints:
+  save_top_k: 3
+  monitor: "val_accuracy"
+  mode: "max"
+  save_dir: "./checkpoints/classification"
+
+# Evaluation metrics
+metrics:
+  primary: "accuracy"  # Primary metric for optimization
+  track:
+    - "accuracy" 
+    - "top5_accuracy"
+    - "loss"
+    - "f1_score"

@@ -1,0 +1,57 @@
+# Verification Finetune Configuration
+# Optimized for fine-tuning from classification models
+# @package _global_
+
+defaults:
+  - verification  # Inherit from base verification config
+  - _self_
+
+# Override for fine-tuning mode
+mode: finetune_from_classification
+
+# Fine-tuning specific settings
+finetune:
+  # Pretrained model loading
+  load_classification_model: true
+  classification_checkpoint_path: null  # Will be set by optimizer
+  
+  # Layer freezing strategy
+  freeze_backbone: false
+  freeze_early_layers: true
+  trainable_layers: -3  # Train last 3 layers
+  
+  # Learning rate strategy for fine-tuning
+  backbone_lr_multiplier: 0.01  # Much smaller LR for pretrained backbone
+  head_lr_multiplier: 1.0      # Normal LR for new verification head
+
+# Override training settings for fine-tuning
+training:
+  max_epochs: 30  # Fewer epochs for fine-tuning
+  early_stopping_patience: 8
+  
+  # Conservative learning rates
+  learning_rate_range: [1e-6, 1e-3]  # Narrower range for fine-tuning
+  
+  # Lighter data augmentation for fine-tuning
+  augmentation_strength: 0.7
+
+# Override Optuna settings for fine-tuning
+optuna:
+  study_name: "verification_finetune_optimization"
+  n_trials: 50  # Fewer trials needed for fine-tuning
+  
+  # Fine-tuning specific hyperparameters to optimize
+  focus_params:
+    - "backbone_lr_multiplier"
+    - "trainable_layers" 
+    - "verification_head_type"
+    - "verification_loss_type"
+    - "freeze_early_layers"
+
+# Override WandB tags
+wandb:
+  tags: ["verification", "finetune", "transfer_learning", "optuna"]
+
+# Model saving for fine-tuning
+checkpoints:
+  save_dir: "./checkpoints/verification_finetune"

@@ -1,0 +1,10 @@
+# Data paths and settings configuration
+# @package data
+
+# Data directories
+data_dir: "./data/cls_data"      # Classification data directory
+data_ver_dir: "./data/ver_data"  # Verification data directory
+
+# Data loading settings
+num_workers: 4       # Number of data loading workers
+pin_memory: true     # Whether to use pinned memory

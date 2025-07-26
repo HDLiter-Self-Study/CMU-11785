@@ -1,0 +1,45 @@
+# SENet architecture main configuration
+# @package architectures.senet
+
+defaults:
+  - _self_
+  - blocks/se_basic_block@blocks.se_basic
+  - blocks/se_bottleneck_block@blocks.se_bottleneck
+  - blocks/se_stem@blocks.stem
+
+name: "SENet"
+description: "Squeeze-and-Excitation Network with hierarchical block configuration"
+
+# Global architecture parameters
+structure_params:
+  depth:
+    param_name: "senet_depth"
+    type: "int"
+    min: 18
+    max: 154
+    description: "Number of layers in SENet"
+    
+  width_multiplier:
+    param_name: "width_multiplier"
+    type: "float"
+    min: 0.5
+    max: 2.0
+    description: "Channel width multiplier"
+    
+  block_type:
+    param_name: "block_type"
+    type: "categorical"
+    choices: ["se_basic", "se_bottleneck"]
+    description: "Type of SE block"
+
+# Display configuration for logging
+display:
+  key_params: ["depth", "width_multiplier", "block_type"]
+  template: "SENet config: depth={depth}, width={width_multiplier}, block={block_type}"
+  secondary_params: ["stem_activation", "se_basic_activation", "se_bottleneck_activation"]
+
+# Parameter estimation hints
+parameter_estimation:
+  base_params_per_layer: 1200
+  width_scaling_factor: 1.6
+  se_overhead: 0.05

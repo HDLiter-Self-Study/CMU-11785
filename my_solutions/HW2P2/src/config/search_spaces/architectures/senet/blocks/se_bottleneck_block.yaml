@@ -1,0 +1,53 @@
+# SENet Bottleneck Block configuration
+# @package blocks.se_bottleneck
+
+name: "SEBottleneckBlock"
+description: "Bottleneck SE block with squeeze-and-excitation attention"
+
+# SE Bottleneck block specific parameters
+params:
+  activation:
+    param_name: "se_bottleneck_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "leaky_relu", "elu"]
+    description: "Activation function for SE bottleneck blocks"
+    
+  normalization:
+    param_name: "se_bottleneck_normalization"
+    type: "categorical"
+    choices: ["batch_norm", "group_norm", "layer_norm"]
+    description: "Normalization method for SE bottleneck blocks"
+    
+  dropout_rate:
+    param_name: "se_bottleneck_dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.4
+    description: "Dropout rate in SE bottleneck blocks"
+    
+  # SE specific parameters
+  se_ratio:
+    param_name: "se_bottleneck_ratio"
+    type: "int"
+    min: 4
+    max: 32
+    description: "SE reduction ratio for bottleneck blocks"
+    
+  se_activation:
+    param_name: "se_bottleneck_se_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "sigmoid"]
+    description: "Activation function in SE module"
+    
+  # Bottleneck specific options
+  expansion_ratio:
+    param_name: "se_bottleneck_expansion"
+    type: "int"
+    min: 2
+    max: 8
+    description: "Expansion ratio for bottleneck"
+
+# Block-specific parameter estimation
+parameter_estimation:
+  base_params: 152000
+  se_params_ratio: 0.04

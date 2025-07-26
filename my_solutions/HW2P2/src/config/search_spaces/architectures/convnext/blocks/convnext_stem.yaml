@@ -1,0 +1,36 @@
+# ConvNeXt Stem configuration
+# @package blocks.stem
+
+name: "ConvNeXtStem"
+description: "ConvNeXt initial stem layers"
+
+# Stem specific parameters
+params:
+  channels:
+    param_name: "stem_channels"
+    type: "categorical"
+    choices: [64, 96, 128]
+    description: "Number of channels in stem"
+    
+  activation:
+    param_name: "stem_activation"
+    type: "categorical"
+    choices: ["gelu", "relu", "swish"]
+    description: "Activation function for stem"
+    
+  normalization:
+    param_name: "stem_normalization"
+    type: "categorical"
+    choices: ["layer_norm", "batch_norm"]
+    description: "Normalization method for stem"
+    
+  # Stem architecture options
+  patch_size:
+    param_name: "stem_patch_size"
+    type: "categorical"
+    choices: [2, 4, 8]
+    description: "Patch size for patchify stem"
+
+# Stem parameter estimation
+parameter_estimation:
+  base_params: 12000

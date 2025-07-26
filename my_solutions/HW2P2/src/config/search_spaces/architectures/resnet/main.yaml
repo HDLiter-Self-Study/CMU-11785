@@ -1,0 +1,45 @@
+# ResNet architecture main configuration
+# @package architectures.resnet
+
+defaults:
+  - _self_
+  - blocks/basic_block@blocks.basic
+  - blocks/bottleneck_block@blocks.bottleneck
+  - blocks/stem@blocks.stem
+
+name: "ResNet"
+description: "Residual Network architecture with configurable depth and width"
+
+# Global architecture parameters
+structure_params:
+  depth:
+    param_name: "resnet_depth"
+    type: "int"
+    min: 18
+    max: 152
+    description: "Number of layers in ResNet (18, 34, 50, 101, 152)"
+    
+  width_multiplier:
+    param_name: "width_multiplier"
+    type: "float"
+    min: 0.5
+    max: 2.0
+    description: "Channel width multiplier"
+    
+  # Block type selection drives which block configs to use
+  block_type:
+    param_name: "block_type"
+    type: "categorical"
+    choices: ["basic", "bottleneck"]
+    description: "Type of residual block"
+
+# Display configuration for logging
+display:
+  key_params: ["depth", "width_multiplier", "block_type"]
+  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}"
+  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation"]
+
+# Parameter estimation hints
+parameter_estimation:
+  base_params_per_layer: 1000
+  width_scaling_factor: 1.5

@@ -1,0 +1,47 @@
+# ConvNeXt Block configuration
+# @package blocks.convnext_block
+
+name: "ConvNeXtBlock"
+description: "ConvNeXt block with depthwise convolutions and modern design"
+
+# ConvNeXt block specific parameters
+params:
+  activation:
+    param_name: "convnext_activation"
+    type: "categorical"
+    choices: ["gelu", "relu", "swish", "leaky_relu"]
+    description: "Activation function for ConvNeXt blocks"
+    
+  normalization:
+    param_name: "convnext_normalization"
+    type: "categorical"
+    choices: ["layer_norm", "batch_norm", "group_norm"]
+    description: "Normalization method for ConvNeXt blocks"
+    
+  dropout_rate:
+    param_name: "convnext_dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.4
+    description: "Dropout rate in ConvNeXt blocks"
+    
+  # ConvNeXt specific options
+  expansion_ratio:
+    param_name: "convnext_expansion"
+    type: "int"
+    min: 2
+    max: 8
+    description: "Expansion ratio for feed-forward layer"
+    
+  layer_scale_init:
+    param_name: "convnext_layer_scale"
+    type: "float"
+    min: 1e-6
+    max: 1e-4
+    log: true
+    description: "Layer scale initialization value"
+
+# Block-specific parameter estimation
+parameter_estimation:
+  base_params: 88000
+  expansion_scaling: 1.3
