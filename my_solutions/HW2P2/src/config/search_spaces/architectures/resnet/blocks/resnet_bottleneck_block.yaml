@@ -1,0 +1,121 @@
+# ResNet Bottleneck Block configuration
+# @package blocks.resnet_bottleneck
+
+name: "BottleneckBlock"
+description: "Bottleneck residual block with 1x1-3x3-1x1 conv layers"
+
+# Bottleneck block specific parameters
+params:
+  activation:
+    param_name: "resnet_bottleneck_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+    description: "Activation function for bottleneck blocks"
+    
+  normalization:
+    param_name: "resnet_bottleneck_normalization"
+    type: "categorical"
+    choices: ["batch_norm", "group_norm", "layer_norm", "instance_norm"]
+    description: "Normalization method for bottleneck blocks"
+    
+  # Activation function parameters
+  activation_params:
+    leaky_relu:
+      negative_slope:
+        param_name: "resnet_bottleneck_leaky_relu_slope"
+        type: "categorical"
+        choices: [0.01, 0.1]
+        default: 0.01
+        description: "Negative slope for LeakyReLU"
+    elu:
+      alpha:
+        param_name: "resnet_bottleneck_elu_alpha"
+        type: "categorical"
+        choices: [1.0]
+        default: 1.0
+        description: "Alpha for ELU"
+        
+  # Normalization parameters
+  normalization_params:
+    batch_norm:
+      eps:
+        param_name: "resnet_bottleneck_bn_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for BatchNorm2d"
+      momentum:
+        param_name: "resnet_bottleneck_bn_momentum"
+        type: "categorical"
+        choices: [0.1]
+        default: 0.1
+        description: "Momentum for BatchNorm2d"
+    group_norm:
+      num_groups:
+        param_name: "resnet_bottleneck_gn_num_groups"
+        type: "categorical"
+        choices: [16, 32]
+        default: 32
+        description: "Number of groups for GroupNorm"
+    instance_norm:
+      eps:
+        param_name: "resnet_bottleneck_in_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for InstanceNorm2d"
+    
+  dropout_rate:
+    param_name: "resnet_bottleneck_dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.4
+    description: "Dropout rate in bottleneck blocks"
+    
+  # Bottleneck specific options
+  expansion_ratio:
+    param_name: "resnet_bottleneck_expansion"
+    type: "int"
+    min: 2
+    max: 8
+    description: "Expansion ratio for bottleneck blocks"
+    
+  mid_activation:
+    param_name: "resnet_bottleneck_mid_activation"
+    type: "categorical"
+    choices: ["same", "relu", "gelu", "swish"]
+    description: "Middle layer activation (same = use main activation)"
+    
+  # Advanced bottleneck options
+  use_zero_init:
+    param_name: "resnet_bottleneck_zero_init"
+    type: "categorical"
+    choices: [true, false]
+    description: "Zero initialize final batch norm"
+    
+  use_se:
+    param_name: "resnet_bottleneck_use_se"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to add SE module to bottleneck blocks"
+    
+  se_ratio:
+    param_name: "resnet_bottleneck_se_ratio"
+    type: "int"
+    min: 4
+    max: 32
+    description: "SE reduction ratio for bottleneck blocks"
+    condition: "resnet_bottleneck_use_se == true"
+    
+  # Convolution variants
+  use_depthwise:
+    param_name: "resnet_bottleneck_depthwise"
+    type: "categorical"
+    choices: [true, false]
+    description: "Use depthwise separable conv in middle layer"
+
+# Block-specific parameter estimation
+parameter_estimation:
+  base_params: 147456  # Approximate params for bottleneck block
+  expansion_scaling: 1.2
+  se_overhead: 0.015

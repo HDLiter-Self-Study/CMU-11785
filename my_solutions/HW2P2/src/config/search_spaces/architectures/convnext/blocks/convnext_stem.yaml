@@ -1,32 +1,66 @@
 # ConvNeXt Stem configuration
-# @package blocks.stem
+# @package blocks.convnext_stem
 
 name: "ConvNeXtStem"
 description: "ConvNeXt initial stem layers"
 
 # Stem specific parameters
 params:
+  activation:
+    param_name: "convnext_stem_activation"
+    type: "categorical"
+    choices: ["gelu", "relu", "swish", "leaky_relu"]
+    description: "Activation function for stem"
+    
+  normalization:
+    param_name: "convnext_stem_normalization"
+    type: "categorical"
+    choices: ["layer_norm", "batch_norm", "group_norm"]
+    description: "Normalization method for stem"
+    
+  # Activation function parameters
+  activation_params:
+    leaky_relu:
+      negative_slope:
+        param_name: "convnext_stem_leaky_relu_slope"
+        type: "categorical"
+        choices: [0.01, 0.1]
+        default: 0.01
+        description: "Negative slope for LeakyReLU"
+        
+  # Normalization parameters
+  normalization_params:
+    batch_norm:
+      eps:
+        param_name: "convnext_stem_bn_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for BatchNorm2d"
+      momentum:
+        param_name: "convnext_stem_bn_momentum"
+        type: "categorical"
+        choices: [0.1]
+        default: 0.1
+        description: "Momentum for BatchNorm2d"
+    group_norm:
+      num_groups:
+        param_name: "convnext_stem_gn_num_groups"
+        type: "categorical"
+        choices: [32]
+        default: 32
+        description: "Number of groups for GroupNorm"
+    
+  # Stem architecture options
   channels:
-    param_name: "stem_channels"
+    param_name: "convnext_stem_channels"
     type: "categorical"
     choices: [64, 96, 128]
     description: "Number of channels in stem"
     
-  activation:
-    param_name: "stem_activation"
-    type: "categorical"
-    choices: ["gelu", "relu", "swish"]
-    description: "Activation function for stem"
-    
-  normalization:
-    param_name: "stem_normalization"
-    type: "categorical"
-    choices: ["layer_norm", "batch_norm"]
-    description: "Normalization method for stem"
-    
   # Stem architecture options
   patch_size:
-    param_name: "stem_patch_size"
+    param_name: "convnext_stem_patch_size"
     type: "categorical"
     choices: [2, 4, 8]
     description: "Patch size for patchify stem"

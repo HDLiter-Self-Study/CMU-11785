@@ -3,9 +3,9 @@
 
 defaults:
   - _self_
-  - blocks/basic_block@blocks.basic
-  - blocks/bottleneck_block@blocks.bottleneck
-  - blocks/stem@blocks.stem
+  - blocks/resnet_basic_block@blocks.resnet_basic
+  - blocks/resnet_bottleneck_block@blocks.resnet_bottleneck
+  - blocks/resnet_stem@blocks.resnet_stem
 
 name: "ResNet"
 description: "Residual Network architecture with configurable depth and width"

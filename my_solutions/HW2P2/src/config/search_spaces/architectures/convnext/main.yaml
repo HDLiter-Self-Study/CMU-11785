@@ -4,7 +4,7 @@
 defaults:
   - _self_
   - blocks/convnext_block@blocks.convnext_block
-  - blocks/convnext_stem@blocks.stem
+  - blocks/convnext_stem@blocks.convnext_stem
 
 name: "ConvNeXt"
 description: "ConvNeXt architecture with modern design principles"

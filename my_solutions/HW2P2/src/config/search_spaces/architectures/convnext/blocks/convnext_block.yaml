@@ -7,19 +7,52 @@ description: "ConvNeXt block with depthwise convolutions and modern design"
 # ConvNeXt block specific parameters
 params:
   activation:
-    param_name: "convnext_activation"
+    param_name: "convnext_block_activation"
     type: "categorical"
     choices: ["gelu", "relu", "swish", "leaky_relu"]
     description: "Activation function for ConvNeXt blocks"
     
   normalization:
-    param_name: "convnext_normalization"
+    param_name: "convnext_block_normalization"
     type: "categorical"
     choices: ["layer_norm", "batch_norm", "group_norm"]
     description: "Normalization method for ConvNeXt blocks"
     
+  # Activation function parameters
+  activation_params:
+    leaky_relu:
+      negative_slope:
+        param_name: "convnext_block_leaky_relu_slope"
+        type: "categorical"
+        choices: [0.01, 0.1]
+        default: 0.01
+        description: "Negative slope for LeakyReLU"
+        
+  # Normalization parameters
+  normalization_params:
+    batch_norm:
+      eps:
+        param_name: "convnext_block_bn_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for BatchNorm2d"
+      momentum:
+        param_name: "convnext_block_bn_momentum"
+        type: "categorical"
+        choices: [0.1]
+        default: 0.1
+        description: "Momentum for BatchNorm2d"
+    group_norm:
+      num_groups:
+        param_name: "convnext_block_gn_num_groups"
+        type: "categorical"
+        choices: [16, 32]
+        default: 32
+        description: "Number of groups for GroupNorm"
+    
   dropout_rate:
-    param_name: "convnext_dropout_rate"
+    param_name: "convnext_block_dropout_rate"
     type: "float"
     min: 0.0
     max: 0.4
@@ -27,14 +60,14 @@ params:
     
   # ConvNeXt specific options
   expansion_ratio:
-    param_name: "convnext_expansion"
+    param_name: "convnext_block_expansion"
     type: "int"
     min: 2
     max: 8
     description: "Expansion ratio for feed-forward layer"
     
   layer_scale_init:
-    param_name: "convnext_layer_scale"
+    param_name: "convnext_block_layer_scale"
     type: "float"
     min: 1e-6
     max: 1e-4

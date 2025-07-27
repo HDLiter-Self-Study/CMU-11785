@@ -1,0 +1,106 @@
+# ResNet Basic Block configuration
+# @package blocks.resnet_basic
+
+name: "BasicBlock"
+description: "Basic residual block with 2 conv layers"
+
+# Basic block specific parameters
+params:
+  activation:
+    param_name: "resnet_basic_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "leaky_relu", "elu"]
+    description: "Activation function for basic blocks"
+    
+  normalization:
+    param_name: "resnet_basic_normalization"
+    type: "categorical"
+    choices: ["batch_norm", "group_norm", "layer_norm", "instance_norm"]
+    description: "Normalization method for basic blocks"
+    
+  # Activation function parameters
+  activation_params:
+    leaky_relu:
+      negative_slope:
+        param_name: "resnet_basic_leaky_relu_slope"
+        type: "categorical"
+        choices: [0.01, 0.1]
+        default: 0.01
+        description: "Negative slope for LeakyReLU"
+    elu:
+      alpha:
+        param_name: "resnet_basic_elu_alpha"
+        type: "categorical"
+        choices: [1.0]
+        default: 1.0
+        description: "Alpha for ELU"
+        
+  # Normalization parameters
+  normalization_params:
+    batch_norm:
+      eps:
+        param_name: "resnet_basic_bn_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for BatchNorm2d"
+      momentum:
+        param_name: "resnet_basic_bn_momentum"
+        type: "categorical"
+        choices: [0.1]
+        default: 0.1
+        description: "Momentum for BatchNorm2d"
+    group_norm:
+      num_groups:
+        param_name: "resnet_basic_gn_num_groups"
+        type: "categorical"
+        choices: [16, 32]
+        default: 32
+        description: "Number of groups for GroupNorm"
+    instance_norm:
+      eps:
+        param_name: "resnet_basic_in_eps"
+        type: "categorical"
+        choices: [1e-5]
+        default: 1e-5
+        description: "Epsilon for InstanceNorm2d"
+    
+  dropout_rate:
+    param_name: "resnet_basic_dropout_rate"
+    type: "float"
+    min: 0.0
+    max: 0.3
+    description: "Dropout rate in basic blocks"
+    
+  # Basic block specific options
+  use_residual_scaling:
+    param_name: "resnet_basic_residual_scaling"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to scale residual connection"
+    
+  conv_kernel_size:
+    param_name: "resnet_basic_conv_kernel"
+    type: "categorical"
+    choices: [3, 5]
+    description: "Convolution kernel size for basic blocks"
+    
+  # Advanced options
+  use_se:
+    param_name: "resnet_basic_use_se"
+    type: "categorical"
+    choices: [true, false]
+    description: "Whether to add SE module to basic blocks"
+    
+  se_ratio:
+    param_name: "resnet_basic_se_ratio"
+    type: "int"
+    min: 4
+    max: 16
+    description: "SE reduction ratio for basic blocks"
+    condition: "resnet_basic_use_se == true"  # Only used if SE is enabled
+
+# Block-specific parameter estimation
+parameter_estimation:
+  base_params: 36864  # Approximate params for basic block
+  se_overhead: 0.02   # Additional params when SE is used
