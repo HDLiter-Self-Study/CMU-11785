@@ -49,55 +49,48 @@ class ResNet(BaseArchitecture):
         channels = [int(c * width_mult) for c in [64, 128, 256, 512]]
 
         # Stem
-        self.stem = None  # TODO
+        self.stem = None  # TODO: 7x7 conv, bn, relu, 3x3 maxpool
 
         # ResNet layers
-        self.layers = nn.ModuleList()
-        in_channels = stem_channels
+        self.layers = None  # TODO: create 4 layers with proper channel progression
 
-        for i, num_blocks in enumerate(layers):
-            out_channels = channels[i]
-            stride = 1 if i == 0 else 2
-
-            layer_blocks = []
-            for j in range(num_blocks):
-                block_in_channels = in_channels if j == 0 else out_channels * block_class.expansion
-                block = None  # TODO
-                layer_blocks.append(block)
-
-            self.layers.append(nn.Sequential(*layer_blocks))
-            in_channels = out_channels * block_class.expansion
+        # TODO: implement layer creation loop
+        # - Handle stride for downsampling
+        # - Calculate proper in_channels for each block
+        # - Use block_class with proper arguments
 
         # Global average pooling and classifier
-        self.global_pool = None  # TODO
-        self.flatten = None  # TODO
+        self.global_pool = None  # TODO: adaptive average pooling
+        self.flatten = None  # TODO: flatten for classifier
+
+        # TODO: calculate final feature dimension after pooling
+        final_dim = None  # TODO: depends on block expansion
 
         # Add dropout if specified
         dropout_rate = config.get("dropout_rate", 0.0)
         if dropout_rate > 0:
-            self.dropout = nn.Dropout(dropout_rate)
+            self.dropout = None  # TODO
         else:
-            self.dropout = nn.Identity()
+            self.dropout = None  # TODO
 
-        self.classifier = None  # TODO
+        self.classifier = None  # TODO: linear layer with final_dim input
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Forward pass"""
-        # Stem
-        x = None  # TODO
+        # Stem processing
+        x = None  # TODO: pass through stem
 
-        # Feature extraction
+        # Feature extraction through layers
         feats = []
-        for layer in self.layers:
-            x = None  # TODO
-            feats.append(x)
+        # TODO: iterate through self.layers
+        # TODO: collect intermediate features in feats list
 
         # Classification head
-        x = None  # TODO
-        x = None  # TODO
+        x = None  # TODO: global pooling
+        x = None  # TODO: flatten
         features = x  # Save features for verification task
 
-        x = self.dropout(x)
-        x = None  # TODO
+        x = None  # TODO: apply dropout
+        x = None  # TODO: classifier
 
         return {"feats": features, "all_feats": feats, "out": x}

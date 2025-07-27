@@ -16,132 +16,64 @@ class BasicBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, stride: int, config: Dict[str, Any]):
         super().__init__()
 
-        norm_layer = self._get_norm_layer(config)
-        activation = self._get_activation(config)
+        # TODO: get normalization and activation from config
+        norm_layer = None  # TODO
+        activation = None  # TODO
 
-        self.conv1 = None  # TODO
-        self.bn1 = None  # TODO
-        self.conv2 = None  # TODO
-        self.bn2 = None  # TODO
+        # TODO: 3x3 conv -> bn -> 3x3 conv -> bn
+        self.conv1 = None  # TODO: 3x3 conv with stride
+        self.bn1 = None  # TODO: batch norm
+        self.conv2 = None  # TODO: 3x3 conv, stride=1
+        self.bn2 = None  # TODO: batch norm
 
-        self.activation = activation
+        self.activation = None  # TODO
 
-        # Shortcut connection with configurable projection
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = self._build_shortcut(in_channels, out_channels, stride, config)
-        else:
-            self.shortcut = nn.Identity()
+        # TODO: shortcut connection logic
+        # if stride != 1 or in_channels != out_channels:
+        self.shortcut = None  # TODO: build shortcut or Identity
 
-        # SE module if specified
-        if config.get("use_se", False):
-            self.se = SEModule.from_config(out_channels, config)
-        else:
-            self.se = nn.Identity()
+        # TODO: SE module conditional creation
+        self.se = None  # TODO: SEModule or Identity
 
-        # Residual connection parameters
-        self.residual_scale = config.get("residual_scale", 1.0)
-        self.residual_dropout = (
-            nn.Dropout(config.get("residual_dropout", 0.0))
-            if config.get("residual_dropout", 0.0) > 0
-            else nn.Identity()
-        )
+        # TODO: residual connection parameters
+        self.residual_scale = None  # TODO
+        self.residual_dropout = None  # TODO
 
     def _build_shortcut(self, in_channels: int, out_channels: int, stride: int, config: Dict[str, Any]) -> nn.Module:
         """Build shortcut connection based on projection type"""
-        projection_type = config.get("projection_type", "auto")
-        norm_layer = self._get_norm_layer(config)
-        projection_norm = config.get("projection_norm", True)
-
-        # Auto mode: use conv for channel change, pooling for stride-only
-        if projection_type == "auto":
-            if in_channels != out_channels:
-                projection_type = "conv"
-            else:
-                projection_type = "avg_pool"
-
-        if projection_type == "conv":
-            # Standard 1x1 convolution projection
-            layers = [nn.Conv2d(in_channels, out_channels, 1, stride, bias=False)]
-            if projection_norm:
-                layers.append(norm_layer(out_channels))
-            return nn.Sequential(*layers)
-
-        elif projection_type == "avg_pool":
-            # Average pooling + optional channel adjustment
-            layers = []
-            if stride > 1:
-                layers.append(nn.AvgPool2d(stride, stride))
-            if in_channels != out_channels:
-                layers.append(nn.Conv2d(in_channels, out_channels, 1, 1, bias=False))
-                if projection_norm:
-                    layers.append(norm_layer(out_channels))
-            return nn.Sequential(*layers) if layers else nn.Identity()
-
-        elif projection_type == "max_pool":
-            # Max pooling + optional channel adjustment
-            layers = []
-            if stride > 1:
-                layers.append(nn.MaxPool2d(stride, stride))
-            if in_channels != out_channels:
-                layers.append(nn.Conv2d(in_channels, out_channels, 1, 1, bias=False))
-                if projection_norm:
-                    layers.append(norm_layer(out_channels))
-            return nn.Sequential(*layers) if layers else nn.Identity()
-
-        else:
-            # Fallback to standard conv projection
-            layers = [nn.Conv2d(in_channels, out_channels, 1, stride, bias=False)]
-            if projection_norm:
-                layers.append(norm_layer(out_channels))
-            return nn.Sequential(*layers)
+        # TODO: implement projection_type logic (auto, conv, avg_pool, max_pool)
+        # TODO: handle stride and channel changes
+        return None  # TODO
 
     def _get_activation(self, config: Dict[str, Any]) -> nn.Module:
         """Get activation function based on config"""
-        activation = config.get("basic_activation", config.get("activation", "relu"))
-        if activation == "relu":
-            return nn.ReLU(inplace=True)
-        elif activation == "gelu":
-            return nn.GELU()
-        elif activation == "swish":
-            return nn.SiLU()
-        elif activation == "elu":
-            return nn.ELU(inplace=True)
-        elif activation == "leaky_relu":
-            return nn.LeakyReLU(0.1, inplace=True)
-        else:
-            return nn.ReLU(inplace=True)
+        # TODO: support relu, gelu, swish, elu, leaky_relu
+        return None  # TODO
 
     def _get_norm_layer(self, config: Dict[str, Any]):
         """Get normalization layer based on config"""
-        norm = config.get("basic_normalization", config.get("normalization", "batch_norm"))
-        if norm == "batch_norm":
-            return nn.BatchNorm2d
-        elif norm == "group_norm":
-            return lambda channels: nn.GroupNorm(32, channels)
-        elif norm == "layer_norm":
-            return lambda channels: nn.GroupNorm(1, channels)
-        elif norm == "instance_norm":
-            return nn.InstanceNorm2d
-        else:
-            return nn.BatchNorm2d
+        # TODO: support batch_norm, group_norm, layer_norm, instance_norm
+        return None  # TODO
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
 
+        # TODO: conv1 -> bn1 -> activation
         out = None  # TODO
         out = None  # TODO
         out = None  # TODO
 
+        # TODO: conv2 -> bn2 (no activation yet)
         out = None  # TODO
         out = None  # TODO
 
-        # Apply SE attention if enabled
-        out = self.se(out)
+        # TODO: SE attention
+        out = None  # TODO
 
-        # Apply residual connection with configurable scaling and dropout
-        shortcut = self.shortcut(residual)
-        shortcut = self.residual_dropout(shortcut)
-        out += shortcut * self.residual_scale
-        out = self.activation(out)
+        # TODO: residual connection
+        shortcut = None  # TODO
+        shortcut = None  # TODO: dropout
+        out = None  # TODO: add with scaling
+        out = None  # TODO: final activation
 
         return out

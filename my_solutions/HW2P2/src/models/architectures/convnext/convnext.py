@@ -36,60 +36,41 @@ class ConvNeXt(BaseArchitecture):
             dims = [96, 192, 384, 768]
 
         # Stem
-        self.stem = None  # TODO
+        self.stem = None  # TODO: 4x4 conv with stride 4 + layernorm
 
-        # Downsample layers
-        self.downsample_layers = nn.ModuleList()
-        for i in range(4):
-            if i == 0:
-                # First downsample is handled by stem
-                downsample_layer = nn.Identity()
-            else:
-                downsample_layer = nn.Sequential(
-                    nn.GroupNorm(1, dims[i - 1]),
-                    nn.Conv2d(dims[i - 1], dims[i], kernel_size=2, stride=2),
-                )
-            self.downsample_layers.append(downsample_layer)
+        # TODO: create downsample layers
+        self.downsample_layers = None  # TODO: 4 downsample layers
 
-        # ConvNeXt stages
-        self.stages = nn.ModuleList()
-        dp_rates = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
-        cur = 0
+        # TODO: create stage blocks
+        self.stages = None  # TODO: 4 stages with ConvNeXtBlocks
 
-        for i in range(4):
-            stage_blocks = []
-            for j in range(depths[i]):
-                stage_blocks.append(None)  # TODO
-            self.stages.append(nn.Sequential(*stage_blocks))
-            cur += depths[i]
+        # TODO: final norm and pooling
+        self.norm = None  # TODO: final layer norm
+        self.avgpool = None  # TODO: adaptive average pooling
+        self.classifier = None  # TODO: linear classifier
 
-        # Global average pooling and classifier
-        self.global_pool = None  # TODO
-        self.flatten = None  # TODO
-
-        # Add dropout if specified
+        # TODO: dropout
         dropout_rate = config.get("dropout_rate", 0.0)
-        if dropout_rate > 0:
-            self.dropout = nn.Dropout(dropout_rate)
-        else:
-            self.dropout = nn.Identity()
-
-        self.classifier = None  # TODO
+        self.dropout = None  # TODO
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+        # TODO: stem processing
         x = None  # TODO
 
+        # TODO: process through 4 stages with downsampling
         feats = []
-        for i in range(4):
-            x = self.downsample_layers[i](x)
-            x = None  # TODO
-            feats.append(x)
+        # TODO: implement stage processing loop
 
-        x = None  # TODO
-        x = None  # TODO
+        # TODO: final processing
+        x = None  # TODO: final norm
+        x = None  # TODO: global pooling
+        x = None  # TODO: flatten
         features = x
 
-        x = self.dropout(x)
+        x = None  # TODO: dropout
+        x = None  # TODO: classifier
+
+        return {"feats": features, "all_feats": feats, "out": x}
         x = None  # TODO
 
         return {"feats": features, "all_feats": feats, "out": x}
