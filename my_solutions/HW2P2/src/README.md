@@ -27,7 +27,9 @@ src/
 │   └── dataloaders.py         # Data loading utilities
 ├── models/                    # Model definitions
 │   ├── __init__.py
-│   └── network.py             # CNN network architecture
+│   ├── architecture_factory.py  # Factory for creating models
+│   ├── architectures/         # Modern neural network architectures
+│   └── common_blocks/         # Reusable building blocks
 └── utils/                     # Utility functions
     ├── __init__.py
     ├── metrics.py              # Evaluation metrics

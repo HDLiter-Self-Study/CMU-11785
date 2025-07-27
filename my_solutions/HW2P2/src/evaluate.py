@@ -6,7 +6,7 @@ import torch
 import os
 import argparse
 from config import config
-from models import Network
+from models import ArchitectureFactory
 from data import get_verification_dataloaders
 from training_functions import test_epoch_ver
 from utils import load_model
@@ -22,8 +22,18 @@ def evaluate_model(model_path, output_file="verification_submission.csv"):
     _, test_pair_dataloader = get_verification_dataloaders(config)
     print(f"Test batches: {len(test_pair_dataloader)}")
 
-    # Initialize model
-    model = Network().to(DEVICE)
+    # Initialize model using new architecture system
+    model_config = {
+        "architecture": "resnet",
+        "depth": 18,
+        "block_type": "basic",
+        "width_multiplier": 1.0,
+        "num_classes": 8631,  # Default number of classes
+        "use_se": False,
+    }
+
+    factory = ArchitectureFactory()
+    model = factory.create_model(model_config).to(DEVICE)
 
     # Load model checkpoint
     if os.path.exists(model_path):

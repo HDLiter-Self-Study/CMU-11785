@@ -33,11 +33,61 @@ structure_params:
     choices: ["basic", "bottleneck"]
     description: "Type of residual block"
 
+# SE (Squeeze-and-Excitation) module parameters
+se_params:
+  use_se:
+    param_name: "use_se"
+    type: "boolean"
+    description: "Enable Squeeze-and-Excitation modules in blocks"
+    
+  se_reduction:
+    param_name: "se_reduction"
+    type: "categorical"
+    choices: [4, 8, 16, 32]
+    description: "SE module reduction ratio"
+    
+  se_activation:
+    param_name: "se_activation"
+    type: "categorical"
+    choices: ["relu", "gelu", "swish", "elu"]
+    description: "Activation function in SE module"
+
+# Residual connection parameters
+residual_params:
+  # Projection type for shortcut connections when dimensions mismatch
+  projection_type:
+    param_name: "projection_type"
+    type: "categorical"
+    choices: ["auto", "conv", "avg_pool", "max_pool"]
+    description: "Shortcut projection method when dimensions mismatch"
+    
+  # Whether to apply normalization after projection
+  projection_norm:
+    param_name: "projection_norm"
+    type: "boolean"
+    description: "Apply BatchNorm after projection"
+    
+  # Scale factor for residual connection
+  residual_scale:
+    param_name: "residual_scale"
+    type: "float"
+    min: 0.1
+    max: 2.0
+    description: "Scale factor for residual connection"
+    
+  # Dropout rate on residual path
+  residual_dropout:
+    param_name: "residual_dropout"
+    type: "float"
+    min: 0.0
+    max: 0.3
+    description: "Dropout rate on residual path"
+
 # Display configuration for logging
 display:
-  key_params: ["depth", "width_multiplier", "block_type"]
-  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}"
-  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation"]
+  key_params: ["depth", "width_multiplier", "block_type", "use_se", "projection_type"]
+  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}, SE={use_se}, projection={projection_type}"
+  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation", "se_reduction", "residual_scale", "projection_norm"]
 
 # Parameter estimation hints
 parameter_estimation:

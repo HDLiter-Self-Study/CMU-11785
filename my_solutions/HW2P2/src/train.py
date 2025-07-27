@@ -11,7 +11,7 @@ import torch
 import gc
 import wandb
 from config import config
-from models import Network
+from models import ArchitectureFactory
 from data import get_classification_dataloaders, get_verification_dataloaders
 from training_functions import train_epoch, valid_epoch_cls, valid_epoch_ver
 from utils import save_model
@@ -34,8 +34,18 @@ def main():
     print("Train batches        : ", train_loader.__len__())
     print("Val batches          : ", val_loader.__len__())
 
-    # Initialize model
-    model = Network().to(DEVICE)
+    # Initialize model using new architecture system
+    model_config = {
+        "architecture": "resnet",
+        "depth": 18,
+        "block_type": "basic",
+        "width_multiplier": 1.0,
+        "num_classes": len(train_dataset.classes),
+        "use_se": False,  # Can be configured as needed
+    }
+
+    factory = ArchitectureFactory()
+    model = factory.create_model(model_config).to(DEVICE)
     print(f"Model initialized with {sum(p.numel() for p in model.parameters())} parameters")
 
     # Define optimizer and scheduler

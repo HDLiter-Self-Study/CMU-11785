@@ -2,6 +2,7 @@
 Models package init file
 """
 
-from .network import Network, ConvolutionBlock
+from .architecture_factory import ArchitectureFactory
+from .common_blocks import ConvolutionBlock
 
-__all__ = ["Network", "ConvolutionBlock"]
+__all__ = ["ArchitectureFactory", "ConvolutionBlock"]

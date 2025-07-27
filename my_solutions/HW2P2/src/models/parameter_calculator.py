@@ -1,5 +1,10 @@
 """
-Parameter Calculator for estimating model parameters before actual construction
+Parameter Calcula            "resnet": {
+                "conv_ratio": 0.85,  # ~85% in convolutions
+                "bn_ratio": 0.05,  # ~5% in batch norm
+                "linear_ratio": 0.10,  # ~10% in final linear layer
+            },
+            "convnext": {"conv_ratio": 0.75, "norm_ratio": 0.15, "linear_ratio": 0.10},  # LayerNorm has more parametersmating model parameters before actual construction
 """
 
 import torch
@@ -25,12 +30,6 @@ class ParameterCalculator:
                 "bn_ratio": 0.05,  # ~5% in batch norm
                 "linear_ratio": 0.10,  # ~10% in final linear layer
             },
-            "senet": {
-                "conv_ratio": 0.80,
-                "se_ratio": 0.05,  # Additional SE module parameters
-                "bn_ratio": 0.05,
-                "linear_ratio": 0.10,
-            },
             "convnext": {"conv_ratio": 0.75, "norm_ratio": 0.15, "linear_ratio": 0.10},  # LayerNorm has more parameters
         }
 
@@ -42,8 +41,6 @@ class ParameterCalculator:
 
         if arch_type == "resnet":
             return self._estimate_resnet_params(config)
-        elif arch_type == "senet":
-            return self._estimate_senet_params(config)
         elif arch_type == "convnext":
             return self._estimate_convnext_params(config)
         else:
@@ -89,17 +86,6 @@ class ParameterCalculator:
         estimated_params = int(estimated_params - final_layer_params + final_layer_params * class_ratio)
 
         return estimated_params
-
-    def _estimate_senet_params(self, config: Dict[str, Any]) -> int:
-        """Estimate SE-Net parameters"""
-        # Start with base ResNet estimation
-        base_params = self._estimate_resnet_params(config)
-
-        # Add SE module overhead (typically 1-5% additional parameters)
-        reduction_ratio = config.get("se_reduction_ratio", 16)
-        se_overhead = 1.0 + (0.05 / reduction_ratio * 16)  # Inverse relationship with reduction ratio
-
-        return int(base_params * se_overhead)
 
     def _estimate_convnext_params(self, config: Dict[str, Any]) -> int:
         """Estimate ConvNeXt parameters"""
