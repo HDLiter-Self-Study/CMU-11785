@@ -18,18 +18,14 @@ class ConvNeXtBlock(nn.Module):
 
         config = config or {}
 
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)  # depthwise conv
-        self.norm = nn.LayerNorm(dim, eps=1e-6)
-        self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
-        self.act = nn.GELU()
-        self.pwconv2 = nn.Linear(4 * dim, dim)
+        self.dwconv = None  # TODO
+        self.norm = None  # TODO
+        self.pwconv1 = None  # TODO
+        self.act = None  # TODO
+        self.pwconv2 = None  # TODO
 
         # Layer scale parameter
-        self.gamma = (
-            nn.Parameter(layer_scale_init_value * torch.ones((dim)), requires_grad=True)
-            if layer_scale_init_value > 0
-            else None
-        )
+        self.gamma = None  # TODO
 
         # SE module if specified
         if config.get("use_se", False):
@@ -43,12 +39,12 @@ class ConvNeXtBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         input_tensor = x
 
-        x = self.dwconv(x)
+        x = None  # TODO
         x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
-        x = self.norm(x)
-        x = self.pwconv1(x)
-        x = self.act(x)
-        x = self.pwconv2(x)
+        x = None  # TODO
+        x = None  # TODO
+        x = None  # TODO
+        x = None  # TODO
 
         if self.gamma is not None:
             x = self.gamma * x

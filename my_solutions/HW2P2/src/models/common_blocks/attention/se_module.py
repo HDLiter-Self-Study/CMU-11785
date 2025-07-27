@@ -30,15 +30,10 @@ class SEModule(nn.Module):
         """
         super().__init__()
 
-        reduced_channels = max(1, channels // reduction)
+        reduced_channels = None  # TODO
 
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Sequential(
-            nn.Linear(channels, reduced_channels, bias=False),
-            self._get_activation(activation),
-            nn.Linear(reduced_channels, channels, bias=False),
-            nn.Sigmoid(),
-        )
+        self.global_pool = None  # TODO
+        self.fc = None  # TODO
 
     def _get_activation(self, activation: str) -> nn.Module:
         """Get activation function"""
@@ -64,17 +59,15 @@ class SEModule(nn.Module):
         b, c, _, _ = x.size()
 
         # Squeeze: Global average pooling
-        y = self.global_pool(x).view(b, c)
+        y = None  # TODO
 
         # Excitation: FC layers to learn channel weights
-        y = self.fc(y).view(b, c, 1, 1)
+        y = None  # TODO
 
         # Scale: Apply learned weights to input
-        return x * y.expand_as(x)
+        return None  # TODO
 
     @classmethod
     def from_config(cls, channels: int, config: Dict[str, Any]) -> "SEModule":
         """Create SE module from configuration"""
-        return cls(
-            channels=channels, reduction=config.get("se_reduction", 16), activation=config.get("se_activation", "relu")
-        )
+        return None  # TODO

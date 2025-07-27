@@ -19,10 +19,10 @@ class BasicBlock(nn.Module):
         norm_layer = self._get_norm_layer(config)
         activation = self._get_activation(config)
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride, 1, bias=False)
-        self.bn1 = norm_layer(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False)
-        self.bn2 = norm_layer(out_channels)
+        self.conv1 = None  # TODO
+        self.bn1 = None  # TODO
+        self.conv2 = None  # TODO
+        self.bn2 = None  # TODO
 
         self.activation = activation
 
@@ -128,12 +128,12 @@ class BasicBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
 
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.activation(out)
+        out = None  # TODO
+        out = None  # TODO
+        out = None  # TODO
 
-        out = self.conv2(out)
-        out = self.bn2(out)
+        out = None  # TODO
+        out = None  # TODO
 
         # Apply SE attention if enabled
         out = self.se(out)

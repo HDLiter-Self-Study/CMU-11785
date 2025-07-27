@@ -20,14 +20,14 @@ class BottleneckBlock(nn.Module):
         activation = self._get_activation(config)
 
         # Bottleneck design
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 1, bias=False)
-        self.bn1 = norm_layer(out_channels)
+        self.conv1 = None  # TODO
+        self.bn1 = None  # TODO
 
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, stride, 1, bias=False)
-        self.bn2 = norm_layer(out_channels)
+        self.conv2 = None  # TODO
+        self.bn2 = None  # TODO
 
-        self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion, 1, bias=False)
-        self.bn3 = norm_layer(out_channels * self.expansion)
+        self.conv3 = None  # TODO
+        self.bn3 = None  # TODO
 
         self.activation = activation
 
@@ -133,16 +133,16 @@ class BottleneckBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = x
 
-        out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.activation(out)
+        out = None  # TODO
+        out = None  # TODO
+        out = None  # TODO
 
-        out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.activation(out)
+        out = None  # TODO
+        out = None  # TODO
+        out = None  # TODO
 
-        out = self.conv3(out)
-        out = self.bn3(out)
+        out = None  # TODO
+        out = None  # TODO
 
         # Apply SE attention if enabled
         out = self.se(out)

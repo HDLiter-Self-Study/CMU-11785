@@ -49,12 +49,7 @@ class ResNet(BaseArchitecture):
         channels = [int(c * width_mult) for c in [64, 128, 256, 512]]
 
         # Stem
-        self.stem = nn.Sequential(
-            nn.Conv2d(3, stem_channels, kernel_size=7, stride=2, padding=3, bias=False),
-            self._get_norm_layer(config)(stem_channels),
-            self._get_activation(config),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-        )
+        self.stem = None  # TODO
 
         # ResNet layers
         self.layers = nn.ModuleList()
@@ -67,15 +62,15 @@ class ResNet(BaseArchitecture):
             layer_blocks = []
             for j in range(num_blocks):
                 block_in_channels = in_channels if j == 0 else out_channels * block_class.expansion
-                block = block_class(block_in_channels, out_channels, stride if j == 0 else 1, config)
+                block = None  # TODO
                 layer_blocks.append(block)
 
             self.layers.append(nn.Sequential(*layer_blocks))
             in_channels = out_channels * block_class.expansion
 
         # Global average pooling and classifier
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.flatten = nn.Flatten()
+        self.global_pool = None  # TODO
+        self.flatten = None  # TODO
 
         # Add dropout if specified
         dropout_rate = config.get("dropout_rate", 0.0)
@@ -84,25 +79,25 @@ class ResNet(BaseArchitecture):
         else:
             self.dropout = nn.Identity()
 
-        self.classifier = nn.Linear(channels[-1] * block_class.expansion, config.get("num_classes", 1000))
+        self.classifier = None  # TODO
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Forward pass"""
         # Stem
-        x = self.stem(x)
+        x = None  # TODO
 
         # Feature extraction
         feats = []
         for layer in self.layers:
-            x = layer(x)
+            x = None  # TODO
             feats.append(x)
 
         # Classification head
-        x = self.global_pool(x)
-        x = self.flatten(x)
+        x = None  # TODO
+        x = None  # TODO
         features = x  # Save features for verification task
 
         x = self.dropout(x)
-        x = self.classifier(x)
+        x = None  # TODO
 
         return {"feats": features, "all_feats": feats, "out": x}

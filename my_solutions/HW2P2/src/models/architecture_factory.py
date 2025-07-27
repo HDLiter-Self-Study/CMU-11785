@@ -14,26 +14,22 @@ class ArchitectureFactory:
     """
 
     def __init__(self):
-        self.builders = {
-            "resnet": self._build_resnet,
-            "convnext": self._build_convnext,
-            # Note: SENet is now handled as ResNet with use_se=True
-        }
+        self.builders = None  # TODO
 
     def create_model(self, config: Dict[str, Any]) -> nn.Module:
         """
         Create model based on configuration
         """
-        arch_type = config["architecture"]
+        arch_type = None  # TODO
         if arch_type not in self.builders:
             raise ValueError(f"Unknown architecture: {arch_type}")
 
-        return self.builders[arch_type](config)
+        return None  # TODO
 
     def _build_resnet(self, config: Dict[str, Any]) -> nn.Module:
         """Build ResNet architecture (with optional SE support)"""
-        return ResNet(config)
+        return None  # TODO
 
     def _build_convnext(self, config: Dict[str, Any]) -> nn.Module:
         """Build ConvNeXt architecture"""
-        return ConvNeXt(config)
+        return None  # TODO

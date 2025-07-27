@@ -36,10 +36,7 @@ class ConvNeXt(BaseArchitecture):
             dims = [96, 192, 384, 768]
 
         # Stem
-        self.stem = nn.Sequential(
-            nn.Conv2d(3, dims[0], kernel_size=4, stride=4),
-            nn.GroupNorm(1, dims[0]),  # LayerNorm equivalent for Conv2d
-        )
+        self.stem = None  # TODO
 
         # Downsample layers
         self.downsample_layers = nn.ModuleList()
@@ -62,13 +59,13 @@ class ConvNeXt(BaseArchitecture):
         for i in range(4):
             stage_blocks = []
             for j in range(depths[i]):
-                stage_blocks.append(ConvNeXtBlock(dim=dims[i], drop_path=dp_rates[cur + j], config=config))
+                stage_blocks.append(None)  # TODO
             self.stages.append(nn.Sequential(*stage_blocks))
             cur += depths[i]
 
         # Global average pooling and classifier
-        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.flatten = nn.Flatten()
+        self.global_pool = None  # TODO
+        self.flatten = None  # TODO
 
         # Add dropout if specified
         dropout_rate = config.get("dropout_rate", 0.0)
@@ -77,22 +74,22 @@ class ConvNeXt(BaseArchitecture):
         else:
             self.dropout = nn.Identity()
 
-        self.classifier = nn.Linear(dims[-1], config.get("num_classes", 1000))
+        self.classifier = None  # TODO
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        x = self.stem(x)
+        x = None  # TODO
 
         feats = []
         for i in range(4):
             x = self.downsample_layers[i](x)
-            x = self.stages[i](x)
+            x = None  # TODO
             feats.append(x)
 
-        x = self.global_pool(x)
-        x = self.flatten(x)
+        x = None  # TODO
+        x = None  # TODO
         features = x
 
         x = self.dropout(x)
-        x = self.classifier(x)
+        x = None  # TODO
 
         return {"feats": features, "all_feats": feats, "out": x}
