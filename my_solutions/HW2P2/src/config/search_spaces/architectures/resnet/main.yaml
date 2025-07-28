@@ -37,20 +37,17 @@ structure_params:
 se_params:
   use_se:
     param_name: "use_se"
-    type: "boolean"
+    type: "categorical"
+    choices: [true, false]
     description: "Enable Squeeze-and-Excitation modules in blocks"
     
-  se_reduction:
-    param_name: "se_reduction"
+  se_pooling:
+    param_name: "se_pooling"
     type: "categorical"
-    choices: [4, 8, 16, 32]
-    description: "SE module reduction ratio"
+    choices: ["avg", "max", "skew", "var"]
+    default: "avg"
+    description: "Pooling method for SE module squeeze step"
     
-  se_activation:
-    param_name: "se_activation"
-    type: "categorical"
-    choices: ["relu", "gelu", "swish", "elu"]
-    description: "Activation function in SE module"
 
 # Residual connection parameters
 residual_params:
@@ -58,14 +55,8 @@ residual_params:
   projection_type:
     param_name: "projection_type"
     type: "categorical"
-    choices: ["auto", "conv", "avg_pool", "max_pool"]
+    choices: ["conv", "avg_pool", "max_pool"]
     description: "Shortcut projection method when dimensions mismatch"
-    
-  # Whether to apply normalization after projection
-  projection_norm:
-    param_name: "projection_norm"
-    type: "boolean"
-    description: "Apply BatchNorm after projection"
     
   # Scale factor for residual connection
   residual_scale:
@@ -85,9 +76,9 @@ residual_params:
 
 # Display configuration for logging
 display:
-  key_params: ["depth", "width_multiplier", "block_type", "use_se", "projection_type"]
-  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}, SE={use_se}, projection={projection_type}"
-  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation", "se_reduction", "residual_scale", "projection_norm"]
+  key_params: ["depth", "width_multiplier", "block_type", "use_se", "se_pooling", "projection_type"]
+  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}, SE={use_se}({se_pooling}), projection={projection_type}"
+  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation", "residual_scale", "residual_dropout"]
 
 # Parameter estimation hints
 parameter_estimation:

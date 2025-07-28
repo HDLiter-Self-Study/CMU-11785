@@ -17,6 +17,13 @@ params:
     type: "categorical"
     choices: ["batch_norm", "group_norm", "layer_norm", "instance_norm"]
     description: "Normalization method for bottleneck blocks"
+
+  pre_activation:
+     param_name: "resnet_bottleneck_pre_activation"
+     type: "categorical"
+     choices: [true, false]
+     default: false
+     description: "Use pre-activation style layer arrangement"
     
   # Activation function parameters
   activation_params:
@@ -73,39 +80,26 @@ params:
     description: "Dropout rate in bottleneck blocks"
     
   # Bottleneck specific options
-  expansion_ratio:
+  expansion:
     param_name: "resnet_bottleneck_expansion"
     type: "int"
     min: 2
     max: 8
     description: "Expansion ratio for bottleneck blocks"
     
-  mid_activation:
-    param_name: "resnet_bottleneck_mid_activation"
-    type: "categorical"
-    choices: ["same", "relu", "gelu", "swish"]
-    description: "Middle layer activation (same = use main activation)"
-    
   # Advanced bottleneck options
-  use_zero_init:
-    param_name: "resnet_bottleneck_zero_init"
-    type: "categorical"
-    choices: [true, false]
-    description: "Zero initialize final batch norm"
-    
   use_se:
     param_name: "resnet_bottleneck_use_se"
     type: "categorical"
     choices: [true, false]
     description: "Whether to add SE module to bottleneck blocks"
-    
-  se_ratio:
-    param_name: "resnet_bottleneck_se_ratio"
-    type: "int"
-    min: 4
-    max: 32
-    description: "SE reduction ratio for bottleneck blocks"
-    condition: "resnet_bottleneck_use_se == true"
+
+  se_pooling:
+    param_name: "resnet_bottleneck_se_pooling"
+    type: "categorical"
+    choices: ["avg", "max", "skew", "var"]
+    default: "avg"
+    description: "Pooling method for SE module squeeze step"
     
   # Convolution variants
   use_depthwise:
@@ -118,4 +112,4 @@ params:
 parameter_estimation:
   base_params: 147456  # Approximate params for bottleneck block
   expansion_scaling: 1.2
-  se_overhead: 0.015
+  se_overhead: 0.005   # Reduced SE overhead due to simplified implementation

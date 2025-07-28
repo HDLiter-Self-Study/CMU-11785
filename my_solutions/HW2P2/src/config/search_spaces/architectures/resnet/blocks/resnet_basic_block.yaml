@@ -91,16 +91,15 @@ params:
     type: "categorical"
     choices: [true, false]
     description: "Whether to add SE module to basic blocks"
-    
-  se_ratio:
-    param_name: "resnet_basic_se_ratio"
-    type: "int"
-    min: 4
-    max: 16
-    description: "SE reduction ratio for basic blocks"
-    condition: "resnet_basic_use_se == true"  # Only used if SE is enabled
+
+  se_pooling:
+    param_name: "resnet_basic_se_pooling"
+    type: "categorical"
+    choices: ["avg", "max", "skew", "var"]
+    default: "avg"
+    description: "Pooling method for SE module squeeze step"
 
 # Block-specific parameter estimation
 parameter_estimation:
   base_params: 36864  # Approximate params for basic block
-  se_overhead: 0.02   # Additional params when SE is used
+  se_overhead: 0.005  # Reduced SE overhead due to simplified implementation
