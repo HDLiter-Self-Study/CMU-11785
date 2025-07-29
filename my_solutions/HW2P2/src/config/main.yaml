@@ -17,3 +17,35 @@ eval_ver: true    # Whether to evaluate verification task
 
 # Resume training
 resume_from: null  # Path to checkpoint to resume from (e.g., "./checkpoints/last.pth")
+
+# Training configuration
+training:
+  max_epochs: 100
+  early_stopping_patience: 10
+  use_amp: true
+  grad_clip_norm: 1.0
+  
+  # Checkpointing
+  checkpoints:
+    save_top_k: 3
+    save_dir: "./checkpoints"
+  
+  # Common data settings
+  data:
+    batch_size: 64  # Default, overridden by search space
+    num_workers: 4
+    pin_memory: true
+    image_size: 224
+    normalize: true
+
+# Optuna configuration
+optuna:
+  n_trials: 100
+  param_limit: 20000000
+  direction: "maximize"
+  
+  # Pruning configuration
+  pruner:
+    type: "median"
+    n_startup_trials: 10
+    n_warmup_steps: 5

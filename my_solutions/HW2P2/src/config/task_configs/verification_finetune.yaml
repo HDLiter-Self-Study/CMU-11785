@@ -1,6 +1,6 @@
 # Verification Finetune Configuration
 # Optimized for fine-tuning from classification models
-# @package _global_
+# @package task_configs
 
 defaults:
   - verification  # Inherit from base verification config
