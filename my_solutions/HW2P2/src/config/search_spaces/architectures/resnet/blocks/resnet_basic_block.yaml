@@ -67,25 +67,13 @@ params:
     
   dropout_rate:
     param_name: "resnet_basic_dropout_rate"
-    type: "float"
-    min: 0.0
-    max: 0.3
+    type: "categorical"
+    choices: [0.0, 0.1, 0.2]  # 简化为3个常用值
     description: "Dropout rate in basic blocks"
     
-  # Basic block specific options
-  use_residual_scaling:
-    param_name: "resnet_basic_residual_scaling"
-    type: "categorical"
-    choices: [true, false]
-    description: "Whether to scale residual connection"
-    
-  conv_kernel_size:
-    param_name: "resnet_basic_conv_kernel"
-    type: "categorical"
-    choices: [3, 5]
-    description: "Convolution kernel size for basic blocks"
-    
-  # Advanced options
+  # 移除conv_kernel_size和use_residual_scaling，ResNet标准是3x3和无scaling
+  
+  # Advanced options - 简化SE配置
   use_se:
     param_name: "resnet_basic_use_se"
     type: "categorical"

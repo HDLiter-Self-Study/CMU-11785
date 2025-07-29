@@ -5,92 +5,122 @@ ResNet Architecture with configurable SE support
 import torch
 import torch.nn as nn
 from typing import Dict, Any, List
-from ..base import BaseArchitecture
 from .blocks import BasicBlock, BottleneckBlock
+from ...common_blocks.head import ClassificationHead
+from ...common_blocks.stem import Stem
 
 
-class ResNet(BaseArchitecture):
+class ResNet:
     """
     ResNet that can be configured via hyperparameters with optional SE modules
     """
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(
+        self,
+        in_channels: int,
+        stages: List[int],
+        out_channels: List[int],
+        downsamplings: List[int],
+        block_types: List[str],
+        block_params: List[Dict[str, Any]],
+        head_type: str = "classification",
+        head_params: Dict[str, Any] = None,
+        stem_channels: int = 64,
+        stem_params: Dict[str, Any] = None,
+        width_multiplier: float = 1.0,
+    ):
+        """
+        Initialize the ResNet architecture.
 
-        self.config = config
-        depth = config.get("resnet_depth", 50)
-        width_mult = config.get("width_multiplier", 1.0)
-        block_type = config.get("block_type", "bottleneck")
-        stem_channels = config.get("stem_channels", 64)
-
-        # Calculate layer configuration based on depth
-        if depth == 18:
-            layers = [2, 2, 2, 2]
-            block_class = BasicBlock
-        elif depth == 34:
-            layers = [3, 4, 6, 3]
-            block_class = BasicBlock
-        elif depth == 50:
-            layers = [3, 4, 6, 3]
-            block_class = BottleneckBlock
-        elif depth == 101:
-            layers = [3, 4, 23, 3]
-            block_class = BottleneckBlock
-        elif depth == 152:
-            layers = [3, 8, 36, 3]
-            block_class = BottleneckBlock
-        else:
-            # Custom depth - distribute layers evenly
-            total_blocks = max(8, depth // 8)
-            layers = [total_blocks // 4] * 4
-            block_class = BottleneckBlock if block_type == "bottleneck" else BasicBlock
+        Args:
+            stages: List of integers representing the number of blocks in each stage.
+            channels: List of integers representing the number of output channels for each stage.
+            downsamplings: List of integers representing the downsampling factor for each stage.
+            block_types: List of strings representing the type of block in each stage.
+            block_params: List of dictionaries containing parameters for each block type.
+            head_type: Type of classification head to use (default: "classification").
+            head_params: Parameters for the classification head.
+            stem_channels: Number of output channels for the stem convolution (default: 64).
+            width_multiplier: Multiplier for the number of channels in each block (default: 1.0).
+        """
 
         # Apply width multiplier
-        channels = [int(c * width_mult) for c in [64, 128, 256, 512]]
+        out_channels = [int(c * width_multiplier) for c in out_channels]
 
         # Stem
-        self.stem = None  # TODO: 7x7 conv, bn, relu, 3x3 maxpool
+        self.stem = self._create_stem(in_channels, stem_channels, stem_params)
 
-        # ResNet layers
-        self.layers = None  # TODO: create 4 layers with proper channel progression
+        # ResNet backbone
+        self.backbone = self._create_backbone(
+            stem_channels,
+            stages,
+            out_channels,
+            block_types,
+            block_params,
+            downsamplings,
+        )
 
-        # TODO: implement layer creation loop
-        # - Handle stride for downsampling
-        # - Calculate proper in_channels for each block
-        # - Use block_class with proper arguments
+        # Get head layer
+        self.head = self._create_head(head_type, head_params, out_channels[-1])
 
-        # Global average pooling and classifier
-        self.global_pool = None  # TODO: adaptive average pooling
-        self.flatten = None  # TODO: flatten for classifier
+    def _create_stem(self, in_channels, out_channels: int, stem_params: Dict[str, Any] = None) -> nn.Module:
+        """
+        Create the stem convolution layer
+        """
+        return Stem(in_channels, out_channels, **(stem_params or {}))
 
-        # TODO: calculate final feature dimension after pooling
-        final_dim = None  # TODO: depends on block expansion
-
-        # Add dropout if specified
-        dropout_rate = config.get("dropout_rate", 0.0)
-        if dropout_rate > 0:
-            self.dropout = None  # TODO
+    def _create_head(self, head_type: str, head_params: Dict[str, Any], in_features: int) -> nn.Module:
+        """Create the classification head based on type and parameters"""
+        if head_type == "classification":
+            return ClassificationHead(in_features, **head_params)
         else:
-            self.dropout = None  # TODO
+            raise ValueError(f"Unsupported head type: {head_type}")
 
-        self.classifier = None  # TODO: linear layer with final_dim input
+    def _create_backbone(
+        self,
+        stem_channels: int,
+        stages: List[int],
+        out_channels: List[int],
+        block_types: List[str],
+        block_params: List[Dict[str, Any]],
+        downsamplings: List[int] = None,
+    ) -> nn.Module:
+        """
+        Create the ResNet backbone consisting of multiple stages.
+        """
+        backbone = nn.Sequential()
+        for i, (num_blocks, out_ch, block_type, downsample) in enumerate(
+            zip(stages, out_channels, block_types, downsamplings)
+        ):
+            if block_type == "basic":
+                block_cls = BasicBlock
+            elif block_type == "bottleneck":
+                block_cls = BottleneckBlock
+            else:
+                raise ValueError(f"Unsupported block type: {block_type}")
+
+            for j in range(num_blocks):
+                in_ch = out_ch if j > 0 else (out_channels[i - 1] if i > 0 else stem_channels)
+                stride = downsample if j == 0 else 1
+                block = block_cls(
+                    in_channels=in_ch,
+                    out_channels=out_ch,
+                    stride=stride,
+                    **block_params[i],
+                )
+                backbone.append(block)
+        return backbone
 
     def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Forward pass"""
         # Stem processing
-        x = None  # TODO: pass through stem
+        x = self.stem(x)
 
-        # Feature extraction through layers
-        feats = []
-        # TODO: iterate through self.layers
-        # TODO: collect intermediate features in feats list
+        # Process through backbone
+        x = self.backbone(x)
+        feats = x  # Save features for verification task
 
         # Classification head
-        x = None  # TODO: global pooling
-        x = None  # TODO: flatten
-        features = x  # Save features for verification task
-
-        x = None  # TODO: apply dropout
-        x = None  # TODO: classifier
-
-        return {"feats": features, "all_feats": feats, "out": x}
+        x = self.head(x)
+        # Return features and output
+        return {"feats": feats, "out": x}

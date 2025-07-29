@@ -1,0 +1,34 @@
+# Heads Search Space
+
+# Classification head
+classification_head:
+  name: "ClassificationHead"
+  description: "Standard linear classification head"
+  
+  params:
+    hidden_dims:
+      param_name: "cls_hidden_dims"
+      type: "categorical"
+      choices: [0, 128, 256, 512]
+      description: "Hidden layer dimensions before final classifier"
+      
+    activation:
+      param_name: "cls_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function in hidden layers"
+      
+    dropout_rate:
+      param_name: "cls_dropout"
+      type: "float"
+      min: 0.0
+      max: 0.7
+      description: "Dropout rate in classification head"
+      
+    batch_norm:
+      param_name: "cls_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization"
+#TODO: If time permits, add more complex heads like multi-scale or attention-based heads
+#TODO: Add verification head
