@@ -149,6 +149,9 @@ def get_activation(name: str, **kwargs) -> nn.Module:
         ValueError: If activation function is unknown.
         TypeError: If required parameters are missing (e.g., threshold requires 'threshold' and 'value').
     """
+    if name is None:
+        name = "identity"  # Default to identity if no name provided
+
     name_lower = name.lower()
     if name_lower not in ACTIVATION_MAP:
         raise ValueError(f"Unknown activation function: {name}. Available: {list(ACTIVATION_MAP.keys())}")
@@ -184,7 +187,7 @@ def get_2d_normalization(name: str, num_features: int, **kwargs) -> nn.Module:
         - 'none' and 'identity' return Identity layer but still require num_features for API consistency
     """
     if name is None:
-        return nn.Identity()
+        name = "identity"  # Default to identity if no name provided
 
     name_lower = name.lower()
     if name_lower not in NORMALIZATION_2D_MAP:
