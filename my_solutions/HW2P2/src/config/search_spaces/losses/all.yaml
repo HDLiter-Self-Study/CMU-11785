@@ -1,4 +1,5 @@
 # Loss Functions Search Space
+# @package search_spaces.losses
 # Classification and verification loss functions
 
 # Classification losses

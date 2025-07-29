@@ -1,8 +1,9 @@
-# Heads Search Space
+# Classification Heads Search Space
+# @package search_spaces.classification_heads
 
-# Classification head
-classification_head:
-  name: "ClassificationHead"
+# Standard Classification head
+standard_classification_head:
+  name: "StandardClassificationHead"
   description: "Standard linear classification head"
   
   params:

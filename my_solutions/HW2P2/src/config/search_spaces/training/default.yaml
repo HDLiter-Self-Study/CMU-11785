@@ -1,4 +1,5 @@
 # Training Parameters Search Space
+# @package search_spaces.training
 # Universal training hyperparameters for all tasks
 
 # Optimizer configuration search space

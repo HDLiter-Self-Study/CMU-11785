@@ -1,11 +1,8 @@
 # Classification Task Configuration
-# @package _global_
+# @package task_configs
 
 defaults:
-  - ../search_spaces/architectures/resnet: main  # Default architecture search space
-  - ../search_spaces/training: default     # Training parameters search space  
-  - ../search_spaces/classification_heads: all  # Classification heads search space
-  - ../search_spaces/losses: all           # Loss functions search space
+  - /search_spaces/classification_heads@search_spaces.heads: all  
   - _self_
 
 # Task identification

@@ -4,6 +4,7 @@
 defaults:
   - data: default  
   - wandb: default
+  - search_spaces: default  # Load search spaces configuration
   - _self_
 
 # Global settings

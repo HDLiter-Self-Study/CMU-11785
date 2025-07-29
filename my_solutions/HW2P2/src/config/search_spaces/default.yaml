@@ -1,0 +1,12 @@
+# Search Spaces Default Configuration
+# @package search_spaces
+
+defaults:
+  - architectures: default  # Default architecture configuration
+  - training: default
+  - losses: all
+  - _self_
+
+# Search spaces configuration metadata
+enabled: true
+description: "Hyperparameter search spaces for model optimization"
