@@ -6,9 +6,6 @@ defaults:
   - convnext@convnext: main  # ConvNeXt configuration (example of easy addition)
   - _self_
 
-# Architecture selection metadata
-default_architecture: "resnet"
-description: "Available architecture configurations for hyperparameter search"
 
 # Manually maintained architecture list
 available_architectures:

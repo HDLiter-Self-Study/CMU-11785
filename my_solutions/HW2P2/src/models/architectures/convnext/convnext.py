@@ -13,7 +13,12 @@ class ConvNeXt(BaseArchitecture):
     """ConvNeXt implementation with configurable SE support"""
 
     def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+        # Extract base parameters
+        num_classes = config.get("num_classes", 1000)
+        in_channels = config.get("in_channels", 3)
+
+        # Initialize base class
+        super().__init__(num_classes=num_classes, in_channels=in_channels)
 
         variant = config.get("convnext_variant", "tiny")
         drop_path_rate = config.get("drop_path_rate", 0.0)

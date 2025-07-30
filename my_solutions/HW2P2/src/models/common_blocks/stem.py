@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from typing import Dict, Any
-from convolution_block import ConvolutionBlock
+from .convolution_block import ConvolutionBlock
 
 
 class Stem(nn.Module):

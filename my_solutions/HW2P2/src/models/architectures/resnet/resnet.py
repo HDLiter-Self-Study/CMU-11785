@@ -8,9 +8,10 @@ from typing import Dict, Any, List
 from .blocks import BasicBlock, BottleneckBlock
 from ...common_blocks.head import ClassificationHead
 from ...common_blocks.stem import Stem
+from ..base import BaseArchitecture
 
 
-class ResNet:
+class ResNet(BaseArchitecture):
     """
     ResNet that can be configured via hyperparameters with optional SE modules
     """
@@ -43,6 +44,10 @@ class ResNet:
             stem_channels: Number of output channels for the stem convolution (default: 64).
             width_multiplier: Multiplier for the number of channels in each block (default: 1.0).
         """
+        # Initialize base class
+        head_params = head_params or {}
+        num_classes = head_params.get("num_classes", 1000)
+        super().__init__(num_classes=num_classes, in_channels=in_channels)
 
         # Apply width multiplier
         out_channels = [int(c * width_multiplier) for c in out_channels]
