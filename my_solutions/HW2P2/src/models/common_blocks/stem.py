@@ -5,7 +5,7 @@ from typing import Dict, Any
 from .convolution_block import ConvolutionBlock
 
 
-class Stem(nn.Module):
+class ResNetStem(nn.Module):
     """Stem block for ResNet architectures"""
 
     def __init__(
@@ -80,6 +80,42 @@ class Stem(nn.Module):
         )
         if max_pool_stride > 0:
             self.layers.append(nn.MaxPool2d(kernel_size=3, stride=max_pool_stride, padding=1))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.layers(x)
+
+
+class ConvNeXtStem(nn.Module):
+    """Patchify stem block for ConvNeXt architectures"""
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        stride: int = 2,
+        norm: str = "layer_norm",
+        norm_params: Dict[str, Any] = None,
+    ):
+        """
+        Patchify stem block, see https://arxiv.org/pdf/2201.03545
+        """
+        super().__init__()
+
+        kernel_size = max(4, stride)  # Ensure kernel size is at least 4, the paper uses 4*4 kernel for stride 4
+
+        # Use one large kernel convolution to patchify the input
+        # Add normalization after spatial downsampling
+        self.layers = nn.Sequential(
+            ConvolutionBlock(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=kernel_size // 2,  # Padding to keep spatial dimensions
+                norm=norm,
+                norm_params=norm_params,
+            ),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)

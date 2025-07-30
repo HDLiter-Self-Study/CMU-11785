@@ -21,8 +21,8 @@ class BaseConvolutionBlock(torch.nn.Module, ABC):
         stride=1,
         padding=0,
         # Simplified activation and normalization (most common usage)
-        activation="relu",
-        norm="batch_norm",
+        activation="none",
+        norm="none",
         # Advanced configuration (optional)
         activation_params=None,
         norm_params=None,

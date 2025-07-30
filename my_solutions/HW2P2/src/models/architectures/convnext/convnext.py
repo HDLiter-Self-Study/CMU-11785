@@ -4,78 +4,69 @@ ConvNeXt Architecture with optional SE support
 
 import torch
 import torch.nn as nn
-from typing import Dict, Any
+from typing import Dict, Any, List
 from ..base import BaseArchitecture
-from .blocks import ConvNeXtBlock
+from .blocks import InvertedBottleneckBlock
+from ...common_blocks.head import ClassificationHead
+from ...common_blocks.stem import ConvNeXtStem
+from ...common_blocks.convolution_block import PreActivationConvBlock
 
 
 class ConvNeXt(BaseArchitecture):
-    """ConvNeXt implementation with configurable SE support"""
+    """
+    ConvNeXt that can be configured via hyperparameters
+    """
 
-    def __init__(self, config: Dict[str, Any]):
-        # Extract base parameters
-        num_classes = config.get("num_classes", 1000)
-        in_channels = config.get("in_channels", 3)
+    # Register ConvNeXt-specific blocks
+    BLOCK_REGISTRY = BaseArchitecture.BLOCK_REGISTRY.copy()
+    BLOCK_REGISTRY.update(
+        {
+            "inverted_bottleneck": InvertedBottleneckBlock,
+        }
+    )
 
-        # Initialize base class
-        super().__init__(num_classes=num_classes, in_channels=in_channels)
+    def _create_stem(self, in_channels: int, out_channels: int, stem_params: Dict[str, Any] = None) -> nn.Module:
+        """
+        Create the stem convolution layer
+        """
+        return ConvNeXtStem(in_channels, out_channels, **(stem_params or {}))
 
-        variant = config.get("convnext_variant", "tiny")
-        drop_path_rate = config.get("drop_path_rate", 0.0)
+    def _handle_downsampling(
+        self, in_channels: int, out_channels: int, downsample: int, block_params: Dict[str, Any]
+    ) -> List[nn.Module]:
+        """
+        ConvNeXt uses separate downsampling layers between stages
+        """
+        if downsample > 1:
+            downsample_layer = self._get_downsample_layer(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                stride=downsample,
+                norm=block_params.get("norm", "layer_norm"),
+                norm_params=block_params.get("norm_params", {}),
+            )
+            return [downsample_layer]
+        return []
 
-        if variant == "tiny":
-            depths = [3, 3, 9, 3]
-            dims = [96, 192, 384, 768]
-        elif variant == "small":
-            depths = [3, 3, 27, 3]
-            dims = [96, 192, 384, 768]
-        elif variant == "base":
-            depths = [3, 3, 27, 3]
-            dims = [128, 256, 512, 1024]
-        elif variant == "large":
-            depths = [3, 3, 27, 3]
-            dims = [192, 384, 768, 1536]
-        else:
-            # Default to tiny
-            depths = [3, 3, 9, 3]
-            dims = [96, 192, 384, 768]
-
-        # Stem
-        self.stem = None  # TODO: 4x4 conv with stride 4 + layernorm
-
-        # TODO: create downsample layers
-        self.downsample_layers = None  # TODO: 4 downsample layers
-
-        # TODO: create stage blocks
-        self.stages = None  # TODO: 4 stages with ConvNeXtBlocks
-
-        # TODO: final norm and pooling
-        self.norm = None  # TODO: final layer norm
-        self.avgpool = None  # TODO: adaptive average pooling
-        self.classifier = None  # TODO: linear classifier
-
-        # TODO: dropout
-        dropout_rate = config.get("dropout_rate", 0.0)
-        self.dropout = None  # TODO
-
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
-        # TODO: stem processing
-        x = None  # TODO
-
-        # TODO: process through 4 stages with downsampling
-        feats = []
-        # TODO: implement stage processing loop
-
-        # TODO: final processing
-        x = None  # TODO: final norm
-        x = None  # TODO: global pooling
-        x = None  # TODO: flatten
-        features = x
-
-        x = None  # TODO: dropout
-        x = None  # TODO: classifier
-
-        return {"feats": features, "all_feats": feats, "out": x}
-        x = None  # TODO
-
-        return {"feats": features, "all_feats": feats, "out": x}
+    def _get_downsample_layer(
+        self,
+        in_channels: int,
+        out_channels: int,
+        stride: int = 2,
+        norm: str = "layer_norm",
+        norm_params: Dict[str, Any] = None,
+    ) -> nn.Module:
+        """
+        Create a downsample layer for ConvNeXt.
+        Normalization layer followed by a non-overlapping convolution.
+        """
+        return PreActivationConvBlock(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=stride,
+            stride=stride,
+            padding=0,  # No padding for downsampling
+            bias=False,
+            norm=norm,
+            norm_params=norm_params,
+        )

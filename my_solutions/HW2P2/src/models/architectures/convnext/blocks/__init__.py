@@ -2,6 +2,6 @@
 ConvNeXt blocks
 """
 
-from .convnext_block import ConvNeXtBlock
+from .inverted_bottleneck_block import InvertedBottleneckBlock
 
-__all__ = ["ConvNeXtBlock"]
+__all__ = ["InvertedBottleneckBlock"]
