@@ -105,13 +105,16 @@ class ConvNeXtStem(nn.Module):
 
         # Use one large kernel convolution to patchify the input
         # Add normalization after spatial downsampling
+        # For proper downsampling, padding should be (kernel_size - stride) // 2
+        padding = (kernel_size - stride) // 2
+
         self.layers = nn.Sequential(
             ConvolutionBlock(
                 in_channels=in_channels,
                 out_channels=out_channels,
                 kernel_size=kernel_size,
                 stride=stride,
-                padding=kernel_size // 2,  # Padding to keep spatial dimensions
+                padding=padding,  # Correct padding for downsampling
                 norm=norm,
                 norm_params=norm_params,
             ),
