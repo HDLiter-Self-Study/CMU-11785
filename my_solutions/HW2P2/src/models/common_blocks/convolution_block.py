@@ -4,6 +4,7 @@ Basic convolution blocks used across different architectures
 
 import torch
 import torch.nn as nn
+from torchvision.ops import DropBlock2d
 from abc import ABC, abstractmethod
 
 from ..utils import get_activation, get_2d_normalization
@@ -25,7 +26,8 @@ class BaseConvolutionBlock(torch.nn.Module, ABC):
         # Advanced configuration (optional)
         activation_params=None,
         norm_params=None,
-        dropout=0.0,  # Dropout after activation
+        dropout_prob=0.0,  # Dropout after activation. Dropout between conv layers, see wide resnet <https://arxiv.org/abs/1605.07146>
+        dropout_size: int = 1,  # Size of dropout block (1 for standard dropout), DropBlock: <https://arxiv.org/abs/1810.12890>
         deep_separable=False,  # Use depthwise separable convolution
         # Conv2d parameters passed directly
         **conv_kwargs,
@@ -50,7 +52,8 @@ class BaseConvolutionBlock(torch.nn.Module, ABC):
         self.norm = norm
         self.activation_params = activation_params or {}
         self.norm_params = norm_params or {}
-        self.dropout = dropout
+        self.dropout_prob = dropout_prob
+        self.dropout_size = dropout_size
         self.conv_kwargs = conv_kwargs
 
         # Build layers using template method
@@ -77,7 +80,7 @@ class BaseConvolutionBlock(torch.nn.Module, ABC):
 
     def _get_dropout_layer(self):
         """Get the dropout layer if needed"""
-        return nn.Dropout2d(self.dropout) if self.dropout > 0 else None
+        return DropBlock2d(block_size=self.dropout_size, p=self.dropout_prob) if self.dropout_prob > 0 else None
 
     def forward(self, x):
         return self.layers(x)

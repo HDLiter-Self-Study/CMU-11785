@@ -4,11 +4,12 @@ Base ResNet Block with common functionality
 
 import torch
 import torch.nn as nn
+from torchvision.ops import StochasticDepth
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from ....common_blocks.se_module import SEModule
-from ....common_blocks.convolution_block import ConvolutionBlock, PreActivationConvBlock
-from ....utils import get_activation
+from .se_module import SEModule
+from .convolution_block import ConvolutionBlock, PreActivationConvBlock
+from ..utils import get_activation
 
 
 class BaseResNetBlock(nn.Module, ABC):
@@ -24,9 +25,13 @@ class BaseResNetBlock(nn.Module, ABC):
         # Advanced configuration (optional)
         activation_params: Dict[str, Any] = None,
         norm_params: Dict[str, Any] = None,
-        conv_dropout: float = 0.0,  # Dropout between conv layers but not after, see <https://arxiv.org/abs/1605.07146>
+        conv_drop_prob: float = 0.0,  # Dropout between conv layers, see wide resnet <https://arxiv.org/abs/1605.07146>
+        conv_drop_size: int = 1,  # Size of dropout block (1 for standard dropout), DropBlock: <https://arxiv.org/abs/1810.12890>
         projection_type: str = "conv",  # Shortcut projection type: conv, avg_pool, max_pool
         use_se: bool = False,  # Use SE module
+        layer_scale: bool = False,
+        layer_scale_init_value: float = 1e-6,
+        stochastic_depth_prob: float = 0.0,  # Probability for stochastic depth
         # Conv2d parameters passed directly to all conv layers
         **conv_kwargs,
     ):
@@ -40,8 +45,11 @@ class BaseResNetBlock(nn.Module, ABC):
         self.norm = norm
         self.activation_params = activation_params or {}
         self.norm_params = norm_params or {}
-        self.conv_dropout = conv_dropout
+        self.conv_drop_prob = conv_drop_prob
+        self.conv_drop_size = conv_drop_size
         self.conv_kwargs = conv_kwargs
+        self.layer_scale = layer_scale
+        self.stochastic_depth_prob = stochastic_depth_prob
 
         # Determine block type and final activation
         self.conv_block_cls = ConvolutionBlock if not pre_activation else PreActivationConvBlock
@@ -56,6 +64,12 @@ class BaseResNetBlock(nn.Module, ABC):
         # SE module (conditional)
         if use_se:
             self.se = SEModule(out_channels)
+
+        # Layer scale (conditional)
+        if self.layer_scale:
+            self.layer_scale = nn.Parameter(
+                layer_scale_init_value * torch.ones(1, out_channels, 1, 1), requires_grad=True
+            )
 
     @abstractmethod
     def _build_layers(self, in_channels: int) -> tuple[nn.Module, int]:
@@ -110,9 +124,15 @@ class BaseResNetBlock(nn.Module, ABC):
 
         # SE attention (if enabled)
         out = self.se(out) if self.use_se else out
-
+        # Layer scale (if enabled)
+        if self.layer_scale:
+            out = out * self.layer_scale
+        # Stochastic depth (if enabled)
+        if self.stochastic_depth_prob > 0:
+            out = StochasticDepth(self.stochastic_depth_prob)(out)
         # Residual connection
         shortcut = self.shortcut(residual)
+
         out = out + shortcut
 
         # Final activation (if not pre-activation style)

@@ -5,7 +5,7 @@ Basic ResNet Block with optional SE module
 import torch
 import torch.nn as nn
 from typing import Dict, Any
-from .base_resnet_block import BaseResNetBlock
+from ....common_blocks.base_resnet_block import BaseResNetBlock
 
 
 class BasicBlock(BaseResNetBlock):
@@ -21,9 +21,13 @@ class BasicBlock(BaseResNetBlock):
         norm: str = "batch_norm",
         activation_params: Dict[str, Any] = None,
         norm_params: Dict[str, Any] = None,
-        conv_dropout: float = 0.0,
+        conv_drop_prob: float = 0.0,
+        conv_drop_size: int = 1,
         projection_type: str = "conv",
         use_se: bool = False,
+        layer_scale: bool = False,
+        layer_scale_init_value: float = 1e-6,
+        stochastic_depth_prob: float = 0.0,
         **conv_kwargs,
     ):
         self.out_channels = out_channels
@@ -35,9 +39,13 @@ class BasicBlock(BaseResNetBlock):
             norm=norm,
             activation_params=activation_params,
             norm_params=norm_params,
-            conv_dropout=conv_dropout,
+            conv_drop_prob=conv_drop_prob,
+            conv_drop_size=conv_drop_size,
             projection_type=projection_type,
             use_se=use_se,
+            layer_scale=layer_scale,
+            layer_scale_init_value=layer_scale_init_value,
+            stochastic_depth_prob=stochastic_depth_prob,
             **conv_kwargs,
         )
 
@@ -55,7 +63,8 @@ class BasicBlock(BaseResNetBlock):
                 norm=self.norm,
                 activation_params=self.activation_params,
                 norm_params=self.norm_params,
-                dropout=self.conv_dropout,
+                dropout_prob=self.conv_drop_prob,
+                dropout_size=self.conv_drop_size,
                 **self.conv_kwargs,
             ),
             # Second 3x3 conv (no activation if post-activation, no dropout)
@@ -69,7 +78,7 @@ class BasicBlock(BaseResNetBlock):
                 activation_params=self.activation_params if self.pre_activation else {},
                 norm=self.norm,
                 norm_params=self.norm_params,
-                dropout=0.0,  # No dropout before residual connection
+                dropout_prob=0.0,  # No dropout before residual connection
                 **self.conv_kwargs,
             ),
         )
