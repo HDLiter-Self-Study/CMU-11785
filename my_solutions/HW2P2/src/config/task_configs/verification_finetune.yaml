@@ -32,9 +32,6 @@ training:
   # Conservative learning rates
   learning_rate_range: [1e-6, 1e-3]  # Narrower range for fine-tuning
   
-  # Lighter data augmentation for fine-tuning
-  augmentation_strength: 0.7
-
 # Override Optuna settings for fine-tuning
 optuna:
   study_name: "verification_finetune_optimization"

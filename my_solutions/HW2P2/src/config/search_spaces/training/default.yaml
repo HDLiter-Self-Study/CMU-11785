@@ -32,7 +32,7 @@ optimizer:
     min: 0.8
     max: 0.99
     description: "Momentum for SGD optimizer"
-    condition: "optimizer_type == 'sgd'"
+    required_when: ["sgd"]
 
 # Training strategy search space
 batch_size:
@@ -62,29 +62,6 @@ lr_scheduler:
     min: 0
     max: 10
     description: "Number of warmup epochs"
-
-# Data augmentation
-augmentation:
-  strength:
-    param_name: "aug_strength"
-    type: "float"
-    min: 0.3
-    max: 1.5
-    description: "Data augmentation strength"
-    
-  mixup_alpha:
-    param_name: "mixup_alpha"
-    type: "float"
-    min: 0.0
-    max: 0.4
-    description: "Mixup alpha parameter"
-    
-  cutmix_beta:
-    param_name: "cutmix_beta"
-    type: "float"
-    min: 0.0
-    max: 1.0
-    description: "CutMix beta parameter"
 
 # Regularization
 dropout:
