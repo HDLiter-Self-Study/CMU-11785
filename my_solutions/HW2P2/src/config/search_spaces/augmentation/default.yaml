@@ -1,0 +1,261 @@
+# Data Augmentation Strategies Search Space Configuration
+# @package search_spaces.augmentation
+# Strategies that modify input data through various augmentation techniques
+
+# AUGMENTATION STRATEGY CONFIGURATION
+augmentation:
+  class: "strategy"
+
+  # Primary strategy selection (controls parameter dependencies)
+  strategy:
+    class: "param"
+    param_name: "augmentation_strategy"
+    type: "categorical"
+    choices: ["basic", "robust", "comprehensive", "custom"]
+    description: "Primary augmentation strategy"
+
+  # Core augmentation techniques (always available)
+  core_augmentation:
+    class: "strategy"
+    # Always active, basic augmentation that works with all strategies
+
+    trivial_augment_wide:
+      class: "instance"
+      # TrivialAugmentWide - no additional parameters needed
+
+  # Spatial augmentation strategy (influenced by primary augmentation strategy)
+  spatial_augmentation:
+    class: "strategy"
+    
+    strategy:
+      class: "param"
+      param_name: "spatial_augmentation_strategy"
+      type: "categorical"
+      choices:
+        basic: ["none", "random_erasing"]
+        robust: ["none", "random_erasing", "gridmask", "random_resized_crop"]  
+        comprehensive: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
+        custom: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
+      description: "Spatial and geometric augmentation techniques (choices depend on primary strategy)"
+      depends_on: ["augmentation_strategy"]
+ 
+    # Random Erasing technique
+    random_erasing:
+      class: "instance"
+      condition: "$spatial_augmentation_strategy in ['random_erasing', 'random_choice']"
+
+      prob:
+        class: "param"
+        param_name: "random_erasing_prob"
+        type: "float"
+        min: 0.2
+        max: 0.7
+        description: "Probability of applying random erasing"
+        default: 0.5
+        
+      scale_min:
+        class: "param"
+        param_name: "random_erasing_scale_min"
+        type: "float"
+        min: 0.01
+        max: 0.15
+        description: "Minimum scale of erased area"
+        
+      scale_max:
+        class: "param"
+        param_name: "random_erasing_scale_max"
+        type: "float"
+        min: "$max(0.15, random_erasing_scale_min)"
+        max: 0.3
+        description: "Maximum scale of erased area"
+        depends_on: ["random_erasing_scale_min"]
+      # Can add more parameters here when strategy is set to comprehensive or custom
+
+    # GridMask technique
+    gridmask:
+      class: "instance"
+      condition: "$spatial_augmentation_strategy in ['gridmask', 'random_choice']"
+
+      prob:
+        class: "param"
+        param_name: "gridmask_prob"
+        type: "float"
+        min: 0.2
+        max: 0.8
+        description: "Probability of applying GridMask"
+
+      d_ratio_range_min:
+        class: "param"
+        param_name: "gridmask_d_ratio_range_min"
+        type: "float"
+        min: 0.05
+        max: 0.3
+        description: "Minimum ratio for grid size in GridMask"
+
+      d_ratio_range_max:
+        class: "param"
+        param_name: "gridmask_d_ratio_range_max"
+        type: "float"
+        min: "$max(0.3, gridmask_d_ratio_range_min)"
+        max: 0.5
+        description: "Max ratio for grid size in GridMask"
+        depends_on: ["gridmask_d_ratio_range_min"]
+
+      ratio:
+        class: "param"
+        param_name: "gridmask_ratio"
+        type: "float"
+        min: 0.4
+        max: 0.8
+        description: "Ratio of grid to spacing in GridMask"
+    
+    # RandomResizedCrop technique
+    random_resized_crop:
+      class: "instance"
+      condition: "$spatial_augmentation_strategy in ['random_resized_crop', 'random_choice']"
+
+      scale_min:
+        class: "param"
+        param_name: "random_resized_crop_scale_min"
+        type: "float"
+        min: 0.75
+        max: 0.9
+        description: "Minimum scale for RandomResizedCrop (conservative for face preservation)"
+          
+      scale_max:
+        class: "param"
+        param_name: "random_resized_crop_scale_max"
+        type: "float"
+        min: "$max(0.9, random_resized_crop_scale_min)"
+        max: 1.0
+        description: "Maximum scale for RandomResizedCrop"
+        depends_on: ["random_resized_crop_scale_min"]
+
+      ratio_min:
+        class: "param"
+        param_name: "random_resized_crop_ratio_min"
+        type: "float"
+        min: 0.75
+        max: 1.0
+        description: "Minimum aspect ratio for RandomResizedCrop"
+
+      ratio_max:
+        class: "param"
+        param_name: "random_resized_crop_ratio_max"
+        type: "float"
+        min: "$max(1.0, random_resized_crop_ratio_min)"
+        max: 1.33
+        description: "Maximum aspect ratio for RandomResizedCrop"
+        depends_on: ["random_resized_crop_ratio_min"]
+
+  # Noise augmentation strategy (influenced by primary augmentation strategy)
+  noise_augmentation:
+    class: "strategy"
+
+    strategy:
+      class: "param"
+      param_name: "noise_augmentation_strategy"
+      type: "categorical"
+      choices:
+        basic: ["none"]
+        robust: ["none", "gaussian", "quality_degradation"]
+        comprehensive: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
+        custom: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
+      description: "Noise and corruption augmentations (choices depend on primary strategy)"
+      depends_on: ["augmentation_strategy"]
+
+    # Gaussian noise technique (additive random noise)
+    gaussian_noise:
+      class: "instance"
+      condition: "$noise_augmentation_strategy in ['gaussian', 'random_choice']"
+
+      std:
+        class: "param"
+        param_name: "gaussian_noise_std"
+        type: "float"
+        min: 0.01
+        max: 0.1
+        description: "Standard deviation for Gaussian noise"
+
+      prob:
+        class: "param"
+        param_name: "gaussian_noise_prob"
+        type: "float"
+        min: 0.2
+        max: 0.6
+        description: "Probability of applying Gaussian noise"
+    
+    # Impulse noise technique (salt & pepper noise)
+    impulse_noise:
+      class: "instance"
+      condition: "$noise_augmentation_strategy in ['impulse', 'random_choice']"
+
+      ratio:
+        class: "param"
+        param_name: "salt_pepper_ratio"
+        type: "float"
+        min: 0.005
+        max: 0.05
+        description: "Ratio of pixels to corrupt with salt & pepper noise"
+
+      prob:
+        class: "param"
+        param_name: "impulse_noise_prob"
+        type: "float"
+        min: 0.1
+        max: 0.6
+        description: "Probability of applying impulse noise"
+    
+    # Quality degradation technique (JPEG compression)
+    quality_degradation:
+      class: "instance"
+      condition: "$noise_augmentation_strategy in ['quality_degradation', 'random_choice']"
+
+      jpeg_quality:
+        class: "param"
+        param_name: "jpeg_quality"
+        type: "int"
+        min: 70
+        max: 90
+        description: "JPEG quality (lower = more artifacts)"
+
+      prob:
+        class: "param"
+        param_name: "quality_degradation_prob"
+        type: "float"
+        min: 0.1
+        max: 0.7
+        description: "Probability of applying quality degradation"
+
+    # Gaussian blur technique (simulates camera blur, motion blur, etc.)
+    gaussian_blur:
+      class: "instance"
+      condition: "$noise_augmentation_strategy in ['blur', 'random_choice']"
+
+      sigma_min:
+        class: "param"
+        param_name: "gaussian_blur_sigma_min"
+        type: "float"
+        min: 0.1
+        max: 1.5
+        description: "Minimum sigma for Gaussian blur kernel"
+
+      sigma_max:
+        class: "param"
+        param_name: "gaussian_blur_sigma_max"
+        type: "float"
+        min: "$max(1.5, gaussian_blur_sigma_min)"
+        max: 3.0
+        description: "Maximum sigma for Gaussian blur kernel"
+        depends_on: ["gaussian_blur_sigma_min"]
+
+      prob:
+        class: "param"
+        param_name: "gaussian_blur_prob"
+        type: "float"
+        min: 0.2
+        max: 0.5
+        description: "Probability of applying Gaussian blur"
+  
+
+

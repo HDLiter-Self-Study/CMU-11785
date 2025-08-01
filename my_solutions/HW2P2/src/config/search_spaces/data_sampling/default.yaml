@@ -1,0 +1,48 @@
+# Data Sampling Strategies Search Space Configuration
+# @package search_spaces.data_sampling
+# Strategies that modify how data is sampled rather than transformed
+
+# =============================================================================
+# DATA SAMPLING STRATEGY CONFIGURATION
+# =============================================================================
+data_sampling:
+  class: "strategy"
+
+  # Primary strategy selection (controls parameter dependencies)
+  strategy:
+    class: "param"
+    param_name: "data_sampling_strategy"
+    type: "categorical"
+    choices: ["basic", "robust", "comprehensive", "custom"]
+    description: "Primary data sampling strategy level"
+
+  # Sampling techniques (influenced by primary strategy)
+  sampling_techniques:
+    class: "strategy"
+    
+    strategy:
+      class: "param"
+      param_name: "data_sampling_technique"
+      type: "categorical"
+      choices:
+        basic: ["none"]
+        robust: ["none", "repeated_augmentation"]
+        comprehensive: ["none", "repeated_augmentation"]
+        custom: ["none", "repeated_augmentation"]
+      description: "Specific data sampling technique (choices depend on primary strategy)"
+      depends_on: ["data_sampling_strategy"]
+
+    # Repeated Augmentation technique
+    repeated_augmentation:
+      class: "instance"
+      condition: "$data_sampling_technique == 'repeated_augmentation'"
+
+      num_repeats:
+        class: "param"
+        param_name: "repeated_aug_num_repeats"
+        type: "int"
+        min: 2
+        max: 6
+        default: 4
+        description: "Number of augmentation repetitions"
+

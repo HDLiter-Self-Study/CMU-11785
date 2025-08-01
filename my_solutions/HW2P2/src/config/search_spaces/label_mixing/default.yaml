@@ -1,0 +1,86 @@
+# Label Mixing Strategies Search Space Configuration
+# @package search_spaces.label_mixing
+# Strategies that modify both input and labels during training
+
+# =============================================================================
+# LABEL MIXING STRATEGY CONFIGURATION
+# =============================================================================
+label_mixing:
+  class: "strategy"
+
+  # Primary strategy selection (controls parameter dependencies)
+  strategy:
+    class: "param"
+    param_name: "label_mixing_strategy"
+    type: "categorical"
+    choices: ["basic", "robust", "comprehensive", "custom"]
+    description: "Primary label mixing strategy level"
+
+  # Label mixing techniques (influenced by primary strategy)
+  mixing_techniques:
+    class: "strategy"
+    
+    strategy:
+      class: "param"
+      param_name: "label_mixing_technique"
+      type: "categorical"
+      choices:
+        basic: ["none", "mixup"]
+        robust: ["none", "mixup", "cutmix"]
+        comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
+        custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
+      description: "Specific label mixing technique (choices depend on primary strategy)"
+      depends_on: ["label_mixing_strategy"]
+
+    # Mixup technique
+    mixup:
+      class: "instance"
+      condition: "$label_mixing_technique in ['mixup', 'random_choice']"
+
+      alpha:
+        class: "param"
+        param_name: "mixup_alpha"
+        type: "float"
+        min: 0.1
+        max: 1.2
+        default: 1.0
+        description: "Beta distribution parameter for Mixup"
+
+    # CutMix technique
+    cutmix:
+      class: "instance"
+      condition: "$label_mixing_technique in ['cutmix', 'random_choice']"
+
+      alpha:
+        class: "param"
+        param_name: "cutmix_alpha"
+        type: "float"
+        min: 0.5
+        max: 2.0
+        default: 1.0
+        description: "Beta distribution parameter for CutMix"
+
+    # FMix technique
+    fmix:
+      class: "instance"
+      condition: "$label_mixing_technique in ['fmix', 'random_choice']"
+
+      alpha:
+        class: "param"
+        param_name: "fmix_alpha"
+        type: "float"
+        min: 0.2
+        max: 2.0
+        default: 1.0
+        description: "Beta distribution parameter for FMix"
+            
+      decay_power:
+        class: "param"
+        param_name: "fmix_decay_power"
+        type: "float"
+        min: 1.0
+        max: 5.0
+        default: 3.0
+        description: "Decay power for frequency domain mask in FMix"
+
+
