@@ -6,9 +6,261 @@ defaults:
   - convnext@convnext: main  # ConvNeXt configuration (example of easy addition)
   - _self_
 
+# =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Quick experiments, minimal search space
+# - robust: Balanced exploration, recommended for most research  
+# - comprehensive: Thorough search, larger parameter ranges
+# - custom: Maximum flexibility, all available options
 
-# Manually maintained architecture list
+# =============================================================================
+# ARCHITECTURE SELECTION STRATEGY
+# =============================================================================
+architectures:
+  class: "strategy"
+
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+  
+  # Architecture selection technique (actual hyperparameter search)
+  architecture_selection:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "architecture_type"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["resnet"]  
+        robust: ["resnet", "convnext"]  
+        comprehensive: ["resnet", "convnext"]  
+        custom: ["resnet", "convnext"]
+      description: "Architecture type selection"
+
+# =============================================================================
+# ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
+# =============================================================================
+depth_generation:
+  class: "technique"
+
+  # Unified depth generation method selection
+  method_selection:
+    class: "param"
+    param_name: "depth_generation_method"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["regnet_rule"]
+      robust: ["regnet_rule", "predefined"] 
+      comprehensive: ["regnet_rule", "predefined", "manual"] 
+      custom: ["regnet_rule", "predefined", "manual"]
+    description: "Method for generating architecture depth configuration"
+
+  # RegNet-based depth generation (architecture-aware parameters)
+  regnet_rule:
+    class: "instance"
+    condition: "$depth_generation_method == 'regnet_rule'"
+
+    num_stages:
+      class: "param"
+      param_name: "regnet_num_stages"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: [4]  
+        robust: [3, 4] 
+        comprehensive: [3, 4, 5] 
+        custom: [3, 4, 5]
+      description: "Number of stages for architecture"
+
+    width_slope:
+      class: "param"
+      param_name: "regnet_width_slope"
+      type: "float"
+      min: 1.5 
+      max: 4.0
+      description: "Width multiplier between stages"
+
+    initial_width:
+      class: "param"
+      param_name: "regnet_initial_width"
+      type: "categorical"
+      choices: [16, 24, 32, 48, 64]
+      description: "Initial width for depth calculation"
+
+    depth_slope:
+      class: "param"
+      param_name: "regnet_depth_slope"
+      type: "float"
+      min: 0.005
+      max: 0.08
+      description: "Depth generation slope"
+
+    depth_bias:
+      class: "param"
+      param_name: "regnet_depth_bias"
+      type: "float"
+      min: -0.5
+      max: 2.5
+      description: "Depth generation bias"
+
+    # Architecture-aware stage depth limits
+    min_stage_depth:
+      class: "param"
+      param_name: "regnet_min_stage_depth"
+      type: "categorical"
+      dependency_order: ["architecture_type", "strategy_level"]
+      choices:
+        # ResNet can handle deeper stages
+        resnet:
+          basic: [1]
+          robust: [1, 2]
+          comprehensive: [1, 2]
+          custom: [1, 2, 3]
+        # ConvNeXt typically uses shallower stages  
+        convnext:
+          basic: [1]
+          robust: [1, 2]
+          comprehensive: [1, 2]
+          custom: [1, 2]
+        # Default fallback
+        default:
+          basic: [1]
+          robust: [1, 2]
+          comprehensive: [1, 2]
+          custom: [1, 2]
+
+    max_stage_depth:
+      class: "param"
+      param_name: "regnet_max_stage_depth"
+      type: "categorical"
+      dependency_order: ["architecture_type", "strategy_level"]
+      choices:
+        # ResNet can handle much deeper stages
+        resnet:
+          basic: [8]
+          robust: [8, 10]
+          comprehensive: [8, 10, 12]
+          custom: [8, 10, 12, 16]
+        # ConvNeXt typically uses fewer blocks per stage
+        convnext:
+          basic: [6]
+          robust: [6, 8]
+          comprehensive: [6, 8, 10]
+          custom: [6, 8, 10, 12]
+        # Default fallback
+        default:
+          basic: [8]
+          robust: [8, 10]
+          comprehensive: [8, 10, 12]
+          custom: [8, 10, 12, 16]
+
+  # Predefined architecture profiles (architecture-aware)
+  predefined:
+    class: "instance"
+    condition: "$depth_generation_method == 'predefined'"
+
+    profile:
+      class: "param"
+      param_name: "depth_profile"
+      type: "categorical"
+      dependency_order: ["architecture_type", "strategy_level"]
+      choices:
+        # ResNet profiles
+        resnet:
+          basic: ["resnet50"]
+          robust: ["resnet34", "resnet50", "resnet101"]
+          comprehensive: ["resnet18", "resnet34", "resnet50", "resnet101", "custom_balanced"]
+          custom: ["resnet18", "resnet34", "resnet50", "resnet101", "custom_balanced", "pyramid"]
+        # ConvNeXt profiles
+        convnext:
+          basic: ["convnext_tiny"]
+          robust: ["convnext_tiny", "convnext_small"]
+          comprehensive: ["convnext_tiny", "convnext_small", "convnext_base"]
+          custom: ["convnext_tiny", "convnext_small", "convnext_base"]
+        # Default fallback (generic profiles)
+        default:
+          basic: ["balanced_small"]
+          robust: ["balanced_small", "balanced_medium"]
+          comprehensive: ["balanced_small", "balanced_medium", "balanced_large"]
+          custom: ["balanced_small", "balanced_medium", "balanced_large", "pyramid"] # Manually maintained architecture list
+
 available_architectures:
   - resnet
   - convnext
   # Add new architectures here
+
+# Depth generation logic (for implementation reference):
+# 
+# def generate_depths_from_regnet_rule(num_stages, width_slope, initial_width, 
+#                                     depth_slope, depth_bias, min_depth, max_depth):
+#     """Generate stage depths using RegNet quantized linear rule"""
+#     depths = []
+#     for i in range(num_stages):
+#         # Calculate width for this stage (used as complexity proxy)
+#         width = initial_width * (width_slope ** i)
+#         
+#         # Calculate depth using linear rule: depth = slope * width + bias
+#         raw_depth = depth_slope * width + depth_bias
+#         
+#         # Quantize and clamp to valid range
+#         depth = max(min_depth, min(max_depth, round(raw_depth)))
+#         depths.append(depth)
+#     
+#     return depths
+#
+# Architecture-aware parameter selection examples:
+# 
+# For ResNet (can handle deeper stages):
+# - max_stage_depth: up to 16 blocks per stage for custom strategy
+# - Predefined profiles: resnet18, resnet34, resnet50, resnet101, etc.
+# 
+# For ConvNeXt (typically shallower stages):
+# - max_stage_depth: up to 12 blocks per stage for custom strategy  
+# - Predefined profiles: convnext_tiny, convnext_small, convnext_base
+#
+# Strategy vs. Hyperparameter Distinction:
+# 
+# STRATEGY LEVEL (Meta-configuration, manually set by researcher):
+# - "basic": Small, safe search space for quick experiments
+# - "robust": Balanced search space for most research
+# - "comprehensive": Large search space for thorough exploration  
+# - "custom": Full search space for advanced users
+# 
+# HYPERPARAMETERS (Automatically searched by Optuna):
+# - architecture_type: Which architectures to compare
+# - depth_generation_method: How to generate network depths
+# - regnet_* parameters: Numeric parameters for depth generation
+# - depth_profile: Which predefined configurations to try
+#
+# Usage Pattern:
+# 1. Researcher sets strategy_level = "robust" (manual choice)
+# 2. Optuna searches within the "robust" parameter ranges
+# 3. If results need improvement, researcher changes to "comprehensive"
+# 4. Optuna searches the expanded parameter space
+#
+# This separation avoids "searching the search space" complexity
+# while maintaining flexibility for different research phases.
+
+# Dynamic choice resolution with dependency_order:
+# 1. Load strategy_level from config (researcher's manual choice)
+# 2. For parameters with dependency_order, resolve nested choices:
+#    - dependency_order: ["architecture_type", "strategy_level"]
+#    - First lookup: choices[sampled_architecture_type]
+#    - Second lookup: choices[sampled_architecture_type][strategy_level]
+# 3. Sample final parameters within the resolved choice space
+# 4. This approach handles complex multi-dimensional dependencies clearly
+#
+# Example resolution:
+# dependency_order: ["architecture_type", "strategy_level"]
+# choices: {resnet: {robust: [8, 10]}, convnext: {robust: [6, 8]}}
+# With architecture_type="resnet", strategy_level="robust" → choices=[8, 10]
+#
+# Example sampled configurations:
+# ResNet + RegNet rule: [2, 3, 4, 8] (4 stages, deeper final stages)
+# ConvNeXt + RegNet rule: [2, 3, 4, 6] (4 stages, moderate depth)
+# ResNet + predefined: resnet50 → [3, 4, 6, 3] (standard ResNet-50 depths)
+# ConvNeXt + predefined: convnext_tiny → [3, 3, 9, 3] (standard ConvNeXt-Tiny depths)

@@ -3,18 +3,22 @@
 # Strategies that modify both input and labels during training
 
 # =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Quick experiments, minimal search space
+# - robust: Balanced exploration, recommended for most research  
+# - comprehensive: Thorough search, larger parameter ranges
+# - custom: Maximum flexibility, all available options
+
+# =============================================================================
 # LABEL MIXING STRATEGY CONFIGURATION
 # =============================================================================
 label_mixing:
   class: "strategy"
 
-  # Primary strategy selection (controls parameter dependencies)
-  strategy:
-    class: "param"
-    param_name: "label_mixing_strategy"
-    type: "categorical"
-    choices: ["basic", "robust", "comprehensive", "custom"]
-    description: "Primary label mixing strategy level"
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
   # Label mixing techniques (influenced by primary strategy)
   mixing_techniques:
@@ -24,13 +28,13 @@ label_mixing:
       class: "param"
       param_name: "label_mixing_technique"
       type: "categorical"
+      dependency_order: ["strategy_level"]
       choices:
         basic: ["none", "mixup"]
         robust: ["none", "mixup", "cutmix"]
         comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
         custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
-      description: "Specific label mixing technique (choices depend on primary strategy)"
-      depends_on: ["label_mixing_strategy"]
+      description: "Specific label mixing technique"
 
     # Mixup technique
     mixup:

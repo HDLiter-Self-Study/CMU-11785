@@ -3,18 +3,22 @@
 # Strategies that modify how data is sampled rather than transformed
 
 # =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Quick experiments, minimal search space
+# - robust: Balanced exploration, recommended for most research  
+# - comprehensive: Thorough search, larger parameter ranges
+# - custom: Maximum flexibility, all available options
+
+# =============================================================================
 # DATA SAMPLING STRATEGY CONFIGURATION
 # =============================================================================
 data_sampling:
   class: "strategy"
 
-  # Primary strategy selection (controls parameter dependencies)
-  strategy:
-    class: "param"
-    param_name: "data_sampling_strategy"
-    type: "categorical"
-    choices: ["basic", "robust", "comprehensive", "custom"]
-    description: "Primary data sampling strategy level"
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
   # Sampling techniques (influenced by primary strategy)
   sampling_techniques:
@@ -24,13 +28,13 @@ data_sampling:
       class: "param"
       param_name: "data_sampling_technique"
       type: "categorical"
+      dependency_order: ["strategy_level"]
       choices:
         basic: ["none"]
         robust: ["none", "repeated_augmentation"]
         comprehensive: ["none", "repeated_augmentation"]
         custom: ["none", "repeated_augmentation"]
-      description: "Specific data sampling technique (choices depend on primary strategy)"
-      depends_on: ["data_sampling_strategy"]
+      description: "Specific data sampling technique"
 
     # Repeated Augmentation technique
     repeated_augmentation:

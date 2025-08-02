@@ -2,17 +2,21 @@
 # @package search_spaces.augmentation
 # Strategies that modify input data through various augmentation techniques
 
+# =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Quick experiments, minimal search space
+# - robust: Balanced exploration, recommended for most research  
+# - comprehensive: Thorough search, larger parameter ranges
+# - custom: Maximum flexibility, all available options
+
 # AUGMENTATION STRATEGY CONFIGURATION
 augmentation:
   class: "strategy"
 
-  # Primary strategy selection (controls parameter dependencies)
-  strategy:
-    class: "param"
-    param_name: "augmentation_strategy"
-    type: "categorical"
-    choices: ["basic", "robust", "comprehensive", "custom"]
-    description: "Primary augmentation strategy"
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
   # Core augmentation techniques (always available)
   core_augmentation:
@@ -31,13 +35,13 @@ augmentation:
       class: "param"
       param_name: "spatial_augmentation_strategy"
       type: "categorical"
+      dependency_order: ["strategy_level"]
       choices:
         basic: ["none", "random_erasing"]
         robust: ["none", "random_erasing", "gridmask", "random_resized_crop"]  
         comprehensive: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
         custom: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
-      description: "Spatial and geometric augmentation techniques (choices depend on primary strategy)"
-      depends_on: ["augmentation_strategy"]
+      description: "Spatial and geometric augmentation techniques"
  
     # Random Erasing technique
     random_erasing:
@@ -155,13 +159,13 @@ augmentation:
       class: "param"
       param_name: "noise_augmentation_strategy"
       type: "categorical"
+      dependency_order: ["strategy_level"]
       choices:
         basic: ["none"]
         robust: ["none", "gaussian", "quality_degradation"]
         comprehensive: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
         custom: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
-      description: "Noise and corruption augmentations (choices depend on primary strategy)"
-      depends_on: ["augmentation_strategy"]
+      description: "Noise and corruption augmentations"
 
     # Gaussian noise technique (additive random noise)
     gaussian_noise:
