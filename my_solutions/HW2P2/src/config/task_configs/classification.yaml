@@ -25,6 +25,7 @@ data:
   val_dir: "data/cls_data/dev"
 
 training:
+  epochs: 150  # Fixed epochs for classification task
   early_stopping_metric: "val_accuracy"
   early_stopping_mode: "max"
 

@@ -16,7 +16,7 @@ augmentation:
 
   # Core augmentation techniques (always available)
   core_augmentation:
-    class: "strategy"
+    class: "technique"
     # Always active, basic augmentation that works with all strategies
 
     trivial_augment_wide:
@@ -25,9 +25,9 @@ augmentation:
 
   # Spatial augmentation strategy (influenced by primary augmentation strategy)
   spatial_augmentation:
-    class: "strategy"
+    class: "technique"
     
-    strategy:
+    selection:
       class: "param"
       param_name: "spatial_augmentation_strategy"
       type: "categorical"
@@ -51,7 +51,6 @@ augmentation:
         min: 0.2
         max: 0.7
         description: "Probability of applying random erasing"
-        default: 0.5
         
       scale_min:
         class: "param"
@@ -150,9 +149,9 @@ augmentation:
 
   # Noise augmentation strategy (influenced by primary augmentation strategy)
   noise_augmentation:
-    class: "strategy"
+    class: "technique"
 
-    strategy:
+    selection:
       class: "param"
       param_name: "noise_augmentation_strategy"
       type: "categorical"

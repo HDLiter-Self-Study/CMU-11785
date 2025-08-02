@@ -18,9 +18,9 @@ data_sampling:
 
   # Sampling techniques (influenced by primary strategy)
   sampling_techniques:
-    class: "strategy"
+    class: "technique"
     
-    strategy:
+    selection:
       class: "param"
       param_name: "data_sampling_technique"
       type: "categorical"
@@ -43,6 +43,5 @@ data_sampling:
         type: "int"
         min: 2
         max: 6
-        default: 4
         description: "Number of augmentation repetitions"
 
