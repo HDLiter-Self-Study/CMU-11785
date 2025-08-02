@@ -1,4 +1,4 @@
-# ResNet architecture main configuration
+# ResNet Architecture Configuration
 # @package architectures.resnet
 
 defaults:
@@ -7,63 +7,135 @@ defaults:
   - blocks/resnet_bottleneck_block@blocks.resnet_bottleneck
   - blocks/resnet_stem@blocks.resnet_stem
 
-name: "ResNet"
-description: "Residual Network architecture with configurable depth and width"
+# =============================================================================
+# RESNET ARCHITECTURE CONFIGURATION
+# =============================================================================
+resnet:
+  class: "strategy"
 
-# Global architecture parameters
-structure_params:
-  depth:
-    param_name: "resnet_depth"
-    type: "categorical"
-    choices: [18, 34, 50, 101] 
-    description: "Number of layers in ResNet"
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+  # Basic structure configuration
+  structure_params:
+    class: "technique"
     
-  width_multiplier:
-    param_name: "width_multiplier"
-    type: "categorical"
-    choices: [1, 2, 4, 8, 12]
-    description: "Channel width multiplier"
+    # Block type selection drives which block configs to use
+    block_type:
+      class: "param"
+      param_name: "resnet_block_type"
+      type: "categorical"
+      choices: ["basic", "bottleneck"]
+      description: "Type of residual block"
+
+  # Activation configuration with granularity control
+  activation_params:
+    class: "technique"
     
-  # Block type selection drives which block configs to use
-  block_type:
-    param_name: "block_type"
-    type: "categorical"
-    choices: ["basic", "bottleneck"]
-    description: "Type of residual block"
-
-# SE (Squeeze-and-Excitation) module parameters
-se_params:
-  use_se:
-    param_name: "use_se"
-    type: "categorical"
-    choices: [true, false]
-    description: "Enable Squeeze-and-Excitation modules in blocks"
+    selection:
+      class: "param"
+      param_name: "resnet_activation_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for activation function control"
     
-  se_pooling:
-    param_name: "se_pooling"
-    type: "categorical"
-    choices: ["avg", "max", "skew", "var"]
-    default: "avg"
-    description: "Pooling method for SE module squeeze step"
+    # Global activation (used when granularity = "global" or "stage")
+    global_activation:
+      class: "param"
+      param_name: "resnet_global_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+      description: "Global activation function for entire network"
+      condition: "$resnet_activation_granularity in ['global', 'stage']"
     
+    # Block-type specific activations (used when granularity = "block_type" or "block_stage")
+    basic_block_activation:
+      class: "param"
+      param_name: "resnet_basic_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+      description: "Activation function for basic blocks"
+      condition: "$resnet_activation_granularity in ['block_type', 'block_stage']"
+      
+    bottleneck_block_activation:
+      class: "param"
+      param_name: "resnet_bottleneck_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+      description: "Activation function for bottleneck blocks"
+      condition: "$resnet_activation_granularity in ['block_type', 'block_stage']"
 
-# Residual connection parameters
-residual_params:
-  # Projection type for shortcut connections when dimensions mismatch
-  projection_type:
-    param_name: "projection_type"
-    type: "categorical"
-    choices: ["conv", "avg_pool", "max_pool"]
-    description: "Shortcut projection method when dimensions mismatch"
-    default: "conv"
+  # Normalization configuration with granularity control
+  normalization_params:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "resnet_norm_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for normalization method control"
+    
+    # Global normalization (used when granularity = "global" or "stage")
+    global_normalization:
+      class: "param"
+      param_name: "resnet_global_normalization"
+      type: "categorical"
+      choices: ["batch_norm", "group_norm", "layer_norm"]
+      description: "Global normalization method for entire network"
+      condition: "$resnet_norm_granularity in ['global', 'stage']"
+    
+    # Block-type specific normalizations (used when granularity = "block_type" or "block_stage")
+    basic_block_normalization:
+      class: "param"
+      param_name: "resnet_basic_normalization"
+      type: "categorical"
+      choices: ["batch_norm", "group_norm", "layer_norm"]
+      description: "Normalization method for basic blocks"
+      condition: "$resnet_norm_granularity in ['block_type', 'block_stage']"
+      
+    bottleneck_block_normalization:
+      class: "param"
+      param_name: "resnet_bottleneck_normalization"
+      type: "categorical"
+      choices: ["batch_norm", "group_norm", "layer_norm"]
+      description: "Normalization method for bottleneck blocks"
+      condition: "$resnet_norm_granularity in ['block_type', 'block_stage']"
 
-# Display configuration for logging
-display:
-  key_params: ["depth", "width_multiplier", "block_type", "use_se", "se_pooling", "projection_type"]
-  template: "ResNet config: depth={depth}, width={width_multiplier}, block={block_type}, SE={use_se}({se_pooling}), projection={projection_type}"
-  secondary_params: ["stem_activation", "basic_activation", "bottleneck_activation"]
-
-# Parameter estimation hints
-parameter_estimation:
-  base_params_per_layer: 1000
-  width_scaling_factor: 1.5
+  # Advanced ResNet features (architecture-specific only)
+  advanced_params:
+    class: "technique"
+    
+    # Projection type for shortcut connections when dimensions mismatch
+    projection_type:
+      class: "param"
+      param_name: "resnet_projection_type"
+      type: "categorical"
+      choices: ["conv", "avg_pool", "max_pool"]
+      description: "Shortcut projection method when dimensions mismatch"
+      
+    # Pre-activation style (ResNet v2) - ResNet specific feature
+    pre_activation:
+      class: "technique"
+      
+      selection:
+        class: "param"
+        param_name: "resnet_pre_activation_selection"
+        type: "categorical"
+        dependency_order: ["strategy_level"]
+        choices:
+          basic: ["disabled"]
+          robust: ["disabled", "enabled"]
+          comprehensive: ["disabled", "enabled"]
+          custom: ["disabled", "enabled"]
+        description: "Enable/disable pre-activation style (BatchNorm + ReLU + Conv)"

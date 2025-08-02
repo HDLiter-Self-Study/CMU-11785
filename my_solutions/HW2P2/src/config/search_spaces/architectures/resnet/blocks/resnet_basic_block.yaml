@@ -1,93 +1,15 @@
-# ResNet Basic Block configuration
+# ResNet Basic Block Configuration
 # @package blocks.resnet_basic
 
-name: "BasicBlock"
-description: "Basic residual block with 2 conv layers"
+# =============================================================================
+# BASIC BLOCK CONFIGURATION
+# =============================================================================
+# Note: Basic block has no specific parameters - it uses all parameters 
+# from BaseResNetBlock (activation, normalization, SE, etc.) which are 
+# handled at the architecture level in ResNet main config.
 
-# Basic block specific parameters
-params:
-  activation:
-    param_name: "resnet_basic_activation"
-    type: "categorical"
-    choices: ["relu", "gelu", "swish", "leaky_relu", "elu"]
-    description: "Activation function for basic blocks"
-    
-  normalization:
-    param_name: "resnet_basic_normalization"
-    type: "categorical"
-    choices: ["batch_norm", "group_norm", "layer_norm", "instance_norm"]
-    description: "Normalization method for basic blocks"
-    
-  # Activation function parameters
-  activation_params:
-    leaky_relu:
-      negative_slope:
-        param_name: "resnet_basic_leaky_relu_slope"
-        type: "categorical"
-        choices: [0.01, 0.1]
-        default: 0.01
-        description: "Negative slope for LeakyReLU"
-    elu:
-      alpha:
-        param_name: "resnet_basic_elu_alpha"
-        type: "categorical"
-        choices: [1.0]
-        default: 1.0
-        description: "Alpha for ELU"
-        
-  # Normalization parameters
-  normalization_params:
-    batch_norm:
-      eps:
-        param_name: "resnet_basic_bn_eps"
-        type: "categorical"
-        choices: [1e-5]
-        default: 1e-5
-        description: "Epsilon for BatchNorm2d"
-      momentum:
-        param_name: "resnet_basic_bn_momentum"
-        type: "categorical"
-        choices: [0.1]
-        default: 0.1
-        description: "Momentum for BatchNorm2d"
-    group_norm:
-      num_groups:
-        param_name: "resnet_basic_gn_num_groups"
-        type: "categorical"
-        choices: [16, 32]
-        default: 32
-        description: "Number of groups for GroupNorm"
-    instance_norm:
-      eps:
-        param_name: "resnet_basic_in_eps"
-        type: "categorical"
-        choices: [1e-5]
-        default: 1e-5
-        description: "Epsilon for InstanceNorm2d"
-    
-  dropout_rate:
-    param_name: "resnet_basic_dropout_rate"
-    type: "categorical"
-    choices: [0.0, 0.1, 0.2]  # 简化为3个常用值
-    description: "Dropout rate in basic blocks"
-    
-  # 移除conv_kernel_size和use_residual_scaling，ResNet标准是3x3和无scaling
+basic_block:
+  class: "strategy"
   
-  # Advanced options - 简化SE配置
-  use_se:
-    param_name: "resnet_basic_use_se"
-    type: "categorical"
-    choices: [true, false]
-    description: "Whether to add SE module to basic blocks"
-
-  se_pooling:
-    param_name: "resnet_basic_se_pooling"
-    type: "categorical"
-    choices: ["avg", "max", "skew", "var"]
-    default: "avg"
-    description: "Pooling method for SE module squeeze step"
-
-# Block-specific parameter estimation
-parameter_estimation:
-  base_params: 36864  # Approximate params for basic block
-  se_overhead: 0.005  # Reduced SE overhead due to simplified implementation
+  # No block-specific parameters - all inherited from BaseResNetBlock
+  # The basic block simply applies: 3x3 conv -> 3x3 conv with residual connection

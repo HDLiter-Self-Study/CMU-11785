@@ -1,47 +1,49 @@
-# ResNet Stem configuration
+# ResNet Stem Configuration
 # @package blocks.resnet_stem
 
-name: "ResNetStem"
-description: "Initial stem layers for ResNet (conv + pool)"
+# =============================================================================
+# RESNET STEM CONFIGURATION
+# =============================================================================
+# Note: Most parameters (activation, normalization) are handled at the
+# architecture level in ResNet main config. Only stem-specific parameters
+# are defined here.
+#
+# STEM PARAMETER MAPPING RULES:
+# The stem's activation and normalization parameters are mapped from the main
+# ResNet config based on the selected granularity level:
+#
+# - global:      stem uses resnet_global_activation/normalization
+# - stage:       stem uses resnet_global_activation/normalization
+#                (stage-specific logic handled in program)
+#                (as stage_0)
+# - block_type:  stem uses resnet_basic_activation/normalization
+#                (stem structure is similar to basic blocks)
+# - block_stage: stem uses resnet_basic_activation/normalization
+#                (follows block_type logic)
+#                (as stage_0)
+# Note: The stem does not have its own block_type or stage parameters.
+#
+# This mapping is implemented in Python code, not in config files.
 
-# Stem specific parameters
-params:
-  channels:
-    param_name: "resnet_stem_channels"
-    type: "categorical"
-    choices: [64, 96, 128]
-    description: "Number of channels in stem convolution"
-    
-  activation:
-    param_name: "resnet_stem_activation"
-    type: "categorical"
-    choices: ["relu", "gelu", "swish", "leaky_relu", "elu"]
-    description: "Activation function for stem"
-    
-  normalization:
-    param_name: "resnet_stem_normalization"
-    type: "categorical"
-    choices: ["batch_norm", "group_norm", "layer_norm"]
-    description: "Normalization method for stem"
-    
+resnet_stem:
+  class: "strategy"
 
-  normalization_params:
-    group_norm:
-      num_groups:
-        param_name: "resnet_stem_gn_num_groups"
-        type: "categorical"
-        choices: [32]
-        default: 32
-        description: "Number of groups for GroupNorm"
+  # Stem-specific parameters
+  stem_params:
+    class: "technique"
     
-  use_maxpool:
-    param_name: "resnet_stem_use_maxpool"
-    type: "categorical"
-    choices: [true, false]
-    description: "Whether to use max pooling after initial conv"
-
-
-# Stem parameter estimation
-parameter_estimation:
-  base_params: 9408  # (7x7x3x64 + bias)
-  channel_scaling: 1.5 # Channel count scaling factor for params
+    # Output channels for stem (stem-specific parameter)
+    out_channels:
+      class: "param"
+      param_name: "resnet_stem_out_channels"
+      type: "categorical"
+      choices: [64, 96, 128]
+      description: "Number of output channels in stem convolution"
+    
+    # Whether to use max pooling (stem-specific parameter)
+    use_maxpool:
+      class: "param"
+      param_name: "resnet_stem_use_maxpool"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use max pooling after stem convolutions"

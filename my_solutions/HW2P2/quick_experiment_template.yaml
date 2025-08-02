@@ -1,0 +1,71 @@
+# =============================================================================
+# QUICK EXPERIMENT TEMPLATE
+# Simple configuration for rapid prototyping and debugging
+# =============================================================================
+experiment_name: "quick_test_v1"
+description: "Quick experiment for testing and debugging"
+
+# =============================================================================
+# STRATEGY LEVELS (快速实验使用基础策略)
+# =============================================================================
+strategy_levels:
+  augmentation: "basic"              # 最小增强
+  label_mixing: "basic"             # 简单混合
+  data_sampling: "basic"            # 无特殊采样
+  architectures: "basic"            # 标准架构
+  training: "robust"                # 中等训练策略
+
+# =============================================================================
+# FIXED PARAMETERS (快速实验的固定配置)
+# =============================================================================
+fixed_params:
+  # 快速训练配置
+  epochs: 20                        # 短期训练
+  save_frequency: 5
+  eval_frequency: 2
+  
+  # 小批量配置
+  batch_size: 32                    # 固定批量大小
+  num_workers: 4
+  
+  # 基础模型配置
+  num_classes: 7000
+  input_size: [224, 224]
+
+# =============================================================================
+# MINIMAL OVERRIDES (只覆盖关键参数)
+# =============================================================================
+parameter_overrides:
+  # 学习率范围
+  "training.learning_rate":
+    min: 0.0001
+    max: 0.01
+    log_scale: true
+    
+  # 基础增强
+  "augmentation.random_erasing_prob":
+    min: 0.1
+    max: 0.4
+
+# =============================================================================
+# QUICK SEARCH CONFIG (快速搜索配置)
+# =============================================================================
+search_config:
+  sampler: "RandomSampler"          # 随机采样更快
+  n_trials: 20                      # 少量试验
+  timeout: 3600                     # 1小时限制
+  n_jobs: 2                         # 轻量并行
+  
+  objectives:
+    primary: "val_accuracy"
+    direction: ["maximize"]
+
+# =============================================================================
+# SIMPLE TRACKING
+# =============================================================================
+tracking:
+  local_logging:
+    log_dir: "./quick_logs"
+    save_configs: true
+    
+version: "1.0"

@@ -1,70 +1,34 @@
-# ConvNeXt Stem configuration
-# @package blocks.convnext_stem
+# ConvNeXt Stem Configuration
+# @package architectures.convnext.blocks.convnext_stem
 
-name: "ConvNeXtStem"
-description: "ConvNeXt initial stem layers"
+# =============================================================================
+# CONVNEXT STEM CONFIGURATION  
+# =============================================================================
+# This file contains ONLY stem-specific parameters for the ConvNeXtStem.
+#
+# MAPPING RULES FOR ACTIVATION AND NORMALIZATION:
+# - Stem does not use activation (only conv + norm)
+# - Normalization is controlled by main.yaml granularity settings:
+#   - When granularity = "global": uses global_normalization
+#   - When granularity = "block_type": uses inverted_bottleneck_normalization
+#   - When granularity = "stage" or "block_stage": allows per-stage overrides
+# - The stem implementation will receive the resolved normalization based on granularity
 
-# Stem specific parameters
-params:
-  activation:
-    param_name: "convnext_stem_activation"
+convnext_stem:
+  class: "technique"
+  
+  # Stem output channels (width after patchify operation)
+  out_channels:
+    class: "param"
+    param_name: "convnext_stem_out_channels"
     type: "categorical"
-    choices: ["gelu", "relu", "swish", "leaky_relu"]
-    description: "Activation function for stem"
+    choices: [64, 96, 128, 160]
+    description: "Number of output channels from ConvNeXt stem (patchify layer)"
     
-  normalization:
-    param_name: "convnext_stem_normalization"
+  # Stride for patchify operation (determines how much spatial downsampling)
+  stride:
+    class: "param"
+    param_name: "convnext_stem_stride"
     type: "categorical"
-    choices: ["layer_norm", "batch_norm", "group_norm"]
-    description: "Normalization method for stem"
-    
-  # Activation function parameters
-  activation_params:
-    leaky_relu:
-      negative_slope:
-        param_name: "convnext_stem_leaky_relu_slope"
-        type: "categorical"
-        choices: [0.01, 0.1]
-        default: 0.01
-        description: "Negative slope for LeakyReLU"
-        
-  # Normalization parameters
-  normalization_params:
-    batch_norm:
-      eps:
-        param_name: "convnext_stem_bn_eps"
-        type: "categorical"
-        choices: [1e-5]
-        default: 1e-5
-        description: "Epsilon for BatchNorm2d"
-      momentum:
-        param_name: "convnext_stem_bn_momentum"
-        type: "categorical"
-        choices: [0.1]
-        default: 0.1
-        description: "Momentum for BatchNorm2d"
-    group_norm:
-      num_groups:
-        param_name: "convnext_stem_gn_num_groups"
-        type: "categorical"
-        choices: [32]
-        default: 32
-        description: "Number of groups for GroupNorm"
-    
-  # Stem architecture options
-  channels:
-    param_name: "convnext_stem_channels"
-    type: "categorical"
-    choices: [64, 96, 128]
-    description: "Number of channels in stem"
-    
-  # Stem architecture options
-  patch_size:
-    param_name: "convnext_stem_patch_size"
-    type: "categorical"
-    choices: [2, 4, 8]
-    description: "Patch size for patchify stem"
-
-# Stem parameter estimation
-parameter_estimation:
-  base_params: 12000
+    choices: [2, 4]
+    description: "Stride for ConvNeXt patchify operation (kernel_size = max(4, stride))"

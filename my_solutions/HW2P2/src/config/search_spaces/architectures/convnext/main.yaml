@@ -1,4 +1,4 @@
-# ConvNeXt architecture main configuration
+# ConvNeXt Architecture Configuration
 # @package architectures.convnext
 
 defaults:
@@ -6,31 +6,103 @@ defaults:
   - blocks/convnext_block@blocks.convnext_block
   - blocks/convnext_stem@blocks.convnext_stem
 
-name: "ConvNeXt"
-description: "ConvNeXt architecture with modern design principles"
+# =============================================================================
+# CONVNEXT ARCHITECTURE CONFIGURATION
+# =============================================================================
+convnext:
+  class: "strategy"
 
-# Global architecture parameters
-structure_params:
-  variant:
-    param_name: "convnext_variant"
-    type: "categorical"
-    choices: ["tiny", "small", "base", "large"]
-    description: "ConvNeXt model variant"
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+  # Basic structure configuration
+  structure_params:
+    class: "technique"
     
-  width_multiplier:
-    param_name: "width_multiplier"
-    type: "float"
-    min: 0.5
-    max: 2.0
-    description: "Channel width multiplier"
+    # Block type selection (ConvNeXt only uses inverted bottleneck blocks)
+    block_type:
+      class: "param"
+      param_name: "convnext_block_type"
+      type: "categorical"
+      choices: ["inverted_bottleneck"]
+      description: "Type of ConvNeXt block (only inverted bottleneck supported)"
 
-# Display configuration for logging
-display:
-  key_params: ["variant", "width_multiplier"]
-  template: "ConvNeXt config: variant={variant}, width={width_multiplier}"
-  secondary_params: ["stem_activation", "convnext_activation"]
+  # Activation configuration with granularity control
+  activation_params:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "convnext_activation_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for activation function control"
+    
+    # Global activation (used when granularity = "global" or "stage")
+    global_activation:
+      class: "param"
+      param_name: "convnext_global_activation"
+      type: "categorical"
+      choices: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Global activation function for entire network"
+      condition: "$convnext_activation_granularity in ['global', 'stage']"
+    
+    # Block-type specific activations (used when granularity = "block_type" or "block_stage")
+    inverted_bottleneck_activation:
+      class: "param"
+      param_name: "convnext_inverted_bottleneck_activation"
+      type: "categorical"
+      choices: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Activation function for inverted bottleneck blocks"
+      condition: "$convnext_activation_granularity in ['block_type', 'block_stage']"
 
-# Parameter estimation hints
-parameter_estimation:
-  base_params_per_layer: 800
-  width_scaling_factor: 1.4
+  # Normalization configuration with granularity control
+  normalization_params:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "convnext_norm_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for normalization method control"
+    
+    # Global normalization (used when granularity = "global" or "stage")
+    global_normalization:
+      class: "param"
+      param_name: "convnext_global_normalization"
+      type: "categorical"
+      choices: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Global normalization method for entire network"
+      condition: "$convnext_norm_granularity in ['global', 'stage']"
+    
+    # Block-type specific normalizations (used when granularity = "block_type" or "block_stage")
+    inverted_bottleneck_normalization:
+      class: "param"
+      param_name: "convnext_inverted_bottleneck_normalization"
+      type: "categorical"
+      choices: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Normalization method for inverted bottleneck blocks"
+      condition: "$convnext_norm_granularity in ['block_type', 'block_stage']"
+
+  # Advanced ConvNeXt features (architecture-specific only)
+  advanced_params:
+    class: "technique"
+    
+    # Projection type for shortcut connections when dimensions mismatch
+    projection_type:
+      class: "param"
+      param_name: "convnext_projection_type"
+      type: "categorical"
+      choices: ["conv", "avg_pool", "max_pool"]
+      description: "Shortcut projection method when dimensions mismatch"

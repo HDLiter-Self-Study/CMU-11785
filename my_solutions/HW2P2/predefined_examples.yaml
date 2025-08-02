@@ -1,0 +1,210 @@
+# =============================================================================
+# PREDEFINED ARCHITECTURES VIA EXPERIMENT CONFIG
+# Examples of how to reproduce standard architectures using parameter overrides
+# =============================================================================
+
+# =============================================================================
+# EXAMPLE 1: ResNet-50 Equivalent Configuration
+# =============================================================================
+resnet50_experiment:
+  experiment_name: "resnet50_baseline"
+  description: "Reproduce ResNet-50 architecture using RegNet rule constraints"
+  
+  strategy_levels:
+    architectures: "custom"
+    
+  fixed_params:
+    architecture_type: "resnet"         # Force ResNet architecture
+    
+  parameter_overrides:
+    # Force 4-stage ResNet-50 pattern: [3, 4, 6, 3]
+    "architectures.regnet_num_stages":
+      choices: [4]                      # Exactly 4 stages
+      
+    "architectures.regnet_depth_slope":
+      min: 0.0                          # No depth progression
+      max: 0.0
+      
+    "architectures.regnet_depth_bias":
+      min: 4.0                          # Base depth around 4
+      max: 4.0
+      
+    "architectures.regnet_min_stage_depth":
+      resnet:
+        custom: [3]                     # Minimum 3 blocks per stage
+        
+    "architectures.regnet_max_stage_depth":
+      resnet:
+        custom: [6]                     # Maximum 6 blocks per stage
+        
+    # Force specific width progression (ResNet-50 widths: 64→128→256→512)
+    "architectures.regnet_initial_width":
+      choices: [64]
+      
+    "architectures.regnet_width_slope":
+      min: 2.0                          # Exactly 2x width increase
+      max: 2.0
+
+# =============================================================================
+# EXAMPLE 2: ConvNeXt-Tiny Equivalent Configuration  
+# =============================================================================
+convnext_tiny_experiment:
+  experiment_name: "convnext_tiny_baseline"
+  description: "Reproduce ConvNeXt-Tiny architecture: [3, 3, 9, 3]"
+  
+  strategy_levels:
+    architectures: "custom"
+    
+  fixed_params:
+    architecture_type: "convnext"       # Force ConvNeXt architecture
+    
+  parameter_overrides:
+    # Force ConvNeXt-Tiny pattern: [3, 3, 9, 3]
+    "architectures.regnet_num_stages":
+      choices: [4]
+      
+    # Custom depth rule to generate [3, 3, 9, 3] pattern
+    "architectures.regnet_depth_slope":
+      min: 0.05                         # Moderate slope for 3rd stage peak
+      max: 0.05
+      
+    "architectures.regnet_depth_bias":
+      min: 2.0                          # Base around 2-3 blocks
+      max: 2.0
+      
+    "architectures.regnet_min_stage_depth":
+      convnext:
+        custom: [3]                     # All stages at least 3 blocks
+        
+    "architectures.regnet_max_stage_depth":
+      convnext:
+        custom: [9]                     # Allow up to 9 blocks (for 3rd stage)
+
+# =============================================================================
+# EXAMPLE 3: Architecture Search Around Standard Models
+# =============================================================================
+resnet_variants_search:
+  experiment_name: "resnet_variants_exploration"
+  description: "Search ResNet variants around ResNet-34/50/101 configurations"
+  
+  strategy_levels:
+    architectures: "custom"
+    
+  fixed_params:
+    architecture_type: "resnet"
+    
+  parameter_overrides:
+    # Allow 3-5 stages (ResNet-18 to ResNet-152 range)
+    "architectures.regnet_num_stages":
+      choices: [3, 4, 5]
+      
+    # Search around typical ResNet depth patterns
+    "architectures.regnet_min_stage_depth":
+      resnet:
+        custom: [2, 3, 4]               # ResNet-18 to ResNet-34 range
+        
+    "architectures.regnet_max_stage_depth":
+      resnet:
+        custom: [8, 12, 16, 20]         # Up to ResNet-152+ range
+        
+    # Allow both progressive and non-progressive depth patterns
+    "architectures.regnet_depth_slope":
+      min: -0.02                        # Can decrease (ResNet-50 pattern)
+      max: 0.08                         # Can increase (progressive pattern)
+      
+    "architectures.regnet_depth_bias":
+      min: 1.0                          # Shallow base
+      max: 6.0                          # Deep base
+
+# =============================================================================
+# EXAMPLE 4: Efficient Architecture Search  
+# =============================================================================
+efficient_architectures:
+  experiment_name: "efficient_small_models"
+  description: "Search for efficient small models with parameter constraints"
+  
+  strategy_levels:
+    architectures: "custom"
+    
+  parameter_overrides:
+    # Focus on smaller, efficient architectures
+    "architectures.regnet_num_stages":
+      choices: [3, 4]                   # Fewer stages
+      
+    "architectures.regnet_max_stage_depth":
+      resnet:
+        custom: [4, 6, 8]               # Shallower ResNets
+      convnext:
+        custom: [3, 4, 6]               # Compact ConvNeXts
+        
+    "architectures.regnet_initial_width":
+      choices: [16, 24, 32]             # Narrower initial widths
+      
+    "architectures.regnet_width_slope":
+      min: 1.5                          # Conservative width growth
+      max: 2.5
+      
+  # Add efficiency constraints
+  constraints:
+    max_model_params: 10000000          # Under 10M parameters
+    max_model_flops: 1000000000         # Under 1G FLOPs
+
+# =============================================================================
+# EXAMPLE 5: Deep Architecture Exploration
+# =============================================================================
+deep_architectures:
+  experiment_name: "very_deep_networks"
+  description: "Explore very deep architectures beyond standard models"
+  
+  strategy_levels:
+    architectures: "custom"
+    
+  parameter_overrides:
+    # Enable very deep configurations
+    "architectures.regnet_num_stages":
+      choices: [4, 5, 6]                # More stages
+      
+    "architectures.regnet_max_stage_depth":
+      resnet:
+        custom: [16, 20, 24, 28, 32]    # Very deep ResNets
+      convnext:
+        custom: [12, 16, 20, 24]        # Deep ConvNeXts
+        
+    # Progressive depth increase for stability
+    "architectures.regnet_depth_slope":
+      min: 0.02                         # Always increasing
+      max: 0.12                         # Strong progression
+      
+    "architectures.regnet_depth_bias":
+      min: 1.0                          # Start shallow
+      max: 3.0                          # Reasonable base
+      
+  # Training modifications for deep networks
+  extended_search_space:
+    "training.gradient_clip_norm":
+      type: "float"
+      min: 1.0
+      max: 5.0                          # Stronger clipping for deep nets
+      
+    "training.learning_rate":
+      min: 0.00001                      # Lower LR for stability
+      max: 0.003
+
+# =============================================================================
+# USAGE INSTRUCTIONS
+# =============================================================================
+# 
+# To use these configurations:
+# 
+# 1. Copy desired section to a new experiment file:
+#    cp predefined_examples.yaml my_resnet50_exp.yaml
+# 
+# 2. Extract relevant section and modify as needed
+# 
+# 3. Run experiment:
+#    python run_optuna_search.py --config=my_resnet50_exp.yaml
+# 
+# 4. The RegNet rule will generate architectures constrained to match
+#    the desired predefined patterns while allowing controlled variation
+#
+# This approach is much more flexible than hardcoded predefined profiles!

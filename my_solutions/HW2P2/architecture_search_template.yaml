@@ -1,0 +1,195 @@
+# =============================================================================
+# ARCHITECTURE SEARCH FOCUSED EXPERIMENT
+# Specialized configuration for neural architecture search (NAS)
+# =============================================================================
+experiment_name: "architecture_search_nas_v1"
+description: "Focused architecture search with minimal other variations"
+
+# =============================================================================
+# STRATEGY LEVELS (架构搜索专用)
+# =============================================================================
+strategy_levels:
+  augmentation: "basic"              # 最小增强避免干扰
+  label_mixing: "basic"             # 简单混合
+  data_sampling: "basic"            # 标准采样
+  architectures: "custom"           # 自定义架构搜索
+  training: "robust"                # 稳定训练策略
+
+# =============================================================================
+# FIXED PARAMETERS (固定非架构相关参数)
+# =============================================================================
+fixed_params:
+  # 标准训练配置
+  epochs: 80
+  batch_size: 64
+  learning_rate: 0.001              # 固定学习率
+  optimizer_type: "adamw"           # 固定优化器
+  weight_decay: 0.01               # 固定权重衰减
+  
+  # 数据配置
+  num_classes: 7000
+  input_size: [224, 224]
+  num_workers: 8
+
+# =============================================================================
+# ARCHITECTURE SEARCH SPACE (专门的架构搜索空间)
+# =============================================================================
+parameter_overrides:
+  # ==================== 架构类型比较 ====================
+  "architectures.architecture_type":
+    choices: ["resnet", "convnext"]
+    
+  # ==================== 深度搜索 ====================
+  "architectures.regnet_num_stages":
+    choices: [3, 4, 5, 6]            # 广泛的阶段数搜索
+    
+  "architectures.regnet_max_stage_depth":
+    resnet:
+      custom: [6, 8, 12, 16, 20, 24, 28, 32]  # 极深ResNet搜索
+    convnext:
+      custom: [4, 6, 8, 12, 16, 20, 24]       # 深ConvNeXt搜索
+      
+  "architectures.regnet_min_stage_depth":
+    resnet:
+      custom: [1, 2, 3, 4]
+    convnext:
+      custom: [1, 2, 3]
+      
+  # ==================== 宽度搜索 ====================
+  "architectures.regnet_width_slope":
+    min: 1.2                         # 更保守的宽度增长
+    max: 5.0                         # 更激进的宽度增长
+    
+  "architectures.regnet_initial_width":
+    choices: [8, 16, 24, 32, 48, 64, 96]  # 更广的初始宽度
+    
+  # ==================== 深度生成规则 ====================
+  "architectures.regnet_depth_slope":
+    min: 0.003
+    max: 0.2                         # 极大的深度斜率范围
+    
+  "architectures.regnet_depth_bias":
+    min: -2.0
+    max: 5.0                         # 极大的深度偏置范围
+
+# =============================================================================
+# EXTENDED ARCHITECTURE PARAMETERS
+# =============================================================================
+extended_search_space:
+  # ==================== ResNet特定参数 ====================
+  "architectures.resnet_stem_width":
+    type: "categorical"
+    choices: [32, 64, 96, 128]
+    condition: "$architecture_type == 'resnet'"
+    description: "ResNet stem convolution width"
+    
+  "architectures.resnet_bottleneck_ratio":
+    type: "categorical"
+    choices: [0.25, 0.5, 1.0]        # 瓶颈层比例
+    condition: "$architecture_type == 'resnet'"
+    
+  "architectures.resnet_se_ratio":  
+    type: "categorical"
+    choices: [0, 0.25, 0.125, 0.0625]  # SE模块比例 (0表示不使用)
+    condition: "$architecture_type == 'resnet'"
+    
+  # ==================== ConvNeXt特定参数 ====================
+  "architectures.convnext_stem_width":
+    type: "categorical" 
+    choices: [64, 96, 128, 160]
+    condition: "$architecture_type == 'convnext'"
+    
+  "architectures.convnext_expansion_ratio":
+    type: "categorical"
+    choices: [2, 3, 4, 6]            # MLP扩展比例
+    condition: "$architecture_type == 'convnext'"
+    
+  "architectures.convnext_kernel_size":
+    type: "categorical"
+    choices: [3, 5, 7, 9]            # 深度卷积核大小
+    condition: "$architecture_type == 'convnext'"
+    
+  # ==================== 通用架构参数 ====================
+  "architectures.global_pool_type":
+    type: "categorical"
+    choices: ["avg", "max", "adaptive_avg", "gem"]
+    description: "Global pooling method"
+    
+  "architectures.classifier_dropout":
+    type: "float"
+    min: 0.0
+    max: 0.5
+    description: "Classifier dropout rate"
+
+# =============================================================================
+# ARCHITECTURE SEARCH SPECIFIC CONFIG
+# =============================================================================
+search_config:
+  # 使用更适合架构搜索的采样器
+  sampler: "CmaEsSampler"           # CMA-ES对架构搜索很有效
+  sampler_params:
+    n_startup_trials: 50
+    
+  n_trials: 500                     # 架构搜索需要更多试验
+  timeout: 43200                    # 12小时
+  n_jobs: 6                         # 更多并行
+  
+  # 使用Hyperband pruner适合架构搜索
+  pruner: "HyperbandPruner"
+  pruner_params:
+    min_resource: 20                # 最少20个epoch
+    max_resource: 80                # 最多80个epoch
+    reduction_factor: 3
+    
+  objectives:
+    primary: "val_accuracy"
+    secondary: "model_flops"        # 考虑计算效率
+    tertiary: "model_params"        # 考虑参数数量
+    direction: ["maximize", "minimize", "minimize"]
+
+# =============================================================================
+# ARCHITECTURE ANALYSIS
+# =============================================================================
+analysis:
+  # 架构复杂度分析
+  compute_flops: true
+  compute_params: true
+  compute_memory: true
+  
+  # 架构可视化
+  save_architecture_graphs: true
+  save_depth_profiles: true
+  
+  # 性能分析
+  profile_training_speed: true
+  profile_inference_speed: true
+
+# =============================================================================
+# SPECIAL TRACKING FOR ARCHITECTURE SEARCH
+# =============================================================================
+tracking:
+  wandb:
+    project: "neural_architecture_search"
+    tags: ["nas", "regnet_rule", "depth_search", "multi_arch"]
+    
+  # 专门的架构日志
+  architecture_logging:
+    save_stage_depths: true
+    save_width_progressions: true
+    save_parameter_distributions: true
+    compare_architectures: true
+
+experiment_notes: |
+  Architecture Search Experiment Goals:
+  
+  1. **Multi-Architecture Comparison**: ResNet vs ConvNeXt families
+  2. **Depth Rule Optimization**: Find optimal RegNet depth generation rules  
+  3. **Stage Configuration**: Optimize number of stages and per-stage depths
+  4. **Width Progression**: Find optimal width scaling patterns
+  5. **Architecture-Specific Features**: SE modules for ResNet, kernel sizes for ConvNeXt
+  6. **Efficiency Trade-offs**: Balance accuracy vs computational cost
+  
+  This configuration minimizes augmentation and training variations to focus
+  purely on architectural innovations.
+
+version: "1.0"
