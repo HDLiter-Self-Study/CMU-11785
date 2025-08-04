@@ -9,7 +9,7 @@
 # parameters are defined here.
 
 bottleneck_block:
-  class: "strategy"
+  class: "instance"
 
   # Bottleneck-specific parameters
   bottleneck_params:
@@ -18,7 +18,7 @@ bottleneck_block:
     # Expansion ratio for bottleneck blocks (bottleneck-specific parameter)
     expansion:
       class: "param"
-      param_name: "resnet_bottleneck_expansion"
+      param_name: "bottleneck_expansion"
       type: "categorical"
       choices: [2, 3, 4, 6, 8]
       description: "Expansion ratio for bottleneck blocks (out_channels = neck_channels * expansion)"

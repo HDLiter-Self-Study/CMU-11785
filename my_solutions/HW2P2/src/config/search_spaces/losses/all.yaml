@@ -2,14 +2,50 @@
 # @package search_spaces.losses
 # Classification and verification loss functions
 
-# Classification losses
-classification:
-  cross_entropy:
-    name: "CrossEntropyLoss"
-    description: "Standard cross-entropy loss"
+# =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Standard loss functions, minimal complexity
+# - robust: Balanced loss selection, recommended for most research  
+# - comprehensive: Advanced loss functions, thorough exploration
+# - custom: Maximum flexibility, all available loss functions
+
+# =============================================================================
+# LOSS FUNCTION STRATEGY
+# =============================================================================
+losses:
+  class: "strategy"
+
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+  # =============================================================================
+  # CLASSIFICATION LOSS FUNCTIONS
+  # =============================================================================
+  classification_losses:
+    class: "technique"
     
-    params:
+    # Loss function selection
+    selection:
+      class: "param"
+      param_name: "classification_loss_type"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["cross_entropy"]
+        robust: ["cross_entropy", "focal_loss"]
+        comprehensive: ["cross_entropy", "focal_loss"]
+        custom: ["cross_entropy", "focal_loss"]
+      description: "Classification loss function selection"
+    
+    # Cross-entropy loss implementation
+    cross_entropy:
+      class: "instance"
+      condition: "$classification_loss_type == 'cross_entropy'"
+      
       label_smoothing:
+        class: "param"  
         param_name: "cls_label_smoothing"
         type: "float"
         min: 0.0
@@ -17,38 +53,59 @@ classification:
         description: "Label smoothing factor"
         
       class_weights:
+        class: "param"
         param_name: "cls_use_class_weights"
         type: "categorical"
         choices: [true, false]
         description: "Whether to use class weights"
-  
-  focal_loss:
-    name: "FocalLoss"
-    description: "Focal loss for imbalanced classification"
     
-    params:
+    # Focal loss implementation
+    focal_loss:
+      class: "instance"
+      condition: "$classification_loss_type == 'focal_loss'"
+      
       alpha:
+        class: "param"
         param_name: "cls_focal_alpha"
         type: "float"
         min: 0.1
         max: 1.0
-        description: "Focal loss alpha parameter"
+        description: "Focal loss alpha parameter (class balance)"
         
       gamma:
+        class: "param"
         param_name: "cls_focal_gamma"
         type: "float"
         min: 1.0
         max: 5.0
-        description: "Focal loss gamma parameter"
+        description: "Focal loss gamma parameter (focusing parameter)"
 
-# Verification losses  
-verification:
-  contrastive:
-    name: "ContrastiveLoss"
-    description: "Contrastive loss for verification"
+  # =============================================================================
+  # VERIFICATION LOSS FUNCTIONS
+  # =============================================================================
+  verification_losses:
+    class: "technique"
     
-    params:
+    # Loss function selection
+    selection:
+      class: "param"
+      param_name: "verification_loss_type"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["contrastive"]
+        robust: ["contrastive", "triplet", "binary_cross_entropy"]
+        comprehensive: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
+        custom: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
+      description: "Verification loss function selection"
+    
+    # Contrastive loss implementation
+    contrastive:
+      class: "instance"
+      condition: "$verification_loss_type == 'contrastive'"
+      
       margin:
+        class: "param"
         param_name: "ver_contrastive_margin"
         type: "float"
         min: 0.5
@@ -56,18 +113,20 @@ verification:
         description: "Contrastive loss margin"
         
       pos_weight:
+        class: "param"
         param_name: "ver_contrastive_pos_weight"
         type: "float"
         min: 0.5
         max: 2.0
         description: "Weight for positive pairs"
-  
-  triplet:
-    name: "TripletLoss"
-    description: "Triplet loss for verification"
     
-    params:
+    # Triplet loss implementation
+    triplet:
+      class: "instance"
+      condition: "$verification_loss_type == 'triplet'"
+      
       margin:
+        class: "param"
         param_name: "ver_triplet_margin"
         type: "float"
         min: 0.1
@@ -75,23 +134,26 @@ verification:
         description: "Triplet loss margin"
         
       mining_strategy:
+        class: "param"
         param_name: "ver_triplet_mining"
         type: "categorical"
         choices: ["random", "hard", "semi_hard", "distance_weighted"]
         description: "Triplet mining strategy"
         
       distance_metric:
+        class: "param"
         param_name: "ver_triplet_distance"
         type: "categorical"
         choices: ["euclidean", "cosine", "manhattan"]
         description: "Distance metric for triplet loss"
-  
-  arcface:
-    name: "ArcFaceLoss"
-    description: "ArcFace loss for verification"
     
-    params:
+    # ArcFace loss implementation
+    arcface:
+      class: "instance"
+      condition: "$verification_loss_type == 'arcface'"
+      
       scale:
+        class: "param"
         param_name: "ver_arcface_scale"
         type: "float"
         min: 10.0
@@ -99,18 +161,20 @@ verification:
         description: "ArcFace scale parameter"
         
       margin:
+        class: "param"
         param_name: "ver_arcface_margin"
         type: "float"
         min: 0.1
-        max: 0.8
+        max: 0.8 
         description: "ArcFace margin parameter"
-  
-  binary_cross_entropy:
-    name: "BinaryCrossEntropyLoss"
-    description: "Binary cross-entropy for verification"
     
-    params:
+    # Binary cross-entropy loss implementation
+    binary_cross_entropy:
+      class: "instance"
+      condition: "$verification_loss_type == 'binary_cross_entropy'"
+      
       pos_weight:
+        class: "param"
         param_name: "ver_bce_pos_weight"
         type: "float"
         min: 0.5
@@ -118,22 +182,9 @@ verification:
         description: "Weight for positive class"
         
       label_smoothing:
+        class: "param"
         param_name: "ver_bce_label_smoothing"
         type: "float"
         min: 0.0
         max: 0.2
         description: "Label smoothing for BCE"
-
-# Loss type selection
-loss_type:
-  classification:
-    param_name: "classification_loss_type"
-    type: "categorical"
-    choices: ["cross_entropy", "focal_loss"]
-    description: "Classification loss function"
-    
-  verification:
-    param_name: "verification_loss_type"
-    type: "categorical"
-    choices: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
-    description: "Verification loss function"

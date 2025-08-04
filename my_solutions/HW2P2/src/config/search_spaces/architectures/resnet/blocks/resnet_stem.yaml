@@ -26,7 +26,7 @@
 # This mapping is implemented in Python code, not in config files.
 
 resnet_stem:
-  class: "strategy"
+  class: "instance"
 
   # Stem-specific parameters
   stem_params:
@@ -35,7 +35,7 @@ resnet_stem:
     # Output channels for stem (stem-specific parameter)
     out_channels:
       class: "param"
-      param_name: "resnet_stem_out_channels"
+      param_name: "stem_out_channels"
       type: "categorical"
       choices: [64, 96, 128]
       description: "Number of output channels in stem convolution"
@@ -43,7 +43,7 @@ resnet_stem:
     # Whether to use max pooling (stem-specific parameter)
     use_maxpool:
       class: "param"
-      param_name: "resnet_stem_use_maxpool"
+      param_name: "stem_use_maxpool"
       type: "categorical"
       choices: [true, false]
       description: "Whether to use max pooling after stem convolutions"

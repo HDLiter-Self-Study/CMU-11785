@@ -15,12 +15,12 @@
 # - The stem implementation will receive the resolved normalization based on granularity
 
 convnext_stem:
-  class: "technique"
+  class: "instance"
   
   # Stem output channels (width after patchify operation)
   out_channels:
     class: "param"
-    param_name: "convnext_stem_out_channels"
+    param_name: "stem_out_channels"
     type: "categorical"
     choices: [64, 96, 128, 160]
     description: "Number of output channels from ConvNeXt stem (patchify layer)"
@@ -28,7 +28,7 @@ convnext_stem:
   # Stride for patchify operation (determines how much spatial downsampling)
   stride:
     class: "param"
-    param_name: "convnext_stem_stride"
+    param_name: "stem_stride"
     type: "categorical"
     choices: [2, 4]
     description: "Stride for ConvNeXt patchify operation (kernel_size = max(4, stride))"

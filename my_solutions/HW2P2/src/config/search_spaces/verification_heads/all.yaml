@@ -1,134 +1,215 @@
 # Verification Heads Search Space
-# All possible verification head configurations
+# @package search_spaces.verification_heads
+# Verification head architectures for face recognition/verification
 
-# Cosine similarity head
-cosine_similarity:
-  name: "CosineSimilarityHead"
-  description: "Cosine similarity-based verification head"
+# =============================================================================
+# STRATEGY LEVELS REFERENCE
+# =============================================================================
+# Available strategy levels (set manually in strategy_level field):
+# - basic: Standard similarity heads, minimal complexity
+# - robust: Enhanced similarity heads, recommended for most research  
+# - comprehensive: Advanced attention-based heads, thorough exploration
+# - custom: Maximum flexibility, all available head architectures
+
+# =============================================================================
+# VERIFICATION HEAD STRATEGY
+# =============================================================================
+verification_heads_strategy:
+  class: "strategy"
+
+  # Meta-configuration: manually set by researcher (not searched)
+  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+# =============================================================================
+# VERIFICATION HEAD SELECTION
+# =============================================================================
+verification_heads:
+  class: "technique"
   
-  params:
+  # Head architecture selection
+  selection:
+    class: "param"
+    param_name: "verification_head_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["cosine_similarity"]
+      robust: ["cosine_similarity", "learned_similarity"]
+      comprehensive: ["cosine_similarity", "learned_similarity", "attention_similarity"]
+      custom: ["cosine_similarity", "learned_similarity", "attention_similarity"]
+    description: "Verification head architecture selection"
+
+# =============================================================================
+# HEAD IMPLEMENTATIONS
+# =============================================================================
+
+  # Cosine similarity head
+  cosine_similarity:
+    class: "instance"
+    condition: "$verification_head_type == 'cosine_similarity'"
+    
     embedding_dim:
-      param_name: "ver_embedding_dim"
+      class: "param"
+      param_name: "ver_head_embedding_dim"
       type: "categorical"
       choices: [128, 256, 512, 1024]
-      description: "Embedding dimension for verification"
+      description: "Final embedding dimension"
       
-    normalize_features:
-      param_name: "ver_normalize_features"
+    use_l2_norm:
+      class: "param"
+      param_name: "ver_head_use_l2_norm"
       type: "categorical"
       choices: [true, false]
-      description: "Whether to L2 normalize features"
+      description: "Whether to L2 normalize embeddings"
       
     temperature:
-      param_name: "ver_temperature"
+      class: "param"
+      param_name: "ver_head_temperature"
       type: "float"
       min: 0.01
       max: 1.0
-      description: "Temperature scaling for similarity"
-
-# L2 distance head
-l2_distance:
-  name: "L2DistanceHead"
-  description: "L2 distance-based verification head"
-  
-  params:
-    embedding_dim:
-      param_name: "ver_l2_embedding_dim"
-      type: "categorical"
-      choices: [128, 256, 512, 1024]
-      description: "Embedding dimension for L2 distance"
+      description: "Temperature scaling for similarity scores"
       
-    distance_threshold:
-      param_name: "ver_l2_threshold"
-      type: "float"
-      min: 0.1
-      max: 2.0
-      description: "Distance threshold for verification"
-      
-    learnable_threshold:
-      param_name: "ver_l2_learnable_threshold"
+    hidden_dims:
+      class: "param"
+      param_name: "ver_head_hidden_dims"
       type: "categorical"
-      choices: [true, false]
-      description: "Whether threshold is learnable"
-
-# Learned similarity head
-learned_similarity:
-  name: "LearnedSimilarityHead"
-  description: "Neural network-based similarity learning"
-  
-  params:
-    embedding_dim:
-      param_name: "ver_learned_embedding_dim"
-      type: "categorical"
-      choices: [256, 512, 1024]
-      description: "Embedding dimension for learned similarity"
-      
-    similarity_layers:
-      param_name: "ver_similarity_layers"
-      type: "categorical"
-      choices: [[128], [256], [512], [256, 128], [512, 256]]
-      description: "Hidden layers in similarity network"
+      choices: [[], [512], [1024], [512, 256]]
+      description: "Hidden layers before embedding projection"
       
     activation:
-      param_name: "ver_similarity_activation"
+      class: "param"
+      param_name: "ver_head_activation"
       type: "categorical"
-      choices: ["relu", "gelu", "tanh", "sigmoid"]
-      description: "Activation in similarity network"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      condition: "$ver_head_hidden_dims != []"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "ver_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization"
+      condition: "$ver_head_hidden_dims != []"
+  
+  # Learned similarity head
+  learned_similarity:
+    class: "instance"
+    condition: "$verification_head_type == 'learned_similarity'"
+    
+    embedding_dim:
+      class: "param"
+      param_name: "ver_head_embedding_dim"
+      type: "categorical"
+      choices: [128, 256, 512, 1024]
+      description: "Final embedding dimension"
+      
+    similarity_layers:
+      class: "param"
+      param_name: "ver_head_similarity_layers"
+      type: "categorical"
+      choices: [[256], [512], [256, 128], [512, 256]]
+      description: "Hidden layers for similarity computation"
+      
+    similarity_activation:
+      class: "param"
+      param_name: "ver_head_similarity_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "tanh"]
+      description: "Activation for similarity network"
       
     dropout_rate:
-      param_name: "ver_similarity_dropout"
+      class: "param"
+      param_name: "ver_head_dropout_rate"
       type: "float"
       min: 0.0
       max: 0.5
-      description: "Dropout in similarity network"
-
-# Attention-based similarity head
-attention_similarity:
-  name: "AttentionSimilarityHead"
-  description: "Attention-based similarity computation"
-  
-  params:
-    embedding_dim:
-      param_name: "ver_attention_embedding_dim"
-      type: "categorical"
-      choices: [256, 512, 1024]
-      description: "Embedding dimension for attention similarity"
+      description: "Dropout rate in similarity network"
       
-    num_heads:
-      param_name: "ver_attention_heads"
+    hidden_dims:
+      class: "param"
+      param_name: "ver_head_hidden_dims"
+      type: "categorical"
+      choices: [[], [512], [1024], [512, 256]]
+      description: "Hidden layers before embedding projection"
+      
+    activation:
+      class: "param"
+      param_name: "ver_head_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      condition: "$ver_head_hidden_dims != []"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "ver_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization"
+      condition: "$ver_head_hidden_dims != []"
+  
+  # Attention-based similarity head
+  attention_similarity:
+    class: "instance"
+    condition: "$verification_head_type == 'attention_similarity'"
+    
+    embedding_dim:
+      class: "param"
+      param_name: "ver_head_embedding_dim"
+      type: "categorical"
+      choices: [128, 256, 512, 1024]
+      description: "Final embedding dimension"
+      
+    attention_dim:
+      class: "param"
+      param_name: "ver_head_attention_dim"
+      type: "categorical"
+      choices: [128, 256, 512]
+      description: "Attention mechanism dimension"
+      
+    num_attention_heads:
+      class: "param"
+      param_name: "ver_head_num_attention_heads"  
       type: "categorical"
       choices: [1, 2, 4, 8]
       description: "Number of attention heads"
       
-    attention_dim:
-      param_name: "ver_attention_dim"
-      type: "categorical"
-      choices: [64, 128, 256]
-      description: "Attention dimension"
+    attention_dropout:
+      class: "param"
+      param_name: "ver_head_attention_dropout"
+      type: "float"
+      min: 0.0
+      max: 0.3
+      description: "Dropout rate for attention weights"
       
-    use_positional_encoding:
-      param_name: "ver_use_pos_encoding"
+    use_cross_attention:
+      class: "param"
+      param_name: "ver_head_use_cross_attention"
       type: "categorical"
       choices: [true, false]
-      description: "Whether to use positional encoding"
-
-# Siamese network configuration
-siamese:
-  shared_backbone:
-    param_name: "ver_shared_backbone"
-    type: "categorical"
-    choices: [true, false]
-    description: "Whether to share backbone weights"
-    
-  feature_fusion:
-    param_name: "ver_feature_fusion"
-    type: "categorical"
-    choices: ["concat", "subtract", "multiply", "both"]
-    description: "How to fuse paired features"
-
-# Default head type selection
-head_type:
-  param_name: "verification_head_type"
-  type: "categorical"
-  choices: ["cosine_similarity", "l2_distance", "learned_similarity", "attention_similarity"]
-  description: "Type of verification head to use"
+      description: "Whether to use cross-attention for pair comparison"
+      
+    hidden_dims:
+      class: "param"
+      param_name: "ver_head_hidden_dims"
+      type: "categorical"
+      choices: [[], [512], [1024], [512, 256]]
+      description: "Hidden layers before embedding projection"
+      
+    activation:
+      class: "param"
+      param_name: "ver_head_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      condition: "$ver_head_hidden_dims != []"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "ver_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization"
+      condition: "$ver_head_hidden_dims != []"
