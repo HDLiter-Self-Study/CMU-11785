@@ -10,6 +10,3 @@ defaults:
   - label_mixing: default     # Label mixing strategies
   - _self_
 
-# Search spaces configuration metadata
-enabled: true
-description: "Hyperparameter search spaces for model optimization"

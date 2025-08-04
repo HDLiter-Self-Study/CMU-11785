@@ -1,6 +1,13 @@
 # Label Mixing Strategies Search Space Configuration
 # @package search_spaces.label_mixing
 # Strategies that modify both input and labels during training
+#
+# OPTIMIZATION NOTES (based on empirical analysis):
+# - MixUp: α=1.0 provides excellent global blending effects
+# - CutMix: α=1.0 baseline works well, wider range for exploration
+# - FMix: Requires higher α (4.0+) due to effective λ being ~5% of original λ
+#   - Lower decay_power (1.2) produces smoother, more visible mixing
+#   - Spatial transforms significantly improve mask diversity
 
 # =============================================================================
 # STRATEGY LEVELS REFERENCE
@@ -45,8 +52,8 @@ label_mixing:
         class: "param"
         param_name: "mixup_alpha"
         type: "float"
-        min: 0.1
-        max: 1.2
+        min: 0.2
+        max: 2.0
         description: "Beta distribution parameter for Mixup"
 
     # CutMix technique
@@ -58,8 +65,8 @@ label_mixing:
         class: "param"
         param_name: "cutmix_alpha"
         type: "float"
-        min: 0.5
-        max: 2.0
+        min: 0.3
+        max: 3.0
         description: "Beta distribution parameter for CutMix"
 
     # FMix technique
@@ -72,15 +79,25 @@ label_mixing:
         param_name: "fmix_alpha"
         type: "float"
         min: 0.2
-        max: 2.0
+        max: 4.0
         description: "Beta distribution parameter for FMix"
             
       decay_power:
         class: "param"
         param_name: "fmix_decay_power"
         type: "float"
-        min: 1.0
-        max: 5.0
+        min: 0.8
+        max: 2.0
         description: "Decay power for frequency domain mask in FMix"
+      
+      max_soft:
+        class: "param"
+        param_name: "fmix_max_soft"
+        type: "float"
+        min: 0.0
+        max: 0.3
+        description: "Softening parameter for FMix mask edges"
+
+
 
 
