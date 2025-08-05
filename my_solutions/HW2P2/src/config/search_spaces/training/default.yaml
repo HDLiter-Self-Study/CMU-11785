@@ -174,13 +174,8 @@ training:
         class: "param"
         param_name: "batch_size"
         type: "categorical"
-        choices: 
-          basic: [1024] # In basic, fix to a single batch size that fits in your memory
-          robust: [512, 1024]
-          comprehensive: [256, 512, 1024]
-          custom: [256, 512, 1024]
+        choices: [1024]
         description: "Training batch size"
-        default: 1024
 
   # Learning rate scheduling techniques
   lr_scheduler_techniques:
@@ -210,7 +205,6 @@ training:
         low: 0
         high: 15
         description: "Number of warmup epochs for cosine scheduler"
-        default: 5
 
       eta_min_ratio:
         class: "param"
@@ -220,7 +214,6 @@ training:
         high: 0.1
         log: true
         description: "Minimum LR as ratio of initial LR (eta_min = lr * ratio)"
-        default: 0.01
 
     # Step scheduler (with warmup options)
     step:
@@ -234,7 +227,6 @@ training:
         low: 0
         high: 10
         description: "Number of warmup epochs for step scheduler"
-        default: 3
 
       step_size:
         class: "param"
@@ -272,7 +264,6 @@ training:
         low: 0.1
         high: 0.8
         description: "Factor by which LR is reduced (new_lr = old_lr * factor)"
-        default: 0.5
 
       threshold:
         class: "param"
@@ -282,7 +273,6 @@ training:
         high: 1e-2
         log: true
         description: "Threshold for measuring improvement"
-        default: 1e-4
 
       threshold_mode:
         class: "param"
@@ -290,7 +280,6 @@ training:
         type: "categorical"
         choices: ["rel", "abs"]
         description: "Mode for threshold comparison (relative or absolute)"
-        default: "rel"
 
       cooldown:
         class: "param"
@@ -299,7 +288,6 @@ training:
         low: 0
         high: 10
         description: "Number of epochs to wait before resuming normal operation after lr reduction"
-        default: 0
 
       min_lr:
         class: "param"
@@ -309,7 +297,6 @@ training:
         high: 1e-4
         log: true
         description: "Lower bound on the learning rate"
-        default: 1e-6
 
       eps:
         class: "param"
@@ -319,7 +306,6 @@ training:
         high: 1e-6
         log: true
         description: "Minimal decay applied to lr (if difference between new and old lr is smaller than eps, update is ignored)"
-        default: 1e-8
 
   # Model averaging techniques
   model_averaging_techniques:
@@ -349,7 +335,6 @@ training:
         low: 0
         high: 20
         description: "Epoch to start EMA (0 = from beginning)"
-        default: 0
 
       # Update frequency fixed to 1 (update every step) in implementation
 
@@ -381,7 +366,6 @@ training:
         low: 0.1
         high: 5.0
         description: "Maximum gradient norm for clipping"
-        default: 1.0
 
       norm_type:
         class: "param"
@@ -389,4 +373,3 @@ training:
         type: "categorical"
         choices: [2.0, "inf"]
         description: "Type of norm to use for gradient clipping"
-        default: 2.0

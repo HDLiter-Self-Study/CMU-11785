@@ -1,285 +1,357 @@
 """
-Augmentation configuration parser and Optuna sampler
+Search Space Sampler for Optuna-based hyperparameter optimization.
+Supports hierarchical configuration sampling with architecture-aware parameters
+using dependency_order for clean parameter resolution.
 """
 
 import optuna
 from typing import Dict, Any, List, Optional, Union
+import inspect
 from omegaconf import DictConfig
-from config_manager import get_config
+
+from .config_manager import get_config
 
 
 class SearchSpaceSampler:
     """
-    General search space parser and Optuna sampler for all categories.
+    Search space parser and Optuna sampler with architecture-aware parameter support.
+    Uses dependency_order for clean parameter resolution without hardcoded prefixes.
     """
+
+    # --- class-level constants to minimize hard-coding ---------------------------------
+    _REQUIRED = {
+        "categorical": {"choices"},
+        "float": {"low", "high"},
+        "int": {"low", "high"},
+    }
+    _CAST = {"float": float, "int": int}
 
     def __init__(self, config_name: str = "main", overrides: Optional[List[str]] = None):
         """
-        Initialize the augmentation sampler
+        Initialize the sampler with a config name and optional overrides.
 
         Args:
-            config_name: Name of the main config file
-            overrides: List of parameter overrides
+            config_name: Name of the config to load (default: "main")
+            overrides: List of Hydra-style parameter overrides
         """
-        self.config = get_config(config_name, overrides)
-        self.search_spaces = self.config.search_spaces
+        self.config: DictConfig = get_config(config_name, overrides)
+        self.search_spaces: DictConfig = self.config.search_spaces
 
         # Dynamically discover all search space categories
-        self.search_space_categories = [k for k in self.search_spaces.keys() if hasattr(self.search_spaces, k)]
+        self.search_space_categories = list(self.search_spaces.keys())
+
+        # Safe built-ins for eval operations
+        self.safe_builtins = {
+            "max": max,
+            "min": min,
+            "len": len,
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "list": list,
+            "dict": dict,
+            "abs": abs,
+        }
+
+        # ------------------------------------------------------------------
+        # Helper: evaluate "$..." expressions safely with sampled parameters
+        # ------------------------------------------------------------------
+
+    def _safe_eval(self, expr: str, params: Dict[str, Any]):
+        """Safely evaluate an expression string using sampled params & whitelisted builtins."""
+        return eval(expr, {"__builtins__": self.safe_builtins}, dict(params))
 
     def _evaluate_condition(self, condition: str, sampled_params: Dict[str, Any]) -> bool:
-        """
-        Evaluate a condition string using sampled parameters
-
-        Args:
-            condition: Condition string (e.g., "$spatial_augmentation_strategy in ['random_erasing', 'random_choice']")
-            sampled_params: Dictionary of sampled parameters
-
-        Returns:
-            Boolean result of condition evaluation
-        """
+        """Evaluate "$expr" to boolean with shared _safe_eval."""
         if not condition or not condition.startswith("$"):
             return True
-
-        # Remove $ prefix
-        condition_eval = condition[1:]
-
-        # Create a safe evaluation environment with parameter values
-        eval_env = dict(sampled_params)
         try:
-            # Evaluate the condition in the safe environment
-            return bool(eval(condition_eval, {"__builtins__": {}}, eval_env))
+            return bool(self._safe_eval(condition[1:], sampled_params))
         except Exception as e:
-            print(f"Warning: Could not evaluate condition '{condition}': {e}")
-            return False
+            raise ValueError(
+                f"Failed to evaluate condition '{condition[1:]}': {e}. Available parameters: {list(sampled_params.keys())}"
+            )
 
-    def _get_choices_for_strategy(self, choices_dict: Dict[str, List[Any]], strategy_value: str) -> List[Any]:
+    def _resolve_dynamic_value(self, value, sampled_params: Dict[str, Any]):
+        """Resolve strings starting with "$" via shared _safe_eval."""
+        if isinstance(value, str) and value.startswith("$"):
+            try:
+                return self._safe_eval(value[1:], sampled_params)
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to resolve dynamic value '{value}': {e}. Available params: {list(sampled_params.keys())}"
+                )
+        return value
+
+    def _is_dict_like(self, value) -> bool:
+        """Check if a value is dict-like (dict or has keys)"""
+        return isinstance(value, dict) or hasattr(value, "keys")
+
+    def _normalize_choices(self, choices, param_name: str = ""):
+        """Normalize choices to a proper Python list"""
+        # Convert OmegaConf ListConfig to Python list
+        if hasattr(choices, "_content"):  # OmegaConf ListConfig
+            choices = list(choices)
+        elif not isinstance(choices, list):
+            if choices is None or choices == "":
+                raise ValueError(f"Empty or null choices for {param_name}")
+            choices = [choices]
+
+        # Ensure we have valid choices
+        if not choices:
+            raise ValueError(f"No valid choices found for {param_name}")
+
+        return choices
+
+    def _resolve_param_value(
+        self, value, param_config: DictConfig, sampled_params: Dict[str, Any], param_name: str = ""
+    ):
+        """Resolve value according to dependency_order as nested dictionary keys"""
+        if not self._is_dict_like(value):
+            return value
+
+        dependency_order = getattr(param_config, "dependency_order", [])
+        if not dependency_order:
+            raise ValueError(f"No dependency order found for {param_name}")
+
+        current_value = value
+
+        # Navigate through nested dict according to dependency_order
+        for dep_param in dependency_order:
+            key = sampled_params[dep_param]
+
+            if not self._is_dict_like(current_value):
+                raise ValueError(
+                    f"Cannot use key '{dep_param}'={key} for {param_name} because {current_value} is not a dict"
+                )
+            if dep_param not in sampled_params:
+                raise ValueError(f"Dependency parameter '{dep_param}' not found in sampled_params for {param_name}")
+
+            if key not in current_value:
+                raise ValueError(
+                    f"Key '{key}' not found for {current_value} at dependency level '{dep_param}' for {param_name}"
+                )
+
+            current_value = current_value[key]
+
+        return current_value
+
+    def _build_suggest_kwargs(
+        self,
+        param_config: DictConfig,
+        param_name: str,
+        sampled_params: Dict[str, Any],
+        param_type: str,
+        accepted_keys: set,
+    ) -> Dict[str, Any]:
         """
-        Get choices based on strategy value
-
-        Args:
-            choices_dict: Dictionary mapping strategy to choices
-            strategy_value: Current strategy value
-
-        Returns:
-            List of available choices
+        Walk through *all* user-defined attributes in the YAML (except metadata) and
+        convert them into kwargs for Optuna's suggest_* API.
+        Supported keys and their implicit conversions:
+        - choices : list -> handled by _normalize_choices
+        - low/high: numeric conversion according to *param_type*
+        - others  : resolved dynamically but kept as-is (e.g. log, step)
         """
-        return choices_dict.get(strategy_value, [])
+        kw: Dict[str, Any] = {}
+        for k, raw in param_config.items():
+            if k != "choices" and k not in accepted_keys:
+                continue
+            base_val = self._resolve_param_value(raw, param_config, sampled_params, f"{k} for {param_name}")
+            val = self._resolve_dynamic_value(base_val, sampled_params)
+            if k in {"low", "high"}:
+                try:
+                    val = self._CAST[param_type](val)
+                except Exception as e:
+                    raise ValueError(f"{param_name}.{k}={val} not {param_type}: {e}")
+            elif k == "choices":
+                val = self._normalize_choices(val, param_name)
+                if not val:
+                    raise ValueError(f"{param_name}.choices empty")
+            kw[k] = val
 
-    def _sample_parameter(
+        missing = self._REQUIRED[param_type] - kw.keys()
+        if missing:
+            raise ValueError(f"{param_name} missing required key(s): {missing}")
+        return kw
+
+    def _sample_single_param(
         self, trial: optuna.Trial, param_config: DictConfig, param_name: str, sampled_params: Dict[str, Any]
     ) -> Any:
-        """
-        Sample a single parameter using Optuna trial
-
-        Args:
-            trial: Optuna trial object
-            param_config: Parameter configuration
-            param_name: Name of the parameter
-            sampled_params: Already sampled parameters (for dependency resolution)
-
-        Returns:
-            Sampled parameter value
-        """
-        param_type = param_config.type
-
-        if param_type == "categorical":
-            if hasattr(param_config, "choices") and isinstance(param_config.choices, dict):
-                # Dictionary-based choices (depends on another parameter)
-                depends_param = param_config.depends_on[0] if hasattr(param_config, "depends_on") else None
-                if depends_param and depends_param in sampled_params:
-                    choices = self._get_choices_for_strategy(param_config.choices, sampled_params[depends_param])
-                else:
-                    # Fallback to first available choices
-                    choices = list(param_config.choices.values())[0]
-            else:
-                choices = param_config.choices
-            return trial.suggest_categorical(param_name, choices)
-
-        elif param_type == "float":
-            min_val, max_val = param_config.min, param_config.max
-
-            # 动态表达式支持
-            if isinstance(min_val, str) and min_val.startswith("$"):
-                min_val = eval(min_val[1:], {"__builtins__": {}}, sampled_params)
-            if isinstance(max_val, str) and max_val.startswith("$"):
-                max_val = eval(max_val[1:], {"__builtins__": {}}, sampled_params)
-            return trial.suggest_float(param_name, min_val, max_val)
-
-        elif param_type == "int":
-            return trial.suggest_int(param_name, param_config.min, param_config.max)
-
-        else:
+        """Universal sampler: no type-specific branches, everything driven by attribute names."""
+        param_type: str = param_config.type
+        suggest_fn = getattr(trial, f"suggest_{param_type}", None)
+        if not callable(suggest_fn):
             raise ValueError(f"Unsupported parameter type: {param_type}")
 
-    def _sample_instance(
-        self, trial: optuna.Trial, instance_config: DictConfig, instance_name: str, sampled_params: Dict[str, Any]
+        # keep only kwargs that exist in the Optuna function signature
+        accepted = set(inspect.signature(suggest_fn).parameters) - {"name"}
+
+        kw_all = self._build_suggest_kwargs(param_config, param_name, sampled_params, param_type, accepted)
+
+        if param_type == "categorical":
+            choices = kw_all.pop("choices")
+            kw = {k: v for k, v in kw_all.items() if k in accepted}
+            return suggest_fn(param_name, choices, **kw)
+
+        kw = {k: v for k, v in kw_all.items() if k in accepted}
+        return suggest_fn(param_name, **kw)
+
+    def _sample_config_recursively(
+        self,
+        trial: optuna.Trial,
+        cfg: DictConfig,
+        sampled: Dict[str, Any],
+        prefix: str = "",
     ) -> Dict[str, Any]:
-        """
-        Sample parameters for an instance
+        """Single-pass recursion with unified taxonomy (strategy/technique/instance/param)."""
+        out: Dict[str, Any] = {}
 
-        Args:
-            trial: Optuna trial object
-            instance_config: Instance configuration
-            instance_name: Name of the instance
-            sampled_params: Already sampled parameters
+        # pull through strategy_level if available
+        if hasattr(cfg := cfg, "strategy_level") and "strategy_level" not in sampled:
+            sampled["strategy_level"] = cfg.strategy_level
+            out["strategy_level"] = cfg.strategy_level
 
-        Returns:
-            Dictionary of sampled instance parameters
-        """
-        instance_params = {}
-
-        # Check if instance should be active
-        if hasattr(instance_config, "condition"):
-            if not self._evaluate_condition(instance_config.condition, sampled_params):
-                return instance_params
-
-        # Sample each parameter in the instance
-        for param_name, param_config in instance_config.items():
-            # Skip non-config values (like comments or strings)
-            if not isinstance(param_config, DictConfig):
+        for key, node in cfg.items():
+            if key in {"strategy_level", "description"} or not isinstance(node, DictConfig):
                 continue
 
-            if param_config.get("class") == "param":
-                full_param_name = param_config.param_name
-                value = self._sample_parameter(trial, param_config, full_param_name, sampled_params)
-                instance_params[full_param_name] = value
-                sampled_params[full_param_name] = value
+            c = node.get("class", "")
 
-        return instance_params
-
-    def _sample_strategy(
-        self, trial: optuna.Trial, strategy_config: DictConfig, strategy_name: str, sampled_params: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Sample parameters for a strategy
-
-        Args:
-            trial: Optuna trial object
-            strategy_config: Strategy configuration
-            strategy_name: Name of the strategy
-            sampled_params: Already sampled parameters
-
-        Returns:
-            Dictionary of sampled strategy parameters
-        """
-        strategy_params = {}
-
-        for key, config in strategy_config.items():
-            # Skip non-config values (like comments or strings)
-            if not isinstance(config, DictConfig):
+            # ---------- strategy ----------
+            if c == "strategy":
+                out.update(self._sample_config_recursively(trial, node, sampled, prefix))
                 continue
 
-            if config.get("class") == "param":
-                # Sample strategy parameter
-                param_name = config.param_name
-                value = self._sample_parameter(trial, config, param_name, sampled_params)
-                strategy_params[param_name] = value
-                sampled_params[param_name] = value
+            # ---------- technique ----------
+            if c == "technique":
+                sel_attr = next((a for a in node.keys() if a.endswith("selection")), None)
+                if sel_attr:
+                    sel_cfg = node[sel_attr]
+                    raw = sel_cfg.param_name
+                    arch = sampled.get("architecture_type", "")
+                    sel_name = f"{arch}_{raw}" if arch else raw
+                    if raw not in sampled:
+                        sel_val = self._sample_single_param(trial, sel_cfg, sel_name, sampled)
+                        sampled[raw] = sel_val
+                        out[sel_name] = sel_val
+                if hasattr(node, "condition") and not self._evaluate_condition(node.condition, sampled):
+                    continue
+                out.update(self._sample_config_recursively(trial, node, sampled, prefix))
+                continue
 
-            elif config.get("class") == "instance":
-                # Sample instance parameters
-                instance_params = self._sample_instance(trial, config, key, sampled_params)
-                strategy_params.update(instance_params)
+            # ---------- param ----------
+            if c == "param":
+                raw = node.param_name
+                arch = sampled.get("architecture_type", "")
+                name = f"{arch}_{raw}" if arch else raw
+                if raw in sampled:
+                    continue
+                if hasattr(node, "condition") and not self._evaluate_condition(node.condition, sampled):
+                    continue
+                val = self._sample_single_param(trial, node, name, sampled)
+                sampled[raw] = val
+                out[name] = val
+                continue
+            if c == "technique":
+                sel_attr = next((a for a in node.keys() if a.endswith("selection")), None)
+                if sel_attr:
+                    sel_cfg = node[sel_attr]
+                    raw = sel_cfg.param_name
+                    arch = sampled.get("architecture_type", "")
+                    sel_name = f"{arch}_{raw}" if arch else raw
+                    if raw not in sampled:
+                        sel_val = self._sample_single_param(trial, sel_cfg, sel_name, sampled)
+                        sampled[raw] = sel_val
+                        out[sel_name] = sel_val
+                if hasattr(node, "condition") and not self._evaluate_condition(node.condition, sampled):
+                    continue
+                out.update(self._sample_config_recursively(trial, node, sampled, prefix))
+                continue
 
-            elif config.get("class") == "technique":
-                # Sample technique parameters (new naming)
-                technique_params = self._sample_strategy(trial, config, key, sampled_params)
-                strategy_params.update(technique_params)
+            # ---------- instance ----------
+            if c == "instance":
+                if hasattr(node, "condition") and not self._evaluate_condition(node.condition, sampled):
+                    continue
+                out.update(self._sample_config_recursively(trial, node, sampled, prefix))
+                continue
 
-            elif config.get("class") == "strategy":
-                # Nested strategy (backward compatibility)
-                nested_params = self._sample_strategy(trial, config, key, sampled_params)
-                strategy_params.update(nested_params)
+            # ---------- fallback ----------
+            if any(isinstance(v, DictConfig) for v in node.values() if hasattr(node, "values")):
+                out.update(self._sample_config_recursively(trial, node, sampled, prefix))
 
-        return strategy_params
+        return out
 
-    def sample_category_params(self, trial: optuna.Trial, category_name: str) -> Dict[str, Any]:
+    def _merge_min_max_pairs(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Sample parameters for a specific search space category
-
-        Args:
-            trial: Optuna trial object
-            category_name: Name of the search space category (e.g., 'augmentation', 'label_mixing')
-
-        Returns:
-            Dictionary of sampled parameters for this category
+        Merge _min and _max parameter pairs into tuples
         """
-        category_config = getattr(self.search_spaces, category_name, None)
-        if not category_config:
-            return {}
+        merged_results = {}
+        min_params = {}
+        max_params = {}
 
-        # Look for the main strategy config (usually named after the category)
-        main_strategy = getattr(category_config, category_name, None)
-        if not main_strategy:
-            return {}
+        # First pass: collect all _min and _max parameters
+        for param_name, value in results.items():
+            if param_name.endswith("_min"):
+                base_name = param_name[:-4]  # Remove '_min'
+                min_params[base_name] = value
+            elif param_name.endswith("_max"):
+                base_name = param_name[:-4]  # Remove '_max'
+                max_params[base_name] = value
+            else:
+                # Keep non-min/max parameters as is
+                merged_results[param_name] = value
 
-        sampled_params = {}
-        all_params = self._sample_strategy(trial, main_strategy, category_name, sampled_params)
-        all_params.update(sampled_params)
+        # Second pass: merge min/max pairs
+        for base_name in min_params:
+            if base_name in max_params:
+                # Both min and max exist, create tuple
+                merged_results[base_name] = (min_params[base_name], max_params[base_name])
+            else:
+                # Only min exists, keep as is
+                merged_results[f"{base_name}_min"] = min_params[base_name]
 
-        return all_params
+        # Add remaining max parameters that don't have min counterparts
+        for base_name in max_params:
+            if base_name not in min_params:
+                merged_results[f"{base_name}_max"] = max_params[base_name]
+
+        return merged_results
 
     def sample_all_params(
         self, trial: optuna.Trial, categories: Optional[List[str]] = None
     ) -> Dict[str, Dict[str, Any]]:
         """
         Sample parameters for all or specified search space categories
-
-        Args:
-            trial: Optuna trial object
-            categories: List of category names to sample (if None, samples all available categories)
-
-        Returns:
-            Dictionary containing sampled parameters organized by category
         """
         if categories is None:
             categories = self.search_space_categories
 
         results = {}
+        global_sampled_params = {}  # Track parameters across all categories
+
+        # --- pre-sample architecture_type so that later params get correct prefix/dependency ---
+        if "architectures" in categories and "architecture_type" not in global_sampled_params:
+            try:
+                arch_strategy_level = self.search_spaces.architectures.architectures.strategy_level
+                arch_sel_cfg = self.search_spaces.architectures.architectures.architecture_selection.selection
+                arch_val = self._sample_single_param(
+                    trial, arch_sel_cfg, "architecture_type", {"strategy_level": arch_strategy_level}
+                )
+                global_sampled_params["architecture_type"] = arch_val
+            except Exception as e:
+                raise RuntimeError(f"Failed to pre-sample architecture_type: {e}")
+
+        # Now sample each requested category
         for category in categories:
-            if category in self.search_space_categories:
-                results[category] = self.sample_category_params(trial, category)
+            if category not in self.search_space_categories:
+                continue
+
+            cat_cfg = getattr(self.search_spaces, category)
+            cat_sampled = dict(global_sampled_params)  # local context
+            cat_res = self._sample_config_recursively(trial, cat_cfg, cat_sampled)
+            cat_res = self._merge_min_max_pairs(cat_res)
+            results[category] = cat_res
+            global_sampled_params.update(cat_res)
 
         return results
-
-
-# Example usage and testing
-if __name__ == "__main__":
-    try:
-        # Example of how to use the sampler
-        sampler = SearchSpaceSampler()
-        print("Sampler initialized successfully")
-
-        print("Available search space categories:", sampler.search_space_categories)
-
-        def objective(trial):
-            try:
-                # Sample all parameters
-                params = sampler.sample_all_params(trial)
-
-                print(f"Trial {trial.number}:")
-                for category, category_params in params.items():
-                    print(f"  {category.capitalize()} params: {category_params}")
-
-                # Return a dummy objective value (replace with actual training result)
-                return trial.suggest_float("dummy_objective", 0.0, 1.0)
-            except Exception as e:
-                print(f"Error in trial {trial.number}: {e}")
-                import traceback
-
-                traceback.print_exc()
-                raise
-
-        # Create study and run optimization
-        study = optuna.create_study(direction="maximize")
-        study.optimize(objective, n_trials=3)
-
-        print(f"Best trial: {study.best_trial.number}")
-        print(f"Best params: {study.best_params}")
-
-    except Exception as e:
-        print(f"Error in main: {e}")
-        import traceback
-
-        traceback.print_exc()

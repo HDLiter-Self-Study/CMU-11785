@@ -89,7 +89,7 @@ architectures:
       class: "param"
       param_name: "norm_granularity"
       type: "categorical"
-      dependency_order: ["strategy_level", "architecture_type"]
+      dependency_order: ["strategy_level"]
       choices:
         basic: ["global"]
         robust: ["global", "block_type"]
