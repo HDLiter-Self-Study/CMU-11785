@@ -131,8 +131,8 @@ classification_heads_strategy:
         class: "param"
         param_name: "cls_head_dropout_rate"
         type: "float"
-        min: 0.1
-        max: 0.8
+        low: 0.1
+        high: 0.8
         description: "Dropout rate for regularization"
         
       dropout_schedule:
@@ -165,8 +165,8 @@ classification_heads_strategy:
         class: "param"
         param_name: "cls_head_attention_dropout"
         type: "float"
-        min: 0.0
-        max: 0.5
+        low: 0.0
+        high: 0.5
         description: "Dropout rate for attention weights"
         
       hidden_dims:

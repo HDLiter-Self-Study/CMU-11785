@@ -48,8 +48,8 @@ losses:
         class: "param"  
         param_name: "cls_label_smoothing"
         type: "float"
-        min: 0.0
-        max: 0.3
+        low: 0.0
+        high: 0.3
         description: "Label smoothing factor"
         
       class_weights:
@@ -68,16 +68,16 @@ losses:
         class: "param"
         param_name: "cls_focal_alpha"
         type: "float"
-        min: 0.1
-        max: 1.0
+        low: 0.1
+        high: 1.0
         description: "Focal loss alpha parameter (class balance)"
         
       gamma:
         class: "param"
         param_name: "cls_focal_gamma"
         type: "float"
-        min: 1.0
-        max: 5.0
+        low: 1.0
+        high: 5.0
         description: "Focal loss gamma parameter (focusing parameter)"
 
   # =============================================================================
@@ -108,16 +108,16 @@ losses:
         class: "param"
         param_name: "ver_contrastive_margin"
         type: "float"
-        min: 0.5
-        max: 2.0
+        low: 0.5
+        high: 2.0
         description: "Contrastive loss margin"
         
       pos_weight:
         class: "param"
         param_name: "ver_contrastive_pos_weight"
         type: "float"
-        min: 0.5
-        max: 2.0
+        low: 0.5
+        high: 2.0
         description: "Weight for positive pairs"
     
     # Triplet loss implementation
@@ -129,8 +129,8 @@ losses:
         class: "param"
         param_name: "ver_triplet_margin"
         type: "float"
-        min: 0.1
-        max: 1.0
+        low: 0.1
+        high: 1.0
         description: "Triplet loss margin"
         
       mining_strategy:
@@ -156,16 +156,16 @@ losses:
         class: "param"
         param_name: "ver_arcface_scale"
         type: "float"
-        min: 10.0
-        max: 64.0
+        low: 10.0
+        high: 64.0
         description: "ArcFace scale parameter"
         
       margin:
         class: "param"
         param_name: "ver_arcface_margin"
         type: "float"
-        min: 0.1
-        max: 0.8 
+        low: 0.1
+        high: 0.8 
         description: "ArcFace margin parameter"
     
     # Binary cross-entropy loss implementation
@@ -177,14 +177,14 @@ losses:
         class: "param"
         param_name: "ver_bce_pos_weight"
         type: "float"
-        min: 0.5
-        max: 2.0
+        low: 0.5
+        high: 2.0
         description: "Weight for positive class"
         
       label_smoothing:
         class: "param"
         param_name: "ver_bce_label_smoothing"
         type: "float"
-        min: 0.0
-        max: 0.2
+        low: 0.0
+        high: 0.2
         description: "Label smoothing for BCE"

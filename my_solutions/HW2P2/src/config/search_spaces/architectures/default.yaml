@@ -171,8 +171,8 @@ architectures:
         class: "param"
         param_name: "regnet_width_slope"
         type: "float"
-        min: 1.5 
-        max: 4.0
+        low: 1.5 
+        high: 4.0
         description: "Width multiplier between stages"
 
       initial_width:
@@ -186,16 +186,16 @@ architectures:
         class: "param"
         param_name: "regnet_depth_slope"
         type: "float"
-        min: 0.005
-        max: 0.08
+        low: 0.005
+        high: 0.08
         description: "Depth generation slope"
 
       depth_bias:
         class: "param"
         param_name: "regnet_depth_bias"
         type: "float"
-        min: -0.5
-        max: 2.5
+        low: -0.5
+        high: 2.5
         description: "Depth generation bias"
 
       # Architecture-aware stage depth limits
@@ -283,9 +283,9 @@ shared_features:
       class: "param"
       param_name: "layer_scale_init_value"
       type: "float"
-      min: 1e-6
-      max: 1e-4
-      log_scale: true
+      low: 1e-6
+      high: 1e-4
+      log: true
       description: "Initial value for layer scale parameters"
       condition: "$layer_scale_selection == 'enabled'"
 
@@ -309,8 +309,8 @@ shared_features:
       class: "param"
       param_name: "stochastic_depth_prob"
       type: "float"
-      min: 0.0
-      max: 0.3
+      low: 0.0
+      high: 0.3
       description: "Stochastic depth (DropPath) probability"
       condition: "$stochastic_depth_selection == 'enabled'"
 
@@ -334,8 +334,8 @@ shared_features:
       class: "param"
       param_name: "conv_drop_prob"
       type: "float"
-      min: 0.0
-      max: 0.5
+      low: 0.0
+      high: 0.5
       description: "Dropout probability between conv layers"
       condition: "$conv_dropout_selection == 'enabled'"
 

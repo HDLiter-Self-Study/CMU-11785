@@ -52,24 +52,24 @@ augmentation:
         class: "param"
         param_name: "random_erasing_prob"
         type: "float"
-        min: 0.2
-        max: 0.7
+        low: 0.2
+        high: 0.7
         description: "Probability of applying random erasing"
         
       scale_min:
         class: "param"
         param_name: "random_erasing_scale_min"
         type: "float"
-        min: 0.01
-        max: 0.15
+        low: 0.01
+        high: 0.15
         description: "Minimum scale of erased area"
         
       scale_max:
         class: "param"
         param_name: "random_erasing_scale_max"
         type: "float"
-        min: "$max(0.15, random_erasing_scale_min)"
-        max: 0.3
+        low: "$max(0.15, random_erasing_scale_min)"
+        high: 0.3
         description: "Maximum scale of erased area"
         depends_on: ["random_erasing_scale_min"]
       # Can add more parameters here when strategy is set to comprehensive or custom
@@ -83,24 +83,24 @@ augmentation:
         class: "param"
         param_name: "gridmask_prob"
         type: "float"
-        min: 0.2
-        max: 0.8
+        low: 0.2
+        high: 0.8
         description: "Probability of applying GridMask"
 
       d_ratio_range_min:
         class: "param"
         param_name: "gridmask_d_ratio_range_min"
         type: "float"
-        min: 0.05
-        max: 0.3
+        low: 0.05
+        high: 0.3
         description: "Minimum ratio for grid size in GridMask"
 
       d_ratio_range_max:
         class: "param"
         param_name: "gridmask_d_ratio_range_max"
         type: "float"
-        min: "$max(0.3, gridmask_d_ratio_range_min)"
-        max: 0.5
+        low: "$max(0.3, gridmask_d_ratio_range_min)"
+        high: 0.5
         description: "Max ratio for grid size in GridMask"
         depends_on: ["gridmask_d_ratio_range_min"]
 
@@ -108,8 +108,8 @@ augmentation:
         class: "param"
         param_name: "gridmask_ratio"
         type: "float"
-        min: 0.4
-        max: 0.8
+        low: 0.4
+        high: 0.8
         description: "Ratio of grid to spacing in GridMask"
     
     # RandomResizedCrop technique
@@ -121,16 +121,16 @@ augmentation:
         class: "param"
         param_name: "random_resized_crop_scale_min"
         type: "float"
-        min: 0.75
-        max: 0.9
+        low: 0.75
+        high: 0.9
         description: "Minimum scale for RandomResizedCrop (conservative for face preservation)"
           
       scale_max:
         class: "param"
         param_name: "random_resized_crop_scale_max"
         type: "float"
-        min: "$max(0.9, random_resized_crop_scale_min)"
-        max: 1.0
+        low: "$max(0.9, random_resized_crop_scale_min)"
+        high: 1.0
         description: "Maximum scale for RandomResizedCrop"
         depends_on: ["random_resized_crop_scale_min"]
 
@@ -138,16 +138,16 @@ augmentation:
         class: "param"
         param_name: "random_resized_crop_ratio_min"
         type: "float"
-        min: 0.75
-        max: 1.0
+        low: 0.75
+        high: 1.0
         description: "Minimum aspect ratio for RandomResizedCrop"
 
       ratio_max:
         class: "param"
         param_name: "random_resized_crop_ratio_max"
         type: "float"
-        min: "$max(1.0, random_resized_crop_ratio_min)"
-        max: 1.33
+        low: "$max(1.0, random_resized_crop_ratio_min)"
+        high: 1.33
         description: "Maximum aspect ratio for RandomResizedCrop"
         depends_on: ["random_resized_crop_ratio_min"]
 
@@ -176,16 +176,16 @@ augmentation:
         class: "param"
         param_name: "gaussian_noise_std"
         type: "float"
-        min: 0.01
-        max: 0.1
+        low: 0.01
+        high: 0.1
         description: "Standard deviation for Gaussian noise"
 
       prob:
         class: "param"
         param_name: "gaussian_noise_prob"
         type: "float"
-        min: 0.2
-        max: 0.6
+        low: 0.2
+        high: 0.6
         description: "Probability of applying Gaussian noise"
     
     # Impulse noise technique (salt & pepper noise)
@@ -197,16 +197,16 @@ augmentation:
         class: "param"
         param_name: "salt_pepper_ratio"
         type: "float"
-        min: 0.005
-        max: 0.05
+        low: 0.005
+        high: 0.05
         description: "Ratio of pixels to corrupt with salt & pepper noise"
 
       prob:
         class: "param"
         param_name: "impulse_noise_prob"
         type: "float"
-        min: 0.1
-        max: 0.6
+        low: 0.1
+        high: 0.6
         description: "Probability of applying impulse noise"
     
     # Quality degradation technique (JPEG compression)
@@ -218,16 +218,16 @@ augmentation:
         class: "param"
         param_name: "jpeg_quality"
         type: "int"
-        min: 70
-        max: 90
+        low: 70
+        high: 90
         description: "JPEG quality (lower = more artifacts)"
 
       prob:
         class: "param"
         param_name: "quality_degradation_prob"
         type: "float"
-        min: 0.1
-        max: 0.7
+        low: 0.1
+        high: 0.7
         description: "Probability of applying quality degradation"
 
     # Gaussian blur technique (simulates camera blur, motion blur, etc.)
@@ -239,16 +239,16 @@ augmentation:
         class: "param"
         param_name: "gaussian_blur_sigma_min"
         type: "float"
-        min: 0.1
-        max: 1.5
+        low: 0.1
+        high: 1.5
         description: "Minimum sigma for Gaussian blur kernel"
 
       sigma_max:
         class: "param"
         param_name: "gaussian_blur_sigma_max"
         type: "float"
-        min: "$max(1.5, gaussian_blur_sigma_min)"
-        max: 3.0
+        low: "$max(1.5, gaussian_blur_sigma_min)"
+        high: 3.0
         description: "Maximum sigma for Gaussian blur kernel"
         depends_on: ["gaussian_blur_sigma_min"]
 
@@ -256,8 +256,8 @@ augmentation:
         class: "param"
         param_name: "gaussian_blur_prob"
         type: "float"
-        min: 0.2
-        max: 0.5
+        low: 0.2
+        high: 0.5
         description: "Probability of applying Gaussian blur"
   
 

@@ -45,7 +45,7 @@ data_sampling:
         class: "param"
         param_name: "repeated_aug_num_repeats"
         type: "int"
-        min: 2
-        max: 6
+        low: 2
+        high: 6
         description: "Number of augmentation repetitions"
 

@@ -36,12 +36,12 @@ training:
         class: "param"
         param_name: "learning_rate"
         type: "float"
-        min:
+        low:
           basic: 5e-4
           robust: 1e-4
           comprehensive: 1e-5
           custom: 1e-5
-        max:
+        high:
           basic: 5e-3
           robust: 1e-2
           comprehensive: 1e-1
@@ -54,12 +54,12 @@ training:
         class: "param"
         param_name: "weight_decay"
         type: "float"
-        min:
+        low:
           basic: 1e-4
           robust: 1e-5
           comprehensive: 1e-6
           custom: 1e-6
-        max:
+        high:
           basic: 1e-3
           robust: 5e-3
           comprehensive: 1e-2
@@ -80,12 +80,12 @@ training:
         class: "param"
         param_name: "learning_rate"
         type: "float"
-        min:
+        low:
           basic: 1e-3
           robust: 5e-4
           comprehensive: 1e-4
           custom: 1e-4
-        max:
+        high:
           basic: 1e-2
           robust: 5e-2
           comprehensive: 1e-1
@@ -98,12 +98,12 @@ training:
         class: "param"
         param_name: "weight_decay"
         type: "float"
-        min:
+        low:
           basic: 1e-4
           robust: 1e-5
           comprehensive: 1e-6
           custom: 1e-6
-        max:
+        high:
           basic: 1e-3
           robust: 5e-3
           comprehensive: 1e-2
@@ -123,12 +123,12 @@ training:
         class: "param"
         param_name: "learning_rate"
         type: "float"
-        min:
+        low:
           basic: 1e-4
           robust: 5e-5
           comprehensive: 1e-5
           custom: 1e-5
-        max:
+        high:
           basic: 5e-3
           robust: 1e-2
           comprehensive: 1e-1
@@ -141,12 +141,12 @@ training:
         class: "param"
         param_name: "weight_decay"
         type: "float"
-        min:
+        low:
           basic: 1e-3
           robust: 1e-4
           comprehensive: 1e-5
           custom: 1e-5
-        max:
+        high:
           basic: 5e-2
           robust: 5e-2
           comprehensive: 1e-1
@@ -207,8 +207,8 @@ training:
         class: "param"
         param_name: "cosine_warmup_epochs"
         type: "int"
-        min: 0
-        max: 15
+        low: 0
+        high: 15
         description: "Number of warmup epochs for cosine scheduler"
         default: 5
 
@@ -216,8 +216,8 @@ training:
         class: "param"
         param_name: "cosine_eta_min_ratio"
         type: "float"
-        min: 0.001
-        max: 0.1
+        low: 0.001
+        high: 0.1
         log: true
         description: "Minimum LR as ratio of initial LR (eta_min = lr * ratio)"
         default: 0.01
@@ -231,8 +231,8 @@ training:
         class: "param"
         param_name: "step_warmup_epochs"
         type: "int"
-        min: 0
-        max: 10
+        low: 0
+        high: 10
         description: "Number of warmup epochs for step scheduler"
         default: 3
 
@@ -240,16 +240,16 @@ training:
         class: "param"
         param_name: "step_size"
         type: "int"
-        min: 20
-        max: 40
+        low: 20
+        high: 40
         description: "Step size for StepLR scheduler"
 
       gamma:
         class: "param"
         param_name: "step_gamma"
         type: "float"
-        min: 0.3
-        max: 0.7
+        low: 0.3
+        high: 0.7
         description: "Decay factor for StepLR scheduler"
 
     # Plateau scheduler (comprehensive)
@@ -261,16 +261,16 @@ training:
         class: "param"
         param_name: "plateau_patience"
         type: "int"
-        min: 5
-        max: 20
+        low: 5
+        high: 20
         description: "Patience for ReduceLROnPlateau scheduler"
 
       factor:
         class: "param"
         param_name: "plateau_factor"
         type: "float"
-        min: 0.1
-        max: 0.8
+        low: 0.1
+        high: 0.8
         description: "Factor by which LR is reduced (new_lr = old_lr * factor)"
         default: 0.5
 
@@ -278,8 +278,8 @@ training:
         class: "param"
         param_name: "plateau_threshold"
         type: "float"
-        min: 1e-5
-        max: 1e-2
+        low: 1e-5
+        high: 1e-2
         log: true
         description: "Threshold for measuring improvement"
         default: 1e-4
@@ -296,8 +296,8 @@ training:
         class: "param"
         param_name: "plateau_cooldown"
         type: "int"
-        min: 0
-        max: 10
+        low: 0
+        high: 10
         description: "Number of epochs to wait before resuming normal operation after lr reduction"
         default: 0
 
@@ -305,8 +305,8 @@ training:
         class: "param"
         param_name: "plateau_min_lr"
         type: "float"
-        min: 1e-8
-        max: 1e-4
+        low: 1e-8
+        high: 1e-4
         log: true
         description: "Lower bound on the learning rate"
         default: 1e-6
@@ -315,8 +315,8 @@ training:
         class: "param"
         param_name: "plateau_eps"
         type: "float"
-        min: 1e-9
-        max: 1e-6
+        low: 1e-9
+        high: 1e-6
         log: true
         description: "Minimal decay applied to lr (if difference between new and old lr is smaller than eps, update is ignored)"
         default: 1e-8
@@ -346,8 +346,8 @@ training:
         class: "param"
         param_name: "ema_start_epoch"
         type: "int"
-        min: 0
-        max: 20
+        low: 0
+        high: 20
         description: "Epoch to start EMA (0 = from beginning)"
         default: 0
 
@@ -378,8 +378,8 @@ training:
         class: "param"
         param_name: "gradient_clip_norm"
         type: "float"
-        min: 0.1
-        max: 5.0
+        low: 0.1
+        high: 5.0
         description: "Maximum gradient norm for clipping"
         default: 1.0
 

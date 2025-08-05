@@ -63,8 +63,8 @@ verification_heads_strategy:
         class: "param"
         param_name: "ver_head_temperature"
         type: "float"
-        min: 0.01
-        max: 1.0
+        low: 0.01
+        high: 1.0
         description: "Temperature scaling for similarity scores"
       hidden_dims:
         class: "param"
@@ -113,8 +113,8 @@ verification_heads_strategy:
         class: "param"
         param_name: "ver_head_dropout_rate"
         type: "float"
-        min: 0.0
-        max: 0.5
+        low: 0.0
+        high: 0.5
         description: "Dropout rate in similarity network"
       hidden_dims:
         class: "param"
@@ -163,8 +163,8 @@ verification_heads_strategy:
         class: "param"
         param_name: "ver_head_attention_dropout"
         type: "float"
-        min: 0.0
-        max: 0.3
+        low: 0.0
+        high: 0.3
         description: "Dropout rate for attention weights"
       use_cross_attention:
         class: "param"
