@@ -16,6 +16,7 @@
 
 convnext_stem:
   class: "instance"
+  condition: "$architecture_type == 'convnext'"
   
   # Stem output channels (width after patchify operation)
   out_channels:

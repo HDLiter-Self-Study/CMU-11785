@@ -10,6 +10,7 @@
 
 basic_block:
   class: "instance"
+  condition: "$architecture_type == 'resnet'"
   
   # No block-specific parameters - all inherited from BaseResNetBlock
   # The basic block simply applies: 3x3 conv -> 3x3 conv with residual connection

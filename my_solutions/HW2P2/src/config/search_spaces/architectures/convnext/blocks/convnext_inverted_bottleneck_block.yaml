@@ -13,8 +13,9 @@
 # - When granularity = "stage" or "block_stage": allows per-stage overrides
 # - The block implementation will receive the resolved values based on granularity
 
-convnext_block:
+inverted_bottleneck_block:
   class: "instance"
+  condition: "$architecture_type == 'convnext'"
   
   # Expansion ratio for inverted bottleneck (controls neck_channels scaling)
   expansion_ratio:
