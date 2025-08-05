@@ -20,109 +20,16 @@ resnet:
   structure_params:
     class: "technique"
     
-    # Block type selection drives which block configs to use
-    block_type:
-      class: "param"
-      param_name: "resnet_block_type"
-      type: "categorical"
-      choices: ["basic", "bottleneck"]
-      description: "Type of residual block"
+    # Note: Block type is now handled by the unified architecture-aware system in default.yaml
 
-  # Activation configuration with granularity control
-  activation_params:
-    class: "technique"
-    
-    selection:
-      class: "param"
-      param_name: "resnet_activation_granularity"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["global"]
-        robust: ["global", "block_type"]
-        comprehensive: ["global", "block_type", "stage"]
-        custom: ["global", "block_type", "stage", "block_stage"]
-      description: "Granularity level for activation function control"
-    
-    # Global activation (used when granularity = "global" or "stage")
-    global_activation:
-      class: "param"
-      param_name: "resnet_global_activation"
-      type: "categorical"
-      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-      description: "Global activation function for entire network"
-      condition: "$resnet_activation_granularity in ['global', 'stage']"
-    
-    # Block-type specific activations (used when granularity = "block_type" or "block_stage")
-    basic_block_activation:
-      class: "param"
-      param_name: "resnet_basic_activation"
-      type: "categorical"
-      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-      description: "Activation function for basic blocks"
-      condition: "$resnet_activation_granularity in ['block_type', 'block_stage']"
-      
-    bottleneck_block_activation:
-      class: "param"
-      param_name: "resnet_bottleneck_activation"
-      type: "categorical"
-      choices: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-      description: "Activation function for bottleneck blocks"
-      condition: "$resnet_activation_granularity in ['block_type', 'block_stage']"
-
-  # Normalization configuration with granularity control
-  normalization_params:
-    class: "technique"
-    
-    selection:
-      class: "param"
-      param_name: "resnet_norm_granularity"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["global"]
-        robust: ["global", "block_type"]
-        comprehensive: ["global", "block_type", "stage"]
-        custom: ["global", "block_type", "stage", "block_stage"]
-      description: "Granularity level for normalization method control"
-    
-    # Global normalization (used when granularity = "global" or "stage")
-    global_normalization:
-      class: "param"
-      param_name: "resnet_global_normalization"
-      type: "categorical"
-      choices: ["batch_norm", "group_norm", "layer_norm"]
-      description: "Global normalization method for entire network"
-      condition: "$resnet_norm_granularity in ['global', 'stage']"
-    
-    # Block-type specific normalizations (used when granularity = "block_type" or "block_stage")
-    basic_block_normalization:
-      class: "param"
-      param_name: "resnet_basic_normalization"
-      type: "categorical"
-      choices: ["batch_norm", "group_norm", "layer_norm"]
-      description: "Normalization method for basic blocks"
-      condition: "$resnet_norm_granularity in ['block_type', 'block_stage']"
-      
-    bottleneck_block_normalization:
-      class: "param"
-      param_name: "resnet_bottleneck_normalization"
-      type: "categorical"
-      choices: ["batch_norm", "group_norm", "layer_norm"]
-      description: "Normalization method for bottleneck blocks"
-      condition: "$resnet_norm_granularity in ['block_type', 'block_stage']"
+  # Note: Activation and normalization parameters are now handled by the unified
+  # architecture-aware system in default.yaml. No need for ResNet-specific versions.
 
   # Advanced ResNet features (architecture-specific only)
   advanced_params:
     class: "technique"
     
-    # Projection type for shortcut connections when dimensions mismatch
-    projection_type:
-      class: "param"
-      param_name: "resnet_projection_type"
-      type: "categorical"
-      choices: ["conv", "avg_pool", "max_pool"]
-      description: "Shortcut projection method when dimensions mismatch"
+    # Note: Projection type is now handled by the unified shared_features in default.yaml
       
     # Pre-activation style (ResNet v2) - ResNet specific feature
     pre_activation:

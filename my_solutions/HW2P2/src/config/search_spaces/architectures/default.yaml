@@ -40,6 +40,185 @@ architectures:
         custom: ["resnet", "convnext"]
       description: "Architecture type selection"
 
+  # =============================================================================
+  # ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
+  # =============================================================================
+  # 激活函数配置（架构感知）
+  activation_params:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "activation_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for activation function control"
+    
+    global_activation:
+      class: "param"
+      param_name: "global_activation"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Global activation function for entire network"
+      condition: "$activation_granularity in ['global', 'stage']"
+    
+    block_type_activation:
+      class: "param"
+      param_name: "block_type_activation"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Block-type specific activation function"
+      condition: "$activation_granularity in ['block_type', 'block_stage']"
+
+  # 归一化配置（架构感知）
+  normalization_params:
+    class: "technique"
+    
+    selection:
+      class: "param"
+      param_name: "norm_granularity"
+      type: "categorical"
+      dependency_order: ["strategy_level", "architecture_type"]
+      choices:
+        basic: ["global"]
+        robust: ["global", "block_type"]
+        comprehensive: ["global", "block_type", "stage"]
+        custom: ["global", "block_type", "stage", "block_stage"]
+      description: "Granularity level for normalization method control"
+    
+    global_normalization:
+      class: "param"
+      param_name: "global_normalization"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Global normalization method for entire network"
+      condition: "$norm_granularity in ['global', 'stage']"
+    
+    block_type_normalization:
+      class: "param"
+      param_name: "block_type_normalization"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Block-type specific normalization method"
+      condition: "$norm_granularity in ['block_type', 'block_stage']"
+
+  # 块类型配置（架构感知）
+  block_type:
+    class: "param"
+    param_name: "block_type"
+    type: "categorical"
+    dependency_order: ["architecture_type"]
+    choices:
+      resnet: ["basic", "bottleneck"]
+      convnext: ["inverted_bottleneck"]
+    description: "Type of residual block (architecture-dependent)"
+
+  # =============================================================================
+  # ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
+  # =============================================================================
+  depth_generation:
+    class: "technique"
+
+    # Unified depth generation method selection
+    selection:
+      class: "param"
+      param_name: "depth_generation_method"
+      type: "categorical"
+      dependency_order: ["strategy_level"]
+      choices:
+        basic: ["regnet_rule"]
+        robust: ["regnet_rule"] 
+        comprehensive: ["regnet_rule"] 
+        custom: ["regnet_rule"]
+      description: "Method for generating architecture depth configuration"
+
+    # RegNet-based depth generation (architecture-aware parameters)
+    # See <https://arxiv.org/abs/2101.00590> for details
+    regnet_rule:
+      class: "instance"
+      condition: "$depth_generation_method == 'regnet_rule'"
+
+      num_stages:
+        class: "param"
+        param_name: "regnet_num_stages"
+        type: "categorical"
+        dependency_order: ["strategy_level"]
+        choices:
+          basic: [4]  
+          robust: [3, 4] 
+          comprehensive: [3, 4, 5] 
+          custom: [3, 4, 5]
+        description: "Number of stages for architecture"
+
+      width_slope:
+        class: "param"
+        param_name: "regnet_width_slope"
+        type: "float"
+        min: 1.5 
+        max: 4.0
+        description: "Width multiplier between stages"
+
+      initial_width:
+        class: "param"
+        param_name: "regnet_initial_width"
+        type: "categorical"
+        choices: [16, 24, 32, 48, 64]
+        description: "Initial width for depth calculation"
+
+      depth_slope:
+        class: "param"
+        param_name: "regnet_depth_slope"
+        type: "float"
+        min: 0.005
+        max: 0.08
+        description: "Depth generation slope"
+
+      depth_bias:
+        class: "param"
+        param_name: "regnet_depth_bias"
+        type: "float"
+        min: -0.5
+        max: 2.5
+        description: "Depth generation bias"
+
+      # Architecture-aware stage depth limits
+      min_stage_depth:
+        class: "param"
+        param_name: "regnet_min_stage_depth"
+        type: "categorical"
+        dependency_order: ["architecture_type"]
+        choices:
+          resnet: [1]
+          convnext: [1]
+        description: "Minimum depth per stage (typically 1 for all architectures)"
+
+      max_stage_depth:
+        class: "param"
+        param_name: "regnet_max_stage_depth"
+        type: "categorical"
+        dependency_order: ["architecture_type"]
+        choices:
+          resnet: [12]
+          convnext: [12]
+        description: "Maximum depth per stage (architecture-dependent)"
+
 # =============================================================================
 # GLOBAL ARCHITECTURE SHAPE PARAMETERS (UPPER LEVEL)
 # =============================================================================
@@ -190,93 +369,4 @@ shared_features:
       type: "categorical"
       choices: ["batch_norm", "layer_norm", "group_norm"]
       description: "Available normalization methods for all architectures"
-
-# =============================================================================
-# ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
-# =============================================================================
-depth_generation:
-  class: "technique"
-
-  # Unified depth generation method selection
-  method_selection:
-    class: "param"
-    param_name: "depth_generation_method"
-    type: "categorical"
-    dependency_order: ["strategy_level"]
-    choices:
-      basic: ["regnet_rule"]
-      robust: ["regnet_rule"] 
-      comprehensive: ["regnet_rule"] 
-      custom: ["regnet_rule"]
-    description: "Method for generating architecture depth configuration"
-
-  # RegNet-based depth generation (architecture-aware parameters)
-  # See <https://arxiv.org/abs/2101.00590> for details
-  regnet_rule:
-    class: "instance"
-    condition: "$depth_generation_method == 'regnet_rule'"
-
-    num_stages:
-      class: "param"
-      param_name: "regnet_num_stages"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: [4]  
-        robust: [3, 4] 
-        comprehensive: [3, 4, 5] 
-        custom: [3, 4, 5]
-      description: "Number of stages for architecture"
-
-    width_slope:
-      class: "param"
-      param_name: "regnet_width_slope"
-      type: "float"
-      min: 1.5 
-      max: 4.0
-      description: "Width multiplier between stages"
-
-    initial_width:
-      class: "param"
-      param_name: "regnet_initial_width"
-      type: "categorical"
-      choices: [16, 24, 32, 48, 64]
-      description: "Initial width for depth calculation"
-
-    depth_slope:
-      class: "param"
-      param_name: "regnet_depth_slope"
-      type: "float"
-      min: 0.005
-      max: 0.08
-      description: "Depth generation slope"
-
-    depth_bias:
-      class: "param"
-      param_name: "regnet_depth_bias"
-      type: "float"
-      min: -0.5
-      max: 2.5
-      description: "Depth generation bias"
-
-    # Architecture-aware stage depth limits
-    min_stage_depth:
-      class: "param"
-      param_name: "regnet_min_stage_depth"
-      type: "int"
-      min: 1
-      max: 1
-      description: "Minimum depth per stage (typically 1 for all architectures)"
-
-    max_stage_depth:
-      class: "param"
-      param_name: "regnet_max_stage_depth"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      choices:
-        # ResNet can handle deeper stages
-        resnet: [12]
-        # ConvNeXt typically uses fewer blocks per stage
-        convnext: [9]
-      description: "Maximum depth per stage (architecture-dependent)"
 
