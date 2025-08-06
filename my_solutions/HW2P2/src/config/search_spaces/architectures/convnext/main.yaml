@@ -3,7 +3,7 @@
 
 defaults:
   - _self_
-  - blocks/convnext_block@blocks.convnext_block
+  - blocks/convnext_inverted_bottleneck_block@blocks.convnext_inverted_bottleneck_block
   - blocks/convnext_stem@blocks.convnext_stem
 
 # =============================================================================

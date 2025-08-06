@@ -27,6 +27,7 @@
 
 resnet_stem:
   class: "instance"
+  condition: "$architecture_type == 'resnet'"
 
   # Stem-specific parameters
   stem_params:

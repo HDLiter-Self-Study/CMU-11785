@@ -1,5 +1,5 @@
 # ConvNeXt Inverted Bottleneck Block Configuration
-# @package architectures.convnext.blocks.convnext_block
+# @package architectures.convnext.blocks.convnext_inverted_bottleneck
 
 # =============================================================================
 # CONVNEXT INVERTED BOTTLENECK BLOCK CONFIGURATION
