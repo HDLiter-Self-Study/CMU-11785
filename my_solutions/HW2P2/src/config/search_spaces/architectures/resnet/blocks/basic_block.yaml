@@ -1,5 +1,5 @@
 # ResNet Basic Block Configuration
-# @package blocks.resnet_basic
+# @package blocks.basic_block
 
 # =============================================================================
 # BASIC BLOCK CONFIGURATION
@@ -8,9 +8,8 @@
 # from BaseResNetBlock (activation, normalization, SE, etc.) which are 
 # handled at the architecture level in ResNet main config.
 
-basic_block:
-  class: "instance"
-  condition: "$architecture_type == 'resnet'"
+class: "instance"
+condition: "$architecture_type == 'resnet'"
   
   # No block-specific parameters - all inherited from BaseResNetBlock
   # The basic block simply applies: 3x3 conv -> 3x3 conv with residual connection

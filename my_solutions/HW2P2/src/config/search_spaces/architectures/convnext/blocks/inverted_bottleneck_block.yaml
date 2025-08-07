@@ -1,0 +1,22 @@
+# ConvNeXt Inverted Bottleneck Block Configuration
+# @package blocks.inverted_bottleneck_block
+
+
+class: "instance"
+condition: "$architecture_type == 'convnext'"
+
+# Expansion ratio for inverted bottleneck (controls neck_channels scaling)
+expansion_ratio:
+  class: "param"
+  param_name: "expansion_ratio"
+  type: "categorical"
+  choices: [2, 4, 6, 8]
+  description: "Expansion ratio for InvertedBottleneckBlock (neck_channels = in_channels * expansion_ratio)"
+  
+# Depthwise convolution kernel size (typically 7x7 for ConvNeXt)
+depthwise_kernel_size:
+  class: "param"
+  param_name: "depthwise_kernel_size"
+  type: "categorical"
+  choices: [5, 7, 9]
+  description: "Kernel size for depthwise convolution layer"

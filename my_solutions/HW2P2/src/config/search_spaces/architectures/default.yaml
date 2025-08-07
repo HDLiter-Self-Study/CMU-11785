@@ -18,386 +18,387 @@ defaults:
 # =============================================================================
 # ARCHITECTURE SELECTION STRATEGY
 # =============================================================================
-architectures:
-  class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+class: "strategy"
+
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+# Architecture selection technique (actual hyperparameter search)
+architecture_selection:
+  class: "technique"
   
-  # Architecture selection technique (actual hyperparameter search)
-  architecture_selection:
-    class: "technique"
+  selection:
+    class: "param"
+    param_name: "architecture_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["resnet"]  
+      robust: ["resnet", "convnext"]  
+      comprehensive: ["resnet", "convnext"]  
+      custom: ["resnet", "convnext"]
+    description: "Architecture type selection"
+
+# =============================================================================
+# ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
+# =============================================================================
+# 激活函数配置（架构感知）
+activation_params:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "activation_granularity"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["global"]
+      robust: ["global", "block_type"]
+      comprehensive: ["global", "block_type", "stage"]
+      custom: ["global", "block_type", "stage", "block_stage"]
+    description: "Granularity level for activation function control"
+  
+  # Global activation instance
+  global_activation:
+    class: "instance"
+    condition: "$activation_granularity == 'global'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
     
-    selection:
+    activation:
       class: "param"
-      param_name: "architecture_type"
+      param_name: "global_activation"
+      granularity: "global"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["activation_granularity", "block_type", "regnet_num_stages"]  # Depends on granularity selection, block_type and number of stages
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Global activation function for entire network"
+  
+  # Block-type specific activation instance
+  block_type_activation:
+    class: "instance"
+    condition: "$activation_granularity == 'block_type'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    activation:
+      class: "param"
+      param_name: "block_type_activation"
+      granularity: "block_type"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["activation_granularity", "block_type_granularity", "block_type/stage_block_type"]  # Depends on activation granularity, block_type granularity and either block_type OR stage_block_type
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Block-type specific activation function (generates one param per unique block_type)"
+  
+  # Stage-specific activation instance
+  stage_activation:
+    class: "instance"
+    condition: "$activation_granularity == 'stage'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    activation:
+      class: "param"
+      param_name: "stage_activation"
+      granularity: "stage"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["activation_granularity", "stage_block_type"]  # Depends on activation granularity and stage-specific block_type
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Stage-specific activation function"
+  
+  # Block-stage activation instance
+  block_stage_activation:
+    class: "instance"
+    condition: "$activation_granularity == 'block_stage'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    activation:
+      class: "param"
+      param_name: "block_stage_activation"
+      granularity: "block_stage"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["activation_granularity", "stage_block_type"]
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Block-stage specific activation function"
+  
+  # Stem activation instance (激活于非global模式)
+  stem_activation:
+    class: "instance"
+    condition: "$activation_granularity != 'global'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    activation:
+      class: "param"
+      param_name: "stem_activation"
+      granularity: "stem"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["activation_granularity"]  # Depends on activation granularity (stem doesn't depend on block_type)
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Stem-specific activation function (active when granularity != global)"
+
+# 归一化配置（架构感知）
+normalization_params:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "norm_granularity"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["global"]
+      robust: ["global", "block_type"]
+      comprehensive: ["global", "block_type", "stage"]
+      custom: ["global", "block_type", "stage", "block_stage"]
+    description: "Granularity level for normalization method control"
+  
+  # Global normalization instance
+  global_normalization:
+    class: "instance"
+    condition: "$norm_granularity == 'global'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    normalization:
+      class: "param"
+      param_name: "global_normalization"
+      granularity: "global"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["norm_granularity", "block_type", "regnet_num_stages"]  # Depends on normalization granularity, block_type and stages
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Global normalization method for entire network"
+  
+  # Block-type specific normalization instance
+  block_type_normalization:
+    class: "instance"
+    condition: "$norm_granularity == 'block_type'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    normalization:
+      class: "param"
+      param_name: "block_type_normalization"
+      granularity: "block_type"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["norm_granularity", "block_type_granularity", "block_type/stage_block_type"]  # Depends on normalization granularity, block_type granularity and either block_type OR stage_block_type
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Block-type specific normalization method"
+  
+  # Stage-specific normalization instance
+  stage_normalization:
+    class: "instance"
+    condition: "$norm_granularity == 'stage'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    normalization:
+      class: "param"
+      param_name: "stage_normalization"
+      granularity: "stage"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["norm_granularity", "stage_block_type", "stage_activation"]
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Stage-specific normalization method"
+  
+  # Block-stage normalization instance
+  block_stage_normalization:
+    class: "instance"
+    condition: "$norm_granularity == 'block_stage'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    normalization:
+      class: "param"
+      param_name: "block_stage_normalization"
+      granularity: "block_stage"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["norm_granularity", "stage_block_type", "block_stage_activation"]
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Block-stage specific normalization method"
+  
+  # Stem normalization instance (激活于非global模式)
+  stem_normalization:
+    class: "instance"
+    condition: "$norm_granularity != 'global'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    normalization:
+      class: "param"
+      param_name: "stem_normalization"
+      granularity: "stem"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["norm_granularity", "stem_activation"]  # Depends on normalization granularity and stem activation
+      choices:
+        resnet: ["batch_norm", "group_norm", "layer_norm"]
+        convnext: ["layer_norm", "batch_norm", "group_norm"]
+      description: "Stem-specific normalization method (active when granularity != global)"
+
+# =============================================================================
+# BLOCK TYPE CONFIGURATION (ARCHITECTURE-AWARE WITH GRANULARITY)
+# =============================================================================
+block_type_params:
+  class: "technique"
+  
+  # Block type granularity selection
+  selection:
+    class: "param"
+    param_name: "block_type_granularity"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["global"]
+      robust: ["global", "stage"]
+      comprehensive: ["global", "stage"]
+      custom: ["global", "stage"]
+    description: "Granularity level for block type control"
+  
+  # Global block type (same for all stages)
+  global_block_type:
+    class: "instance"
+    condition: "$block_type_granularity == 'global'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    block_type:
+      class: "param"
+      param_name: "block_type"
+      granularity: "global"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["block_type_granularity"]  # Depends on block type granularity selection
+      choices:
+        resnet: ["basic", "bottleneck"]
+        convnext: ["inverted_bottleneck"]
+      description: "Global block type for entire network"
+  
+  # Stage-specific block type
+  stage_block_type:
+    class: "instance"
+    condition: "$block_type_granularity == 'stage'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    block_type:
+      class: "param"
+      param_name: "stage_block_type"
+      granularity: "stage"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      depends_on: ["block_type_granularity"]  # Depends on block type granularity selection
+      choices:
+        resnet: ["basic", "bottleneck"]
+        convnext: ["inverted_bottleneck"]
+      description: "Stage-specific block type (different for each stage)"
+
+# =============================================================================
+# ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
+# =============================================================================
+depth_generation:
+  class: "technique"
+
+  # Unified depth generation method selection
+  selection:
+    class: "param"
+    param_name: "depth_generation_method"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["regnet_rule"]
+      robust: ["regnet_rule"] 
+      comprehensive: ["regnet_rule"] 
+      custom: ["regnet_rule"]
+    description: "Method for generating architecture depth configuration"
+
+  # RegNet-based depth generation (architecture-aware parameters)
+  # See <https://arxiv.org/abs/2101.00590> for details
+  regnet_rule:
+    class: "instance"
+    condition: "$depth_generation_method == 'regnet_rule'"
+
+    num_stages:
+      class: "param"
+      param_name: "regnet_num_stages"
       type: "categorical"
       dependency_order: ["strategy_level"]
+      depends_on: ["depth_generation_method"]  # Must be sampled after depth generation method
       choices:
-        basic: ["resnet"]  
-        robust: ["resnet", "convnext"]  
-        comprehensive: ["resnet", "convnext"]  
-        custom: ["resnet", "convnext"]
-      description: "Architecture type selection"
+        basic: [4]  
+        robust: [3, 4] 
+        comprehensive: [3, 4, 5] 
+        custom: [3, 4, 5]
+      description: "Number of stages for architecture"
 
-  # =============================================================================
-  # ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
-  # =============================================================================
-  # 激活函数配置（架构感知）
-  activation_params:
-    class: "technique"
-    
-    selection:
+    width_slope:
       class: "param"
-      param_name: "activation_granularity"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["global"]
-        robust: ["global", "block_type"]
-        comprehensive: ["global", "block_type", "stage"]
-        custom: ["global", "block_type", "stage", "block_stage"]
-      description: "Granularity level for activation function control"
-    
-    # Global activation instance
-    global_activation:
-      class: "instance"
-      condition: "$activation_granularity == 'global'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      activation:
-        class: "param"
-        param_name: "global_activation"
-        granularity: "global"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["block_type"]  # Depends on block_type configuration
-        choices:
-          resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-          convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-        description: "Global activation function for entire network"
-    
-    # Block-type specific activation instance
-    block_type_activation:
-      class: "instance"
-      condition: "$activation_granularity == 'block_type'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      activation:
-        class: "param"
-        param_name: "block_type_activation"
-        granularity: "block_type"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: []  # 移除依赖，在运行时动态检查
-        choices:
-          resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-          convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-        description: "Block-type specific activation function (generates one param per unique block_type)"
-    
-    # Stage-specific activation instance
-    stage_activation:
-      class: "instance"
-      condition: "$activation_granularity == 'stage'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      activation:
-        class: "param"
-        param_name: "stage_activation"
-        granularity: "stage"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["stage_block_type"]  # Depends on stage-specific block_type
-        choices:
-          resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-          convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-        description: "Stage-specific activation function"
-    
-    # Block-stage activation instance
-    block_stage_activation:
-      class: "instance"
-      condition: "$activation_granularity == 'block_stage'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      activation:
-        class: "param"
-        param_name: "block_stage_activation"
-        granularity: "block_stage"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["stage_block_type"]
-        choices:
-          resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-          convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-        description: "Block-stage specific activation function"
-    
-    # Stem activation instance (激活于非global模式)
-    stem_activation:
-      class: "instance"
-      condition: "$activation_granularity != 'global'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      activation:
-        class: "param"
-        param_name: "stem_activation"
-        granularity: "stem"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: []  # Stem不依赖block_type
-        choices:
-          resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-          convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-        description: "Stem-specific activation function (active when granularity != global)"
+      param_name: "regnet_width_slope"
+      type: "float"
+      low: 1.5 
+      high: 4.0
+      description: "Width multiplier between stages"
 
-  # 归一化配置（架构感知）
-  normalization_params:
-    class: "technique"
-    
-    selection:
+    initial_width:
       class: "param"
-      param_name: "norm_granularity"
+      param_name: "regnet_initial_width"
       type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["global"]
-        robust: ["global", "block_type"]
-        comprehensive: ["global", "block_type", "stage"]
-        custom: ["global", "block_type", "stage", "block_stage"]
-      description: "Granularity level for normalization method control"
-    
-    # Global normalization instance
-    global_normalization:
-      class: "instance"
-      condition: "$norm_granularity == 'global'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      normalization:
-        class: "param"
-        param_name: "global_normalization"
-        granularity: "global"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["block_type", "global_activation"]  # Depends on block_type and activation
-        choices:
-          resnet: ["batch_norm", "group_norm", "layer_norm"]
-          convnext: ["layer_norm", "batch_norm", "group_norm"]
-        description: "Global normalization method for entire network"
-    
-    # Block-type specific normalization instance
-    block_type_normalization:
-      class: "instance"
-      condition: "$norm_granularity == 'block_type'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      normalization:
-        class: "param"
-        param_name: "block_type_normalization"
-        granularity: "block_type"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["block_type_activation"]  # 只依赖activation，运行时动态检查block_type
-        choices:
-          resnet: ["batch_norm", "group_norm", "layer_norm"]
-          convnext: ["layer_norm", "batch_norm", "group_norm"]
-        description: "Block-type specific normalization method"
-    
-    # Stage-specific normalization instance
-    stage_normalization:
-      class: "instance"
-      condition: "$norm_granularity == 'stage'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      normalization:
-        class: "param"
-        param_name: "stage_normalization"
-        granularity: "stage"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["stage_block_type", "stage_activation"]
-        choices:
-          resnet: ["batch_norm", "group_norm", "layer_norm"]
-          convnext: ["layer_norm", "batch_norm", "group_norm"]
-        description: "Stage-specific normalization method"
-    
-    # Block-stage normalization instance
-    block_stage_normalization:
-      class: "instance"
-      condition: "$norm_granularity == 'block_stage'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      normalization:
-        class: "param"
-        param_name: "block_stage_normalization"
-        granularity: "block_stage"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["stage_block_type", "block_stage_activation"]
-        choices:
-          resnet: ["batch_norm", "group_norm", "layer_norm"]
-          convnext: ["layer_norm", "batch_norm", "group_norm"]
-        description: "Block-stage specific normalization method"
-    
-    # Stem normalization instance (激活于非global模式)
-    stem_normalization:
-      class: "instance"
-      condition: "$norm_granularity != 'global'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      normalization:
-        class: "param"
-        param_name: "stem_normalization"
-        granularity: "stem"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: ["stem_activation"]  # Stem normalization依赖stem activation
-        choices:
-          resnet: ["batch_norm", "group_norm", "layer_norm"]
-          convnext: ["layer_norm", "batch_norm", "group_norm"]
-        description: "Stem-specific normalization method (active when granularity != global)"
+      choices: [16, 24, 32, 48, 64]
+      description: "Initial width for depth calculation"
 
-  # =============================================================================
-  # BLOCK TYPE CONFIGURATION (ARCHITECTURE-AWARE WITH GRANULARITY)
-  # =============================================================================
-  block_type_params:
-    class: "technique"
-    
-    # Block type granularity selection
-    selection:
+    depth_slope:
       class: "param"
-      param_name: "block_type_granularity"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["global"]
-        robust: ["global", "stage"]
-        comprehensive: ["global", "stage"]
-        custom: ["global", "stage"]
-      description: "Granularity level for block type control"
-    
-    # Global block type (same for all stages)
-    global_block_type:
-      class: "instance"
-      condition: "$block_type_granularity == 'global'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      block_type:
-        class: "param"
-        param_name: "block_type"
-        granularity: "global"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: []  # High priority - sampled first
-        choices:
-          resnet: ["basic", "bottleneck"]
-          convnext: ["inverted_bottleneck"]
-        description: "Global block type for entire network"
-    
-    # Stage-specific block type
-    stage_block_type:
-      class: "instance"
-      condition: "$block_type_granularity == 'stage'"
-      skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
-      
-      block_type:
-        class: "param"
-        param_name: "stage_block_type"
-        granularity: "stage"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        depends_on: []  # High priority - sampled first
-        choices:
-          resnet: ["basic", "bottleneck"]
-          convnext: ["inverted_bottleneck"]
-        description: "Stage-specific block type (different for each stage)"
+      param_name: "regnet_depth_slope"
+      type: "float"
+      low: 0.005
+      high: 0.08
+      description: "Depth generation slope"
 
-  # =============================================================================
-  # ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
-  # =============================================================================
-  depth_generation:
-    class: "technique"
-
-    # Unified depth generation method selection
-    selection:
+    depth_bias:
       class: "param"
-      param_name: "depth_generation_method"
+      param_name: "regnet_depth_bias"
+      type: "float"
+      low: -0.5
+      high: 2.5
+      description: "Depth generation bias"
+
+    # Architecture-aware stage depth limits
+    min_stage_depth:
+      class: "param"
+      param_name: "regnet_min_stage_depth"
       type: "categorical"
-      dependency_order: ["strategy_level"]
+      dependency_order: ["architecture_type"]
       choices:
-        basic: ["regnet_rule"]
-        robust: ["regnet_rule"] 
-        comprehensive: ["regnet_rule"] 
-        custom: ["regnet_rule"]
-      description: "Method for generating architecture depth configuration"
+        resnet: [1]
+        convnext: [1]
+      description: "Minimum depth per stage (typically 1 for all architectures)"
 
-    # RegNet-based depth generation (architecture-aware parameters)
-    # See <https://arxiv.org/abs/2101.00590> for details
-    regnet_rule:
-      class: "instance"
-      condition: "$depth_generation_method == 'regnet_rule'"
-
-      num_stages:
-        class: "param"
-        param_name: "regnet_num_stages"
-        type: "categorical"
-        dependency_order: ["strategy_level"]
-        choices:
-          basic: [4]  
-          robust: [3, 4] 
-          comprehensive: [3, 4, 5] 
-          custom: [3, 4, 5]
-        description: "Number of stages for architecture"
-
-      width_slope:
-        class: "param"
-        param_name: "regnet_width_slope"
-        type: "float"
-        low: 1.5 
-        high: 4.0
-        description: "Width multiplier between stages"
-
-      initial_width:
-        class: "param"
-        param_name: "regnet_initial_width"
-        type: "categorical"
-        choices: [16, 24, 32, 48, 64]
-        description: "Initial width for depth calculation"
-
-      depth_slope:
-        class: "param"
-        param_name: "regnet_depth_slope"
-        type: "float"
-        low: 0.005
-        high: 0.08
-        description: "Depth generation slope"
-
-      depth_bias:
-        class: "param"
-        param_name: "regnet_depth_bias"
-        type: "float"
-        low: -0.5
-        high: 2.5
-        description: "Depth generation bias"
-
-      # Architecture-aware stage depth limits
-      min_stage_depth:
-        class: "param"
-        param_name: "regnet_min_stage_depth"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        choices:
-          resnet: [1]
-          convnext: [1]
-        description: "Minimum depth per stage (typically 1 for all architectures)"
-
-      max_stage_depth:
-        class: "param"
-        param_name: "regnet_max_stage_depth"
-        type: "categorical"
-        dependency_order: ["architecture_type"]
-        choices:
-          resnet: [12]
-          convnext: [12]
-        description: "Maximum depth per stage (architecture-dependent)"
+    max_stage_depth:
+      class: "param"
+      param_name: "regnet_max_stage_depth"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: [12]
+        convnext: [12]
+      description: "Maximum depth per stage (architecture-dependent)"
 
 # =============================================================================
 # GLOBAL ARCHITECTURE SHAPE PARAMETERS (UPPER LEVEL)
@@ -439,6 +440,7 @@ shared_features:
       class: "param"
       param_name: "se_pooling"
       type: "categorical"
+      depends_on: ["se_selection"]  # Depends on SE selection
       choices: ["avg", "max", "skew", "var"]
       description: "Pooling method for SE module squeeze step (ECANet style with Conv1D)"
       condition: "$se_selection == 'enabled'"

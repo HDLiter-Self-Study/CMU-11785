@@ -14,180 +14,179 @@
 # =============================================================================
 # CLASSIFICATION HEAD STRATEGY
 # =============================================================================
-classification_heads_strategy:
-  class: "strategy"
+class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+# =============================================================================
+# CLASSIFICATION HEAD SELECTION
+# =============================================================================
+classification_heads:
+  class: "technique"
+  
+  # Head architecture selection
+  selection:
+    class: "param"
+    param_name: "classification_head_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["standard"]
+      robust: ["standard", "dropout_head"]
+      comprehensive: ["standard", "dropout_head", "attention_pooling"]
+      custom: ["standard", "dropout_head", "attention_pooling"]
+    description: "Classification head architecture selection"
 
   # =============================================================================
-  # CLASSIFICATION HEAD SELECTION
+  # HEAD IMPLEMENTATIONS
   # =============================================================================
-  classification_heads:
-    class: "technique"
+
+  # Standard classification head
+  standard:
+    class: "instance"
+    condition: "$classification_head_type == 'standard'"
     
-    # Head architecture selection
-    selection:
+    use_global_pooling:
       class: "param"
-      param_name: "classification_head_type"
+      param_name: "cls_head_use_global_pooling"
       type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["standard"]
-        robust: ["standard", "dropout_head"]
-        comprehensive: ["standard", "dropout_head", "attention_pooling"]
-        custom: ["standard", "dropout_head", "attention_pooling"]
-      description: "Classification head architecture selection"
-
-    # =============================================================================
-    # HEAD IMPLEMENTATIONS
-    # =============================================================================
-
-    # Standard classification head
-    standard:
-      class: "instance"
-      condition: "$classification_head_type == 'standard'"
+      choices: [true, false]
+      description: "Whether to use global average pooling"
       
-      use_global_pooling:
-        class: "param"
-        param_name: "cls_head_use_global_pooling"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use global average pooling"
-        
-      pooling_type:
-        class: "param"
-        param_name: "cls_head_pooling_type"
-        type: "categorical"
-        choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
-        description: "Type of global pooling to use"
-        condition: "$cls_head_use_global_pooling == true"
-        
-      hidden_dims:
-        class: "param"
-        param_name: "cls_head_hidden_dims"
-        type: "categorical"
-        choices: [[], [512], [1024], [512, 256], [1024, 512]]
-        description: "Hidden layer dimensions (empty for direct projection)"
-        
-      activation:
-        class: "param"
-        param_name: "cls_head_activation"
-        type: "categorical"
-        choices: ["relu", "gelu", "swish", "leaky_relu"]
-        description: "Activation function for hidden layers"
-        condition: "$cls_head_hidden_dims != []"
-        
-      use_batch_norm:
-        class: "param"
-        param_name: "cls_head_use_batch_norm"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use batch normalization in hidden layers"
-        condition: "$cls_head_hidden_dims != []"
+    pooling_type:
+      class: "param"
+      param_name: "cls_head_pooling_type"
+      type: "categorical"
+      choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
+      description: "Type of global pooling to use"
+      condition: "$cls_head_use_global_pooling == true"
+      
+    hidden_dims:
+      class: "param"
+      param_name: "cls_head_hidden_dims"
+      type: "categorical"
+      choices: [[], [512], [1024], [512, 256], [1024, 512]]
+      description: "Hidden layer dimensions (empty for direct projection)"
+      
+    activation:
+      class: "param"
+      param_name: "cls_head_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      condition: "$cls_head_hidden_dims != []"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "cls_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization in hidden layers"
+      condition: "$cls_head_hidden_dims != []"
+  
+  # Dropout-enhanced head
+  dropout_head:
+    class: "instance"
+    condition: "$classification_head_type == 'dropout_head'"
     
-    # Dropout-enhanced head
-    dropout_head:
-      class: "instance"
-      condition: "$classification_head_type == 'dropout_head'"
+    use_global_pooling:
+      class: "param"
+      param_name: "cls_head_use_global_pooling"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use global average pooling"
       
-      use_global_pooling:
-        class: "param"
-        param_name: "cls_head_use_global_pooling"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use global average pooling"
-        
-      pooling_type:
-        class: "param"
-        param_name: "cls_head_pooling_type"
-        type: "categorical"
-        choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
-        description: "Type of global pooling to use"
-        condition: "$cls_head_use_global_pooling == true"
-        
-      hidden_dims:
-        class: "param"
-        param_name: "cls_head_hidden_dims"
-        type: "categorical"
-        choices: [[512], [1024], [512, 256], [1024, 512], [2048, 1024]]
-        description: "Hidden layer dimensions (required for dropout head)"
-        
-      activation:
-        class: "param"
-        param_name: "cls_head_activation"
-        type: "categorical"
-        choices: ["relu", "gelu", "swish", "leaky_relu"]
-        description: "Activation function for hidden layers"
-        
-      use_batch_norm:
-        class: "param"
-        param_name: "cls_head_use_batch_norm"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use batch normalization in hidden layers"
-        
-      dropout_rate:
-        class: "param"
-        param_name: "cls_head_dropout_rate"
-        type: "float"
-        low: 0.1
-        high: 0.8
-        description: "Dropout rate for regularization"
-        
-      dropout_schedule:
-        class: "param"
-        param_name: "cls_head_dropout_schedule"
-        type: "categorical"
-        choices: ["constant", "linear_decay", "cosine_decay"]
-        description: "Dropout rate scheduling strategy"
+    pooling_type:
+      class: "param"
+      param_name: "cls_head_pooling_type"
+      type: "categorical"
+      choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
+      description: "Type of global pooling to use"
+      condition: "$cls_head_use_global_pooling == true"
+      
+    hidden_dims:
+      class: "param"
+      param_name: "cls_head_hidden_dims"
+      type: "categorical"
+      choices: [[512], [1024], [512, 256], [1024, 512], [2048, 1024]]
+      description: "Hidden layer dimensions (required for dropout head)"
+      
+    activation:
+      class: "param"
+      param_name: "cls_head_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "cls_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization in hidden layers"
+      
+    dropout_rate:
+      class: "param"
+      param_name: "cls_head_dropout_rate"
+      type: "float"
+      low: 0.1
+      high: 0.8
+      description: "Dropout rate for regularization"
+      
+    dropout_schedule:
+      class: "param"
+      param_name: "cls_head_dropout_schedule"
+      type: "categorical"
+      choices: ["constant", "linear_decay", "cosine_decay"]
+      description: "Dropout rate scheduling strategy"
+  
+  # Attention pooling head
+  attention_pooling:
+    class: "instance"
+    condition: "$classification_head_type == 'attention_pooling'"
     
-    # Attention pooling head
-    attention_pooling:
-      class: "instance"
-      condition: "$classification_head_type == 'attention_pooling'"
+    attention_dim:
+      class: "param"
+      param_name: "cls_head_attention_dim"
+      type: "categorical"
+      choices: [128, 256, 512, 1024]
+      description: "Attention dimension for pooling"
       
-      attention_dim:
-        class: "param"
-        param_name: "cls_head_attention_dim"
-        type: "categorical"
-        choices: [128, 256, 512, 1024]
-        description: "Attention dimension for pooling"
-        
-      num_attention_heads:
-        class: "param"
-        param_name: "cls_head_num_attention_heads"
-        type: "categorical"
-        choices: [1, 2, 4, 8]
-        description: "Number of attention heads for pooling"
-        
-      attention_dropout:
-        class: "param"
-        param_name: "cls_head_attention_dropout"
-        type: "float"
-        low: 0.0
-        high: 0.5
-        description: "Dropout rate for attention weights"
-        
-      hidden_dims:
-        class: "param"
-        param_name: "cls_head_hidden_dims"
-        type: "categorical"
-        choices: [[], [512], [1024], [512, 256], [1024, 512]]
-        description: "Hidden layer dimensions after attention pooling"
-        
-      activation:
-        class: "param"
-        param_name: "cls_head_activation"
-        type: "categorical"
-        choices: ["relu", "gelu", "swish", "leaky_relu"]
-        description: "Activation function for hidden layers"
-        condition: "$cls_head_hidden_dims != []"
-        
-      use_batch_norm:
-        class: "param"
-        param_name: "cls_head_use_batch_norm"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use batch normalization in hidden layers"
-        condition: "$cls_head_hidden_dims != []"
+    num_attention_heads:
+      class: "param"
+      param_name: "cls_head_num_attention_heads"
+      type: "categorical"
+      choices: [1, 2, 4, 8]
+      description: "Number of attention heads for pooling"
+      
+    attention_dropout:
+      class: "param"
+      param_name: "cls_head_attention_dropout"
+      type: "float"
+      low: 0.0
+      high: 0.5
+      description: "Dropout rate for attention weights"
+      
+    hidden_dims:
+      class: "param"
+      param_name: "cls_head_hidden_dims"
+      type: "categorical"
+      choices: [[], [512], [1024], [512, 256], [1024, 512]]
+      description: "Hidden layer dimensions after attention pooling"
+      
+    activation:
+      class: "param"
+      param_name: "cls_head_activation"
+      type: "categorical"
+      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      description: "Activation function for hidden layers"
+      condition: "$cls_head_hidden_dims != []"
+      
+    use_batch_norm:
+      class: "param"
+      param_name: "cls_head_use_batch_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use batch normalization in hidden layers"
+      condition: "$cls_head_hidden_dims != []"

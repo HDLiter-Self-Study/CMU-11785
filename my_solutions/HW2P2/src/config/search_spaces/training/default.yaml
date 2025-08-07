@@ -5,371 +5,370 @@
 # =============================================================================
 # TRAINING STRATEGY CONFIGURATION
 # =============================================================================
-training:
-  class: "strategy"
+class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
-  # Optimizer configuration techniques
-  optimizer_techniques:
-    class: "technique"
-    
-    selection:
+# Optimizer configuration techniques
+optimizer_techniques:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "optimizer_strategy"
+    type: "categorical"
+    choices:
+      basic: ["adam", "sgd"]
+      robust: ["adam", "sgd", "adamw"]
+      comprehensive: ["adam", "sgd", "adamw"]
+      custom: ["adam", "sgd", "adamw"]
+    description: "Optimizer selection (choices depend on primary strategy)"
+    dependency_order: ["strategy_level"]
+
+  # Adam optimizer configuration
+  adam:
+    class: "instance"
+    condition: "$optimizer_strategy in ['adam']"
+
+    learning_rate:
       class: "param"
-      param_name: "optimizer_strategy"
-      type: "categorical"
-      choices:
-        basic: ["adam", "sgd"]
-        robust: ["adam", "sgd", "adamw"]
-        comprehensive: ["adam", "sgd", "adamw"]
-        custom: ["adam", "sgd", "adamw"]
-      description: "Optimizer selection (choices depend on primary strategy)"
+      param_name: "learning_rate"
+      type: "float"
+      low:
+        basic: 5e-4
+        robust: 1e-4
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-3
+        robust: 1e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      description: "Initial learning rate for Adam (range depends on strategy)"
       dependency_order: ["strategy_level"]
 
-    # Adam optimizer configuration
-    adam:
-      class: "instance"
-      condition: "$optimizer_strategy in ['adam']"
-
-      learning_rate:
-        class: "param"
-        param_name: "learning_rate"
-        type: "float"
-        low:
-          basic: 5e-4
-          robust: 1e-4
-          comprehensive: 1e-5
-          custom: 1e-5
-        high:
-          basic: 5e-3
-          robust: 1e-2
-          comprehensive: 1e-1
-          custom: 1e-1
-        log: true
-        description: "Initial learning rate for Adam (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      weight_decay:
-        class: "param"
-        param_name: "weight_decay"
-        type: "float"
-        low:
-          basic: 1e-4
-          robust: 1e-5
-          comprehensive: 1e-6
-          custom: 1e-6
-        high:
-          basic: 1e-3
-          robust: 5e-3
-          comprehensive: 1e-2
-          custom: 1e-2
-        log: true
-        description: "Weight decay coefficient for Adam (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      # Beta parameters fixed to common good values
-      # beta1: 0.9, beta2: 0.999 (handled in implementation)
-
-    # SGD optimizer configuration
-    sgd:
-      class: "instance"
-      condition: "$optimizer_strategy in ['sgd']"
-
-      learning_rate:
-        class: "param"
-        param_name: "learning_rate"
-        type: "float"
-        low:
-          basic: 1e-3
-          robust: 5e-4
-          comprehensive: 1e-4
-          custom: 1e-4
-        high:
-          basic: 1e-2
-          robust: 5e-2
-          comprehensive: 1e-1
-          custom: 1e-1
-        log: true
-        description: "Initial learning rate for SGD (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      weight_decay:
-        class: "param"
-        param_name: "weight_decay"
-        type: "float"
-        low:
-          basic: 1e-4
-          robust: 1e-5
-          comprehensive: 1e-6
-          custom: 1e-6
-        high:
-          basic: 1e-3
-          robust: 5e-3
-          comprehensive: 1e-2
-          custom: 1e-2
-        log: true
-        description: "Weight decay coefficient for SGD (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      # Momentum fixed to 0.9 (handled in implementation)
-
-    # AdamW optimizer configuration
-    adamw:
-      class: "instance"
-      condition: "$optimizer_strategy in ['adamw']"
-
-      learning_rate:
-        class: "param"
-        param_name: "learning_rate"
-        type: "float"
-        low:
-          basic: 1e-4
-          robust: 5e-5
-          comprehensive: 1e-5
-          custom: 1e-5
-        high:
-          basic: 5e-3
-          robust: 1e-2
-          comprehensive: 1e-1
-          custom: 1e-1
-        log: true
-        description: "Initial learning rate for AdamW (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      weight_decay:
-        class: "param"
-        param_name: "weight_decay"
-        type: "float"
-        low:
-          basic: 1e-3
-          robust: 1e-4
-          comprehensive: 1e-5
-          custom: 1e-5
-        high:
-          basic: 5e-2
-          robust: 5e-2
-          comprehensive: 1e-1
-          custom: 1e-1
-        log: true
-        description: "Weight decay coefficient for AdamW (range depends on strategy)"
-        dependency_order: ["strategy_level"]
-
-      # Beta parameters fixed to common good values
-      # beta1: 0.9, beta2: 0.999 (handled in implementation)
-
-    # RMSprop optimizer configuration (removed - rarely used and adds complexity)
-    # If needed, can use Adam or AdamW instead which are generally better
-
-  # Training configuration techniques
-  training_techniques:
-    class: "technique"
-
-    # Batch size configuration
-    batch_configuration:
-      class: "instance"
-      # Always active
-
-      batch_size:
-        class: "param"
-        param_name: "batch_size"
-        type: "categorical"
-        choices: [1024]
-        description: "Training batch size"
-
-  # Learning rate scheduling techniques
-  lr_scheduler_techniques:
-    class: "technique"
-
-    selection:
+    weight_decay:
       class: "param"
-      param_name: "lr_scheduler_strategy"
-      type: "categorical"
-      choices:
-        basic: ["plateau"]
-        robust: ["plateau", "step"]
-        comprehensive: ["cosine", "step", "plateau"]
-        custom: ["cosine", "step", "plateau"]
-      description: "Learning rate scheduler selection (choices depend on primary strategy)"
+      param_name: "weight_decay"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 1e-5
+        comprehensive: 1e-6
+        custom: 1e-6
+      high:
+        basic: 1e-3
+        robust: 5e-3
+        comprehensive: 1e-2
+        custom: 1e-2
+      log: true
+      description: "Weight decay coefficient for Adam (range depends on strategy)"
       dependency_order: ["strategy_level"]
 
-    # Cosine annealing scheduler (with warmup options)
-    cosine:
-      class: "instance"
-      condition: "$lr_scheduler_strategy in ['cosine']"
+    # Beta parameters fixed to common good values
+    # beta1: 0.9, beta2: 0.999 (handled in implementation)
 
-      warmup_epochs:
-        class: "param"
-        param_name: "cosine_warmup_epochs"
-        type: "int"
-        low: 0
-        high: 15
-        description: "Number of warmup epochs for cosine scheduler"
+  # SGD optimizer configuration
+  sgd:
+    class: "instance"
+    condition: "$optimizer_strategy in ['sgd']"
 
-      eta_min_ratio:
-        class: "param"
-        param_name: "cosine_eta_min_ratio"
-        type: "float"
-        low: 0.001
-        high: 0.1
-        log: true
-        description: "Minimum LR as ratio of initial LR (eta_min = lr * ratio)"
-
-    # Step scheduler (with warmup options)
-    step:
-      class: "instance"
-      condition: "$lr_scheduler_strategy in ['step']"
-
-      warmup_epochs:
-        class: "param"
-        param_name: "step_warmup_epochs"
-        type: "int"
-        low: 0
-        high: 10
-        description: "Number of warmup epochs for step scheduler"
-
-      step_size:
-        class: "param"
-        param_name: "step_size"
-        type: "int"
-        low: 20
-        high: 40
-        description: "Step size for StepLR scheduler"
-
-      gamma:
-        class: "param"
-        param_name: "step_gamma"
-        type: "float"
-        low: 0.3
-        high: 0.7
-        description: "Decay factor for StepLR scheduler"
-
-    # Plateau scheduler (comprehensive)
-    plateau:
-      class: "instance"
-      condition: "$lr_scheduler_strategy in ['plateau']"
-
-      patience:
-        class: "param"
-        param_name: "plateau_patience"
-        type: "int"
-        low: 5
-        high: 20
-        description: "Patience for ReduceLROnPlateau scheduler"
-
-      factor:
-        class: "param"
-        param_name: "plateau_factor"
-        type: "float"
-        low: 0.1
-        high: 0.8
-        description: "Factor by which LR is reduced (new_lr = old_lr * factor)"
-
-      threshold:
-        class: "param"
-        param_name: "plateau_threshold"
-        type: "float"
-        low: 1e-5
-        high: 1e-2
-        log: true
-        description: "Threshold for measuring improvement"
-
-      threshold_mode:
-        class: "param"
-        param_name: "plateau_threshold_mode"
-        type: "categorical"
-        choices: ["rel", "abs"]
-        description: "Mode for threshold comparison (relative or absolute)"
-
-      cooldown:
-        class: "param"
-        param_name: "plateau_cooldown"
-        type: "int"
-        low: 0
-        high: 10
-        description: "Number of epochs to wait before resuming normal operation after lr reduction"
-
-      min_lr:
-        class: "param"
-        param_name: "plateau_min_lr"
-        type: "float"
-        low: 1e-8
-        high: 1e-4
-        log: true
-        description: "Lower bound on the learning rate"
-
-      eps:
-        class: "param"
-        param_name: "plateau_eps"
-        type: "float"
-        low: 1e-9
-        high: 1e-6
-        log: true
-        description: "Minimal decay applied to lr (if difference between new and old lr is smaller than eps, update is ignored)"
-
-  # Model averaging techniques
-  model_averaging_techniques:
-    class: "technique"
-
-    selection:
+    learning_rate:
       class: "param"
-      param_name: "model_averaging_strategy"
-      type: "categorical"
-      choices:
-        basic: ["none"]
-        robust: ["none", "ema"]
-        comprehensive: ["none", "ema"]
-        custom: ["none", "ema"]
-      description: "Model averaging technique selection (choices depend on primary strategy)"
+      param_name: "learning_rate"
+      type: "float"
+      low:
+        basic: 1e-3
+        robust: 5e-4
+        comprehensive: 1e-4
+        custom: 1e-4
+      high:
+        basic: 1e-2
+        robust: 5e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      description: "Initial learning rate for SGD (range depends on strategy)"
       dependency_order: ["strategy_level"]
 
-    # Exponential Moving Average
-    ema:
-      class: "instance"
-      condition: "$model_averaging_strategy in ['ema']"
-
-      start_epoch:
-        class: "param"
-        param_name: "ema_start_epoch"
-        type: "int"
-        low: 0
-        high: 20
-        description: "Epoch to start EMA (0 = from beginning)"
-
-      # Update frequency fixed to 1 (update every step) in implementation
-
-  # Gradient processing techniques
-  gradient_techniques:
-    class: "technique"
-
-    selection:
+    weight_decay:
       class: "param"
-      param_name: "gradient_strategy"
-      type: "categorical"
-      choices:
-        basic: ["none"]
-        robust: ["none", "clip_norm"]
-        comprehensive: ["none", "clip_norm"]
-        custom: ["none", "clip_norm"]
-      description: "Gradient processing technique selection (choices depend on primary strategy)"
+      param_name: "weight_decay"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 1e-5
+        comprehensive: 1e-6
+        custom: 1e-6
+      high:
+        basic: 1e-3
+        robust: 5e-3
+        comprehensive: 1e-2
+        custom: 1e-2
+      log: true
+      description: "Weight decay coefficient for SGD (range depends on strategy)"
       dependency_order: ["strategy_level"]
 
-    # Gradient clipping by norm
-    clip_norm:
-      class: "instance"
-      condition: "$gradient_strategy in ['clip_norm']"
+    # Momentum fixed to 0.9 (handled in implementation)
 
-      max_norm:
-        class: "param"
-        param_name: "gradient_clip_norm"
-        type: "float"
-        low: 0.1
-        high: 5.0
-        description: "Maximum gradient norm for clipping"
+  # AdamW optimizer configuration
+  adamw:
+    class: "instance"
+    condition: "$optimizer_strategy in ['adamw']"
 
-      norm_type:
-        class: "param"
-        param_name: "gradient_clip_norm_type"
-        type: "categorical"
-        choices: [2.0, "inf"]
-        description: "Type of norm to use for gradient clipping"
+    learning_rate:
+      class: "param"
+      param_name: "learning_rate"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 5e-5
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-3
+        robust: 1e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      description: "Initial learning rate for AdamW (range depends on strategy)"
+      dependency_order: ["strategy_level"]
+
+    weight_decay:
+      class: "param"
+      param_name: "weight_decay"
+      type: "float"
+      low:
+        basic: 1e-3
+        robust: 1e-4
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-2
+        robust: 5e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      description: "Weight decay coefficient for AdamW (range depends on strategy)"
+      dependency_order: ["strategy_level"]
+
+    # Beta parameters fixed to common good values
+    # beta1: 0.9, beta2: 0.999 (handled in implementation)
+
+  # RMSprop optimizer configuration (removed - rarely used and adds complexity)
+  # If needed, can use Adam or AdamW instead which are generally better
+
+# Training configuration techniques
+training_techniques:
+  class: "technique"
+
+  # Batch size configuration
+  batch_configuration:
+    class: "instance"
+    # Always active
+
+    batch_size:
+      class: "param"
+      param_name: "batch_size"
+      type: "categorical"
+      choices: [1024]
+      description: "Training batch size"
+
+# Learning rate scheduling techniques
+lr_scheduler_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "lr_scheduler_strategy"
+    type: "categorical"
+    choices:
+      basic: ["plateau"]
+      robust: ["plateau", "step"]
+      comprehensive: ["cosine", "step", "plateau"]
+      custom: ["cosine", "step", "plateau"]
+    description: "Learning rate scheduler selection (choices depend on primary strategy)"
+    dependency_order: ["strategy_level"]
+
+  # Cosine annealing scheduler (with warmup options)
+  cosine:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['cosine']"
+
+    warmup_epochs:
+      class: "param"
+      param_name: "cosine_warmup_epochs"
+      type: "int"
+      low: 0
+      high: 15
+      description: "Number of warmup epochs for cosine scheduler"
+
+    eta_min_ratio:
+      class: "param"
+      param_name: "cosine_eta_min_ratio"
+      type: "float"
+      low: 0.001
+      high: 0.1
+      log: true
+      description: "Minimum LR as ratio of initial LR (eta_min = lr * ratio)"
+
+  # Step scheduler (with warmup options)
+  step:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['step']"
+
+    warmup_epochs:
+      class: "param"
+      param_name: "step_warmup_epochs"
+      type: "int"
+      low: 0
+      high: 10
+      description: "Number of warmup epochs for step scheduler"
+
+    step_size:
+      class: "param"
+      param_name: "step_size"
+      type: "int"
+      low: 20
+      high: 40
+      description: "Step size for StepLR scheduler"
+
+    gamma:
+      class: "param"
+      param_name: "step_gamma"
+      type: "float"
+      low: 0.3
+      high: 0.7
+      description: "Decay factor for StepLR scheduler"
+
+  # Plateau scheduler (comprehensive)
+  plateau:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['plateau']"
+
+    patience:
+      class: "param"
+      param_name: "plateau_patience"
+      type: "int"
+      low: 5
+      high: 20
+      description: "Patience for ReduceLROnPlateau scheduler"
+
+    factor:
+      class: "param"
+      param_name: "plateau_factor"
+      type: "float"
+      low: 0.1
+      high: 0.8
+      description: "Factor by which LR is reduced (new_lr = old_lr * factor)"
+
+    threshold:
+      class: "param"
+      param_name: "plateau_threshold"
+      type: "float"
+      low: 1e-5
+      high: 1e-2
+      log: true
+      description: "Threshold for measuring improvement"
+
+    threshold_mode:
+      class: "param"
+      param_name: "plateau_threshold_mode"
+      type: "categorical"
+      choices: ["rel", "abs"]
+      description: "Mode for threshold comparison (relative or absolute)"
+
+    cooldown:
+      class: "param"
+      param_name: "plateau_cooldown"
+      type: "int"
+      low: 0
+      high: 10
+      description: "Number of epochs to wait before resuming normal operation after lr reduction"
+
+    min_lr:
+      class: "param"
+      param_name: "plateau_min_lr"
+      type: "float"
+      low: 1e-8
+      high: 1e-4
+      log: true
+      description: "Lower bound on the learning rate"
+
+    eps:
+      class: "param"
+      param_name: "plateau_eps"
+      type: "float"
+      low: 1e-9
+      high: 1e-6
+      log: true
+      description: "Minimal decay applied to lr (if difference between new and old lr is smaller than eps, update is ignored)"
+
+# Model averaging techniques
+model_averaging_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "model_averaging_strategy"
+    type: "categorical"
+    choices:
+      basic: ["none"]
+      robust: ["none", "ema"]
+      comprehensive: ["none", "ema"]
+      custom: ["none", "ema"]
+    description: "Model averaging technique selection (choices depend on primary strategy)"
+    dependency_order: ["strategy_level"]
+
+  # Exponential Moving Average
+  ema:
+    class: "instance"
+    condition: "$model_averaging_strategy in ['ema']"
+
+    start_epoch:
+      class: "param"
+      param_name: "ema_start_epoch"
+      type: "int"
+      low: 0
+      high: 20
+      description: "Epoch to start EMA (0 = from beginning)"
+
+    # Update frequency fixed to 1 (update every step) in implementation
+
+# Gradient processing techniques
+gradient_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "gradient_strategy"
+    type: "categorical"
+    choices:
+      basic: ["none"]
+      robust: ["none", "clip_norm"]
+      comprehensive: ["none", "clip_norm"]
+      custom: ["none", "clip_norm"]
+    description: "Gradient processing technique selection (choices depend on primary strategy)"
+    dependency_order: ["strategy_level"]
+
+  # Gradient clipping by norm
+  clip_norm:
+    class: "instance"
+    condition: "$gradient_strategy in ['clip_norm']"
+
+    max_norm:
+      class: "param"
+      param_name: "gradient_clip_norm"
+      type: "float"
+      low: 0.1
+      high: 5.0
+      description: "Maximum gradient norm for clipping"
+
+    norm_type:
+      class: "param"
+      param_name: "gradient_clip_norm_type"
+      type: "categorical"
+      choices: [2.0, "inf"]
+      description: "Type of norm to use for gradient clipping"

@@ -14,177 +14,176 @@
 # =============================================================================
 # LOSS FUNCTION STRATEGY
 # =============================================================================
-losses:
-  class: "strategy"
+class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
-  # =============================================================================
-  # CLASSIFICATION LOSS FUNCTIONS
-  # =============================================================================
-  classification_losses:
-    class: "technique"
+# =============================================================================
+# CLASSIFICATION LOSS FUNCTIONS
+# =============================================================================
+classification_losses:
+  class: "technique"
+  
+  # Loss function selection
+  selection:
+    class: "param"
+    param_name: "classification_loss_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["cross_entropy"]
+      robust: ["cross_entropy", "focal_loss"]
+      comprehensive: ["cross_entropy", "focal_loss"]
+      custom: ["cross_entropy", "focal_loss"]
+    description: "Classification loss function selection"
+  
+  # Cross-entropy loss implementation
+  cross_entropy:
+    class: "instance"
+    condition: "$classification_loss_type == 'cross_entropy'"
     
-    # Loss function selection
-    selection:
+    label_smoothing:
+      class: "param"  
+      param_name: "cls_label_smoothing"
+      type: "float"
+      low: 0.0
+      high: 0.3
+      description: "Label smoothing factor"
+      
+    class_weights:
       class: "param"
-      param_name: "classification_loss_type"
+      param_name: "cls_use_class_weights"
       type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["cross_entropy"]
-        robust: ["cross_entropy", "focal_loss"]
-        comprehensive: ["cross_entropy", "focal_loss"]
-        custom: ["cross_entropy", "focal_loss"]
-      description: "Classification loss function selection"
+      choices: [true, false]
+      description: "Whether to use class weights"
+  
+  # Focal loss implementation
+  focal_loss:
+    class: "instance"
+    condition: "$classification_loss_type == 'focal_loss'"
     
-    # Cross-entropy loss implementation
-    cross_entropy:
-      class: "instance"
-      condition: "$classification_loss_type == 'cross_entropy'"
-      
-      label_smoothing:
-        class: "param"  
-        param_name: "cls_label_smoothing"
-        type: "float"
-        low: 0.0
-        high: 0.3
-        description: "Label smoothing factor"
-        
-      class_weights:
-        class: "param"
-        param_name: "cls_use_class_weights"
-        type: "categorical"
-        choices: [true, false]
-        description: "Whether to use class weights"
-    
-    # Focal loss implementation
-    focal_loss:
-      class: "instance"
-      condition: "$classification_loss_type == 'focal_loss'"
-      
-      alpha:
-        class: "param"
-        param_name: "cls_focal_alpha"
-        type: "float"
-        low: 0.1
-        high: 1.0
-        description: "Focal loss alpha parameter (class balance)"
-        
-      gamma:
-        class: "param"
-        param_name: "cls_focal_gamma"
-        type: "float"
-        low: 1.0
-        high: 5.0
-        description: "Focal loss gamma parameter (focusing parameter)"
-
-  # =============================================================================
-  # VERIFICATION LOSS FUNCTIONS
-  # =============================================================================
-  verification_losses:
-    class: "technique"
-    
-    # Loss function selection
-    selection:
+    alpha:
       class: "param"
-      param_name: "verification_loss_type"
+      param_name: "cls_focal_alpha"
+      type: "float"
+      low: 0.1
+      high: 1.0
+      description: "Focal loss alpha parameter (class balance)"
+      
+    gamma:
+      class: "param"
+      param_name: "cls_focal_gamma"
+      type: "float"
+      low: 1.0
+      high: 5.0
+      description: "Focal loss gamma parameter (focusing parameter)"
+
+# =============================================================================
+# VERIFICATION LOSS FUNCTIONS
+# =============================================================================
+verification_losses:
+  class: "technique"
+  
+  # Loss function selection
+  selection:
+    class: "param"
+    param_name: "verification_loss_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["contrastive"]
+      robust: ["contrastive", "triplet", "binary_cross_entropy"]
+      comprehensive: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
+      custom: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
+    description: "Verification loss function selection"
+  
+  # Contrastive loss implementation
+  contrastive:
+    class: "instance"
+    condition: "$verification_loss_type == 'contrastive'"
+    
+    margin:
+      class: "param"
+      param_name: "ver_contrastive_margin"
+      type: "float"
+      low: 0.5
+      high: 2.0
+      description: "Contrastive loss margin"
+      
+    pos_weight:
+      class: "param"
+      param_name: "ver_contrastive_pos_weight"
+      type: "float"
+      low: 0.5
+      high: 2.0
+      description: "Weight for positive pairs"
+  
+  # Triplet loss implementation
+  triplet:
+    class: "instance"
+    condition: "$verification_loss_type == 'triplet'"
+    
+    margin:
+      class: "param"
+      param_name: "ver_triplet_margin"
+      type: "float"
+      low: 0.1
+      high: 1.0
+      description: "Triplet loss margin"
+      
+    mining_strategy:
+      class: "param"
+      param_name: "ver_triplet_mining"
       type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["contrastive"]
-        robust: ["contrastive", "triplet", "binary_cross_entropy"]
-        comprehensive: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
-        custom: ["contrastive", "triplet", "arcface", "binary_cross_entropy"]
-      description: "Verification loss function selection"
-    
-    # Contrastive loss implementation
-    contrastive:
-      class: "instance"
-      condition: "$verification_loss_type == 'contrastive'"
+      choices: ["random", "hard", "semi_hard", "distance_weighted"]
+      description: "Triplet mining strategy"
       
-      margin:
-        class: "param"
-        param_name: "ver_contrastive_margin"
-        type: "float"
-        low: 0.5
-        high: 2.0
-        description: "Contrastive loss margin"
-        
-      pos_weight:
-        class: "param"
-        param_name: "ver_contrastive_pos_weight"
-        type: "float"
-        low: 0.5
-        high: 2.0
-        description: "Weight for positive pairs"
+    distance_metric:
+      class: "param"
+      param_name: "ver_triplet_distance"
+      type: "categorical"
+      choices: ["euclidean", "cosine", "manhattan"]
+      description: "Distance metric for triplet loss"
+  
+  # ArcFace loss implementation
+  arcface:
+    class: "instance"
+    condition: "$verification_loss_type == 'arcface'"
     
-    # Triplet loss implementation
-    triplet:
-      class: "instance"
-      condition: "$verification_loss_type == 'triplet'"
+    scale:
+      class: "param"
+      param_name: "ver_arcface_scale"
+      type: "float"
+      low: 10.0
+      high: 64.0
+      description: "ArcFace scale parameter"
       
-      margin:
-        class: "param"
-        param_name: "ver_triplet_margin"
-        type: "float"
-        low: 0.1
-        high: 1.0
-        description: "Triplet loss margin"
-        
-      mining_strategy:
-        class: "param"
-        param_name: "ver_triplet_mining"
-        type: "categorical"
-        choices: ["random", "hard", "semi_hard", "distance_weighted"]
-        description: "Triplet mining strategy"
-        
-      distance_metric:
-        class: "param"
-        param_name: "ver_triplet_distance"
-        type: "categorical"
-        choices: ["euclidean", "cosine", "manhattan"]
-        description: "Distance metric for triplet loss"
+    margin:
+      class: "param"
+      param_name: "ver_arcface_margin"
+      type: "float"
+      low: 0.1
+      high: 0.8 
+      description: "ArcFace margin parameter"
+  
+  # Binary cross-entropy loss implementation
+  binary_cross_entropy:
+    class: "instance"
+    condition: "$verification_loss_type == 'binary_cross_entropy'"
     
-    # ArcFace loss implementation
-    arcface:
-      class: "instance"
-      condition: "$verification_loss_type == 'arcface'"
+    pos_weight:
+      class: "param"
+      param_name: "ver_bce_pos_weight"
+      type: "float"
+      low: 0.5
+      high: 2.0
+      description: "Weight for positive class"
       
-      scale:
-        class: "param"
-        param_name: "ver_arcface_scale"
-        type: "float"
-        low: 10.0
-        high: 64.0
-        description: "ArcFace scale parameter"
-        
-      margin:
-        class: "param"
-        param_name: "ver_arcface_margin"
-        type: "float"
-        low: 0.1
-        high: 0.8 
-        description: "ArcFace margin parameter"
-    
-    # Binary cross-entropy loss implementation
-    binary_cross_entropy:
-      class: "instance"
-      condition: "$verification_loss_type == 'binary_cross_entropy'"
-      
-      pos_weight:
-        class: "param"
-        param_name: "ver_bce_pos_weight"
-        type: "float"
-        low: 0.5
-        high: 2.0
-        description: "Weight for positive class"
-        
-      label_smoothing:
-        class: "param"
-        param_name: "ver_bce_label_smoothing"
-        type: "float"
-        low: 0.0
-        high: 0.2
-        description: "Label smoothing for BCE"
+    label_smoothing:
+      class: "param"
+      param_name: "ver_bce_label_smoothing"
+      type: "float"
+      low: 0.0
+      high: 0.2
+      description: "Label smoothing for BCE"

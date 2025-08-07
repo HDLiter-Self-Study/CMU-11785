@@ -1,0 +1,22 @@
+# ConvNeXt Stem Configuration
+# @package blocks.stem_block
+
+
+class: "instance"
+condition: "$architecture_type == 'convnext'"
+  
+# Stem output channels (width after patchify operation)
+out_channels:
+  class: "param"
+  param_name: "stem_out_channels"
+  type: "categorical"
+  choices: [64, 96, 128, 160]
+  description: "Number of output channels from ConvNeXt stem (patchify layer)"
+  
+# Stride for patchify operation (determines how much spatial downsampling)
+stride:
+  class: "param"
+  param_name: "stem_stride"
+  type: "categorical"
+  choices: [2, 4]
+  description: "Stride for ConvNeXt patchify operation (kernel_size = max(4, stride))"

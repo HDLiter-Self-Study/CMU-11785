@@ -21,82 +21,82 @@
 # =============================================================================
 # LABEL MIXING STRATEGY CONFIGURATION
 # =============================================================================
-label_mixing:
-  class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+class: "strategy"
 
-  # Label mixing techniques (influenced by primary strategy)
-  mixing_techniques:
-    class: "technique"
-    
-    selection:
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+
+# Label mixing techniques (influenced by primary strategy)
+mixing_techniques:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "label_mixing_technique"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["none", "mixup"]
+      robust: ["none", "mixup", "cutmix"]
+      comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
+      custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
+    description: "Specific label mixing technique"
+
+  # Mixup technique
+  mixup:
+    class: "instance"
+    condition: "$label_mixing_technique in ['mixup', 'random_choice']"
+
+    alpha:
       class: "param"
-      param_name: "label_mixing_technique"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["none", "mixup"]
-        robust: ["none", "mixup", "cutmix"]
-        comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
-        custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
-      description: "Specific label mixing technique"
+      param_name: "mixup_alpha"
+      type: "float"
+      low: 0.2
+      high: 2.0
+      description: "Beta distribution parameter for Mixup"
 
-    # Mixup technique
-    mixup:
-      class: "instance"
-      condition: "$label_mixing_technique in ['mixup', 'random_choice']"
+  # CutMix technique
+  cutmix:
+    class: "instance"
+    condition: "$label_mixing_technique in ['cutmix', 'random_choice']"
 
-      alpha:
-        class: "param"
-        param_name: "mixup_alpha"
-        type: "float"
-        low: 0.2
-        high: 2.0
-        description: "Beta distribution parameter for Mixup"
+    alpha:
+      class: "param"
+      param_name: "cutmix_alpha"
+      type: "float"
+      low: 0.3
+      high: 3.0
+      description: "Beta distribution parameter for CutMix"
 
-    # CutMix technique
-    cutmix:
-      class: "instance"
-      condition: "$label_mixing_technique in ['cutmix', 'random_choice']"
+  # FMix technique
+  fmix:
+    class: "instance"
+    condition: "$label_mixing_technique in ['fmix', 'random_choice']"
 
-      alpha:
-        class: "param"
-        param_name: "cutmix_alpha"
-        type: "float"
-        low: 0.3
-        high: 3.0
-        description: "Beta distribution parameter for CutMix"
-
-    # FMix technique
-    fmix:
-      class: "instance"
-      condition: "$label_mixing_technique in ['fmix', 'random_choice']"
-
-      alpha:
-        class: "param"
-        param_name: "fmix_alpha"
-        type: "float"
-        low: 0.2
-        high: 4.0
-        description: "Beta distribution parameter for FMix"
-            
-      decay_power:
-        class: "param"
-        param_name: "fmix_decay_power"
-        type: "float"
-        low: 0.8
-        high: 2.0
-        description: "Decay power for frequency domain mask in FMix"
-      
-      max_soft:
-        class: "param"
-        param_name: "fmix_max_soft"
-        type: "float"
-        low: 0.0
-        high: 0.3
-        description: "Softening parameter for FMix mask edges"
+    alpha:
+      class: "param"
+      param_name: "fmix_alpha"
+      type: "float"
+      low: 0.2
+      high: 4.0
+      description: "Beta distribution parameter for FMix"
+          
+    decay_power:
+      class: "param"
+      param_name: "fmix_decay_power"
+      type: "float"
+      low: 0.8
+      high: 2.0
+      description: "Decay power for frequency domain mask in FMix"
+    
+    max_soft:
+      class: "param"
+      param_name: "fmix_max_soft"
+      type: "float"
+      low: 0.0
+      high: 0.3
+      description: "Softening parameter for FMix mask edges"
 
 
 

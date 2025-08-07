@@ -3,29 +3,28 @@
 
 defaults:
   - _self_
-  - blocks/convnext_inverted_bottleneck_block@blocks.convnext_inverted_bottleneck_block
-  - blocks/convnext_stem@blocks.convnext_stem
+  - blocks/inverted_bottleneck_block@inverted_bottleneck_block
+  - blocks/stem_block@stem_block
 
 # =============================================================================
 # CONVNEXT ARCHITECTURE CONFIGURATION
 # =============================================================================
-convnext:
-  class: "strategy"
+class: "strategy"
 
-  # Meta-configuration: manually set by researcher (not searched)
-  strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
+# Meta-configuration: manually set by researcher (not searched)
+strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
-  # Basic structure configuration
-  structure_params:
-    class: "technique"
-    
-    # Note: Block type is now handled by the unified architecture-aware system in default.yaml
+# Basic structure configuration
+structure_params:
+  class: "technique"
+  
+  # Note: Block type is now handled by the unified architecture-aware system in default.yaml
 
-  # Note: Activation and normalization parameters are now handled by the unified
-  # architecture-aware system in default.yaml. No need for ConvNeXt-specific versions.
+# Note: Activation and normalization parameters are now handled by the unified
+# architecture-aware system in default.yaml. No need for ConvNeXt-specific versions.
 
-  # Advanced ConvNeXt features (architecture-specific only)
-  advanced_params:
-    class: "technique"
-    
-    # Note: Projection type is now handled by the unified shared_features in default.yaml
+# Advanced ConvNeXt features (architecture-specific only)
+advanced_params:
+  class: "technique"
+  
+  # Note: Projection type is now handled by the unified shared_features in default.yaml
