@@ -67,13 +67,11 @@ class ConfigManager:
         return self._config
 
 
-# Global config manager instance
-_config_manager = ConfigManager()
-
-
 def get_config(config_name: str = "main", overrides: Optional[list] = None) -> DictConfig:
     """
-    Get configuration using the global config manager
+    Get configuration by creating a new ConfigManager instance for each call.
+    This ensures that no state is shared between different sampler instances,
+    preventing issues with overrides in sequential tests.
 
     Args:
         config_name: Name of the main config file
@@ -82,4 +80,5 @@ def get_config(config_name: str = "main", overrides: Optional[list] = None) -> D
     Returns:
         Configuration object
     """
-    return _config_manager.load_config(config_name, overrides)
+    # Create a new instance on each call to ensure isolation
+    return ConfigManager().load_config(config_name, overrides)
