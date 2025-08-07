@@ -33,7 +33,7 @@ optimizer_techniques:
 
     learning_rate:
       class: "param"
-      param_name: "learning_rate"
+      param_name: "adam_learning_rate"
       type: "float"
       low:
         basic: 5e-4
@@ -51,7 +51,7 @@ optimizer_techniques:
 
     weight_decay:
       class: "param"
-      param_name: "weight_decay"
+      param_name: "adam_weight_decay"
       type: "float"
       low:
         basic: 1e-4
@@ -77,7 +77,7 @@ optimizer_techniques:
 
     learning_rate:
       class: "param"
-      param_name: "learning_rate"
+      param_name: "sgd_learning_rate"
       type: "float"
       low:
         basic: 1e-3
@@ -95,7 +95,7 @@ optimizer_techniques:
 
     weight_decay:
       class: "param"
-      param_name: "weight_decay"
+      param_name: "sgd_weight_decay"
       type: "float"
       low:
         basic: 1e-4
@@ -120,7 +120,7 @@ optimizer_techniques:
 
     learning_rate:
       class: "param"
-      param_name: "learning_rate"
+      param_name: "adamw_learning_rate"
       type: "float"
       low:
         basic: 1e-4
@@ -138,7 +138,7 @@ optimizer_techniques:
 
     weight_decay:
       class: "param"
-      param_name: "weight_decay"
+      param_name: "adamw_weight_decay"
       type: "float"
       low:
         basic: 1e-3

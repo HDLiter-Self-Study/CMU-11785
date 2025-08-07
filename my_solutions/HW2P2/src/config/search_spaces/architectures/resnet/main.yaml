@@ -11,38 +11,20 @@ defaults:
 # RESNET ARCHITECTURE CONFIGURATION
 # =============================================================================
 
-class: "strategy"
+class: "technique"
 
-# Meta-configuration: manually set by researcher (not searched)
-strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
-
-# Basic structure configuration
-structure_params:
-  class: "technique"
+# Pre-activation style (ResNet v2) - ResNet specific feature
+pre_activation:
+  class: "instance"
   
-  # Note: Block type is now handled by the unified architecture-aware system in default.yaml
-
-# Note: Activation and normalization parameters are now handled by the unified
-# architecture-aware system in default.yaml. No need for ResNet-specific versions.
-
-# Advanced ResNet features (architecture-specific only)
-advanced_params:
-  class: "technique"
-  
-  # Note: Projection type is now handled by the unified shared_features in default.yaml
-    
-  # Pre-activation style (ResNet v2) - ResNet specific feature
-  pre_activation:
-    class: "technique"
-    
-    selection:
-      class: "param"
-      param_name: "resnet_pre_activation_selection"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["disabled"]
-        robust: ["disabled", "enabled"]
-        comprehensive: ["disabled", "enabled"]
-        custom: ["disabled", "enabled"]
-      description: "Enable/disable pre-activation style (BatchNorm + ReLU + Conv)"
+  selection:
+    class: "param"
+    param_name: "pre_activation_selection"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["disabled"]
+      robust: ["disabled", "enabled"]
+      comprehensive: ["disabled", "enabled"]
+      custom: ["disabled", "enabled"]
+    description: "Enable/disable pre-activation style (BatchNorm + ReLU + Conv)"

@@ -40,6 +40,22 @@ architecture_selection:
       custom: ["resnet", "convnext"]
     description: "Architecture type selection"
 
+# Stage number selection
+num_stages_selection:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "num_stages"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: [4]  
+      robust: [3, 4] 
+      comprehensive: [3, 4, 5] 
+      custom: [3, 4, 5]
+    description: "Number of stages for architecture"
+
 # =============================================================================
 # ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
 # =============================================================================
@@ -71,7 +87,7 @@ activation_params:
       granularity: "global"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity", "block_type", "regnet_num_stages"]  # Depends on granularity selection, block_type and number of stages
+      depends_on: ["activation_granularity", "block_type"]  # Depends on granularity selection, block_type and number of stages
       choices:
         resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
@@ -89,7 +105,7 @@ activation_params:
       granularity: "block_type"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity", "block_type_granularity", "block_type/stage_block_type"]  # Depends on activation granularity, block_type granularity and either block_type OR stage_block_type
+      depends_on: ["activation_granularity", "block_type_granularity"]  # Depends on activation granularity, block_type granularity and either block_type OR block_type
       choices:
         resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
@@ -107,7 +123,7 @@ activation_params:
       granularity: "stage"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity", "stage_block_type"]  # Depends on activation granularity and stage-specific block_type
+      depends_on: ["activation_granularity", "block_type"]  # Depends on activation granularity and stage-specific block_type
       choices:
         resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
@@ -125,7 +141,7 @@ activation_params:
       granularity: "block_stage"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity", "stage_block_type"]
+      depends_on: ["activation_granularity", "block_type"]
       choices:
         resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
@@ -177,7 +193,7 @@ normalization_params:
       granularity: "global"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "block_type", "regnet_num_stages"]  # Depends on normalization granularity, block_type and stages
+      depends_on: ["norm_granularity", "block_type"]  # Depends on normalization granularity, block_type and stages
       choices:
         resnet: ["batch_norm", "group_norm", "layer_norm"]
         convnext: ["layer_norm", "batch_norm", "group_norm"]
@@ -195,7 +211,7 @@ normalization_params:
       granularity: "block_type"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "block_type_granularity", "block_type/stage_block_type"]  # Depends on normalization granularity, block_type granularity and either block_type OR stage_block_type
+      depends_on: ["norm_granularity", "block_type_granularity", "block_type/block_type"]  # Depends on normalization granularity, block_type granularity and either block_type OR block_type
       choices:
         resnet: ["batch_norm", "group_norm", "layer_norm"]
         convnext: ["layer_norm", "batch_norm", "group_norm"]
@@ -213,7 +229,7 @@ normalization_params:
       granularity: "stage"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "stage_block_type", "stage_activation"]
+      depends_on: ["norm_granularity", "block_type", "stage_activation"]
       choices:
         resnet: ["batch_norm", "group_norm", "layer_norm"]
         convnext: ["layer_norm", "batch_norm", "group_norm"]
@@ -231,7 +247,7 @@ normalization_params:
       granularity: "block_stage"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "stage_block_type", "block_stage_activation"]
+      depends_on: ["norm_granularity", "block_type"]
       choices:
         resnet: ["batch_norm", "group_norm", "layer_norm"]
         convnext: ["layer_norm", "batch_norm", "group_norm"]
@@ -282,7 +298,7 @@ block_type_params:
     
     block_type:
       class: "param"
-      param_name: "block_type"
+      param_name: "global_block_type_selection"
       granularity: "global"
       type: "categorical"
       dependency_order: ["architecture_type"]
@@ -300,7 +316,7 @@ block_type_params:
     
     block_type:
       class: "param"
-      param_name: "stage_block_type"
+      param_name: "stage_block_type_selection"
       granularity: "stage"
       type: "categorical"
       dependency_order: ["architecture_type"]
@@ -331,22 +347,10 @@ depth_generation:
 
   # RegNet-based depth generation (architecture-aware parameters)
   # See <https://arxiv.org/abs/2101.00590> for details
+  # The number of stages is sampled in upper level because it is needed by other parameters
   regnet_rule:
     class: "instance"
     condition: "$depth_generation_method == 'regnet_rule'"
-
-    num_stages:
-      class: "param"
-      param_name: "regnet_num_stages"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      depends_on: ["depth_generation_method"]  # Must be sampled after depth generation method
-      choices:
-        basic: [4]  
-        robust: [3, 4] 
-        comprehensive: [3, 4, 5] 
-        custom: [3, 4, 5]
-      description: "Number of stages for architecture"
 
     width_slope:
       class: "param"
@@ -408,34 +412,39 @@ global_architecture_params:
   
   # Width multiplier (Wide ResNet style - affects all architectures)
   width_multiplier:
-    class: "param"
-    param_name: "width_multiplier"
-    type: "categorical"
-    choices: [1, 2, 3, 4, 6, 8, 10, 12, 16, 20]
-    description: "Global width multiplier for all channels (Wide ResNet style)"
+    class: "instance"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    
+    width_multiplier:
+      class: "param"
+      param_name: "width_multiplier"
+      type: "categorical"
+      choices: [1, 2, 3, 4, 6, 8, 10, 12, 16, 20]
+      description: "Global width multiplier for all channels (Wide ResNet style)"
 
-# =============================================================================
-# SHARED MODERN TRAINING FEATURES (ALL ARCHITECTURES)
-# =============================================================================
-shared_features:
+
+  
+# SE (Squeeze-and-Excitation) module configuration - shared by all architectures
+se_params:
   class: "technique"
   
-  # SE (Squeeze-and-Excitation) module configuration - shared by all architectures
-  se_params:
-    class: "technique"
+  selection:
+    class: "param"
+    param_name: "se_selection"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["disabled"]
+      robust: ["disabled", "enabled"]
+      comprehensive: ["disabled", "enabled"]
+      custom: ["disabled", "enabled"]
+    description: "Enable/disable Squeeze-and-Excitation modules in blocks"
     
-    selection:
-      class: "param"
-      param_name: "se_selection"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["disabled"]
-        robust: ["disabled", "enabled"]
-        comprehensive: ["disabled", "enabled"]
-        custom: ["disabled", "enabled"]
-      description: "Enable/disable Squeeze-and-Excitation modules in blocks"
-      
+  se_pooling:
+    class: "instance"
+    condition: "$se_selection == 'enabled'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
     se_pooling:
       class: "param"
       param_name: "se_pooling"
@@ -445,22 +454,27 @@ shared_features:
       description: "Pooling method for SE module squeeze step (ECANet style with Conv1D)"
       condition: "$se_selection == 'enabled'"
 
-  # Layer scale technique - shared by all architectures
-  layer_scale:
-    class: "technique"
-    
-    selection:
-      class: "param"
-      param_name: "layer_scale_selection"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["disabled"]
-        robust: ["disabled", "enabled"]
-        comprehensive: ["disabled", "enabled"]
-        custom: ["disabled", "enabled"]
-      description: "Enable/disable layer scale for training stability"
-      
+# Layer scale technique - shared by all architectures
+layer_scale:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "layer_scale_selection"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["disabled"]
+      robust: ["disabled", "enabled"]
+      comprehensive: ["disabled", "enabled"]
+      custom: ["disabled", "enabled"]
+    description: "Enable/disable layer scale for training stability"
+
+  layer_scale_instance:
+    class: "instance"
+    condition: "$layer_scale_selection == 'enabled'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
     layer_scale_init_value:
       class: "param"
       param_name: "layer_scale_init_value"
@@ -471,47 +485,56 @@ shared_features:
       description: "Initial value for layer scale parameters"
       condition: "$layer_scale_selection == 'enabled'"
 
-  # Stochastic depth technique - shared by all architectures
-  stochastic_depth:
-    class: "technique"
+# Stochastic depth technique - shared by all architectures
+stochastic_depth:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "stochastic_depth_selection"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["disabled"]
+      robust: ["disabled", "enabled"]
+      comprehensive: ["disabled", "enabled"]
+      custom: ["disabled", "enabled"]
+    description: "Enable/disable stochastic depth (DropPath)"
     
-    selection:
-      class: "param"
-      param_name: "stochastic_depth_selection"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["disabled"]
-        robust: ["disabled", "enabled"]
-        comprehensive: ["disabled", "enabled"]
-        custom: ["disabled", "enabled"]
-      description: "Enable/disable stochastic depth (DropPath)"
-      
+  stochastic_depth_prob:
+    class: "instance"
+    condition: "$stochastic_depth_selection == 'enabled'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
     stochastic_depth_prob:
       class: "param"
       param_name: "stochastic_depth_prob"
       type: "float"
       low: 0.0
-      high: 0.3
+      high: 0.5
       description: "Stochastic depth (DropPath) probability"
-      condition: "$stochastic_depth_selection == 'enabled'"
 
-  # Conv dropout technique - shared by all architectures
-  conv_dropout:
-    class: "technique"
+# Conv dropout technique - shared by all architectures
+conv_dropout:
+  class: "technique"
+  
+  selection:
+    class: "param"
+    param_name: "conv_dropout_selection"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["disabled"]
+      robust: ["disabled", "enabled"]
+      comprehensive: ["disabled", "enabled"]  
+      custom: ["disabled", "enabled"]
+    description: "Enable/disable dropout between conv layers"
     
-    selection:
-      class: "param"
-      param_name: "conv_dropout_selection"
-      type: "categorical"
-      dependency_order: ["strategy_level"]
-      choices:
-        basic: ["disabled"]
-        robust: ["disabled", "enabled"]
-        comprehensive: ["disabled", "enabled"]  
-        custom: ["disabled", "enabled"]
-      description: "Enable/disable dropout between conv layers"
-      
+  conv_drop_prob:
+    class: "instance"
+    condition: "$conv_dropout_selection == 'enabled'"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
     conv_drop_prob:
       class: "param"
       param_name: "conv_drop_prob"
@@ -521,10 +544,14 @@ shared_features:
       description: "Dropout probability between conv layers"
       condition: "$conv_dropout_selection == 'enabled'"
 
-  # Projection type for shortcut connections - always enabled, just method selection
-  projection_params:
-    class: "technique"
-    
+# Projection type for shortcut connections - always enabled, just method selection
+projection_params:
+  class: "technique"
+  
+  projection_type:
+    class: "instance"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
     projection_type:
       class: "param"
       param_name: "projection_type"
@@ -532,20 +559,28 @@ shared_features:
       choices: ["conv", "avg_pool", "max_pool"]
       description: "Shortcut projection method when dimensions mismatch"
 
-  # Shared activation and normalization choices - always available
-  function_choices:
-    class: "technique"
-    
-    # Merged activation function choices (union of ResNet and ConvNeXt preferences)
-    activation_functions:
+# Shared activation and normalization choices - always available
+function_choices:
+  class: "technique"
+  
+  # Merged activation function choices (union of ResNet and ConvNeXt preferences)
+  activation_functions:
+    class: "instance"
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
+    activation_choices:
       class: "param"
       param_name: "activation_choices"
       type: "categorical"
       choices: ["relu", "gelu", "swish", "silu", "leaky_relu", "elu", "mish"]
       description: "Available activation functions for all architectures"
-      
-    # Merged normalization method choices (balanced for both architectures)
-    normalization_methods:
+    
+  # Merged normalization method choices (balanced for both architectures)
+  normalization_methods:
+    class: "instance" 
+    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+
+    normalization_choices:
       class: "param"
       param_name: "normalization_choices"
       type: "categorical"

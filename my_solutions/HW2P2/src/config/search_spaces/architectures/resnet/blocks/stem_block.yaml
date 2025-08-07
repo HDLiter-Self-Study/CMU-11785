@@ -5,22 +5,18 @@
 class: "instance"
 condition: "$architecture_type == 'resnet'"
 
-# Stem-specific parameters
-stem_params:
-  class: "technique"
-  
-  # Output channels for stem (stem-specific parameter)
-  out_channels:
-    class: "param"
-    param_name: "stem_out_channels"
-    type: "categorical"
-    choices: [64, 96, 128]
-    description: "Number of output channels in stem convolution"
-  
-  # Whether to use max pooling (stem-specific parameter)
-  use_maxpool:
-    class: "param"
-    param_name: "stem_use_maxpool"
-    type: "categorical"
-    choices: [true, false]
-    description: "Whether to use max pooling after stem convolutions"
+# Output channels for stem (stem-specific parameter)
+out_channels:
+  class: "param"
+  param_name: "stem_out_channels"
+  type: "categorical"
+  choices: [64, 96, 128]
+  description: "Number of output channels in stem convolution"
+
+# Whether to use max pooling (stem-specific parameter)
+use_maxpool:
+  class: "param"
+  param_name: "stem_use_maxpool"
+  type: "categorical"
+  choices: [true, false]
+  description: "Whether to use max pooling after stem convolutions"

@@ -11,14 +11,11 @@
 class: "instance"
 condition: "$architecture_type == 'resnet'"
 
-# Bottleneck-specific parameters
-bottleneck_params:
-  class: "technique"
-  
-  # Expansion ratio for bottleneck blocks (bottleneck-specific parameter)
-  expansion:
-    class: "param"
-    param_name: "bottleneck_expansion"
-    type: "categorical"
-    choices: [2, 3, 4, 6, 8]
-    description: "Expansion ratio for bottleneck blocks (out_channels = neck_channels * expansion)"
+
+# Expansion ratio for bottleneck blocks (bottleneck-specific parameter)
+expansion:
+  class: "param"
+  param_name: "bottleneck_expansion"
+  type: "categorical"
+  choices: [2, 3, 4, 6, 8]
+  description: "Expansion ratio for bottleneck blocks (out_channels = neck_channels * expansion)"
