@@ -12,6 +12,8 @@ defaults:
 # =============================================================================
 
 class: "technique"
+depends_on: ["architecture_selection"]
+condition: "$architecture_type == 'resnet'"
 
 # Pre-activation style (ResNet v2) - ResNet specific feature
 pre_activation:

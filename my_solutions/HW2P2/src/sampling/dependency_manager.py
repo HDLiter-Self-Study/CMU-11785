@@ -1,12 +1,13 @@
 """
-Dependency management by creating a sorted configuration tree.
+Dependency management for search space execution ordering.
 
-This module analyzes a configuration tree to resolve parameter dependencies.
-It produces a new, sorted representation of the tree where nodes at each level
-(technique, instance, param) are ordered topologically based on their `depends_on`
-relationships. This pre-sorted configuration structure allows the main sampler
-to process nodes in the correct order without needing to manage dependencies
-during the sampling loop.
+This module builds a path-based DAG from the `search_spaces` configuration and
+returns a new, sorted representation of the tree:
+- Top-level sort unit: STRATEGY nodes (e.g., architectures, training, ...)
+- Within each strategy: dependency-aware ordering of TECHNIQUE → INSTANCE → PARAM
+
+Only the global `search_spaces` container is supported as input. Use same-level
+`depends_on` to express ordering between strategies and between techniques.
 """
 
 import dataclasses
@@ -33,8 +34,8 @@ class _ConfigNode:
 
 class DependencyManager:
     """
-    Analyzes a configuration tree to resolve dependencies and produces a sorted
-    representation of the tree where nodes are ordered topologically.
+    Resolve dependencies and produce a sorted representation of the tree where
+    nodes at each level are ordered topologically.
     """
 
     def __init__(self, sampler=None, silent: bool = False):
@@ -58,7 +59,8 @@ class DependencyManager:
 
     def get_sorted_config_tree(self, cfg: DictConfig) -> List[DictConfig]:
         """
-        Analyzes dependencies and returns a new configuration tree with sorted nodes.
+        Analyze dependencies and return a new configuration tree with sorted nodes.
+        Expects the top-level `search_spaces` container (no 'class' at root).
         """
         self._reset_state()  # Reset state for a clean run
         self._log("▶️  [DM] Starting dependency analysis...")
@@ -68,17 +70,28 @@ class DependencyManager:
         self._resolve_name_based_dependencies()
         self._log("   [DM] Resolved name-based dependencies to path-based dependencies.")
 
-        top_level_paths = [
+        # Enforce global container: root has no 'class'; top-level nodes must be STRATEGY.
+        # Identify top-level STRATEGY nodes to sort.
+        top_level_strategy_paths = [
             path
             for path, node in self._nodes.items()
-            if node.node_class == ConfigClass.TECHNIQUE.value and not node.parent_path
+            if node.node_class == ConfigClass.STRATEGY.value and not node.parent_path
         ]
-        self._log(f"   [DM] Found {len(top_level_paths)} top-level techniques to sort: {top_level_paths}")
+        if not top_level_strategy_paths:
+            raise ValueError(
+                "DependencyManager expects the global search_spaces container as input (with STRATEGY children)."
+            )
 
-        sorted_technique_paths = self._topological_sort(top_level_paths)
-        self._log(f"   [DM] Top-level techniques sorted: {sorted_technique_paths}")
+        self._log(
+            f"   [DM] Found {len(top_level_strategy_paths)} top-level strategies to sort: {top_level_strategy_paths}"
+        )
 
-        sorted_tree = self._build_sorted_tree(sorted_technique_paths)
+        sorted_strategy_paths = self._topological_sort(top_level_strategy_paths)
+        self._log(f"   [DM] Top-level strategies sorted: {sorted_strategy_paths}")
+
+        # Build sorted tree (strategies at top-level). Children of each strategy
+        # will be sorted recursively by _build_sorted_tree using the same logic.
+        sorted_tree = self._build_sorted_tree(sorted_strategy_paths)
         self._log("✅  [DM] Dependency analysis complete. Sorted tree created.")
         return sorted_tree
 
@@ -248,7 +261,6 @@ class DependencyManager:
         subgraph = defaultdict(list)
         all_nodes_in_scope = set(node_paths)
 
-        # This approach is complex, let's simplify.
         # The key insight is that the global graph already contains all param-level dependencies.
         # When sorting a list of nodes (e.g., children of a technique), we need to know
         # if any descendant of child A depends on any descendant of child B.

@@ -23,6 +23,8 @@
 # =============================================================================
 
 class: "strategy"
+# Same-level dependency: ensure label_mixing runs after architectures for naming.
+depends_on: ["architectures"]
 
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]

@@ -5,6 +5,7 @@ defaults:
   - architectures: default  # Default architecture configuration
   - training: default
   - losses: all
+  - heads: all
   - augmentation: default   # Data augmentation configuration
   - data_sampling: default   # Data sampling strategies
   - label_mixing: default     # Label mixing strategies

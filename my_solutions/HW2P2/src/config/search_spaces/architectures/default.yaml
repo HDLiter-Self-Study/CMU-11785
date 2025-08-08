@@ -25,6 +25,8 @@ class: "strategy"
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
 # Architecture selection technique (actual hyperparameter search)
+# architecture_type is exported globally with no prefix so that other strategies
+# can use it for prefixed naming and conditions.
 architecture_selection:
   class: "technique"
   
@@ -32,6 +34,8 @@ architecture_selection:
     class: "param"
     param_name: "architecture_type"
     type: "categorical"
+    arch_irrelevant: true
+    export_to_global: true
     dependency_order: ["strategy_level"]
     choices:
       basic: ["resnet"]  
@@ -41,6 +45,7 @@ architecture_selection:
     description: "Architecture type selection"
 
 # Stage number selection
+# num_stages is exported globally with no prefix for stage expansions and lists.
 num_stages_selection:
   class: "technique"
 
@@ -48,6 +53,8 @@ num_stages_selection:
     class: "param"
     param_name: "num_stages"
     type: "categorical"
+    arch_irrelevant: true
+    export_to_global: true
     dependency_order: ["strategy_level"]
     choices:
       basic: [4]  
@@ -59,10 +66,10 @@ num_stages_selection:
 # =============================================================================
 # ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
 # =============================================================================
-# 激活函数配置（架构感知）
+# Activation configuration (architecture-aware)
 activation_params:
   class: "technique"
-  depends_on: ["block_type_params"]
+  depends_on: ["architecture_selection", "num_stages_selection", "block_type_params"]
   
   selection:
     class: "param"
@@ -80,7 +87,7 @@ activation_params:
   global_activation:
     class: "instance"
     condition: "$activation_granularity == 'global'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     activation:
       class: "param"
@@ -98,7 +105,7 @@ activation_params:
   block_type_activation:
     class: "instance"
     condition: "$activation_granularity == 'block_type'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     activation:
       class: "param"
@@ -116,7 +123,7 @@ activation_params:
   stage_activation:
     class: "instance"
     condition: "$activation_granularity == 'stage'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     activation:
       class: "param"
@@ -134,7 +141,7 @@ activation_params:
   block_stage_activation:
     class: "instance"
     condition: "$activation_granularity == 'block_stage'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     activation:
       class: "param"
@@ -148,11 +155,11 @@ activation_params:
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
       description: "Block-stage specific activation function"
   
-  # Stem activation instance (激活于非global模式)
+  # Stem activation instance (active when granularity != global)
   stem_activation:
     class: "instance"
     condition: "$activation_granularity != 'global'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     activation:
       class: "param"
@@ -166,10 +173,10 @@ activation_params:
         convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
       description: "Stem-specific activation function (active when granularity != global)"
 
-# 归一化配置（架构感知）
+# Normalization configuration (architecture-aware)
 normalization_params:
   class: "technique"
-  depends_on: ["block_type_params"]
+  depends_on: ["architecture_selection", "num_stages_selection", "block_type_params"]
   
   selection:
     class: "param"
@@ -187,7 +194,7 @@ normalization_params:
   global_normalization:
     class: "instance"
     condition: "$norm_granularity == 'global'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     normalization:
       class: "param"
@@ -205,7 +212,7 @@ normalization_params:
   block_type_normalization:
     class: "instance"
     condition: "$norm_granularity == 'block_type'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     normalization:
       class: "param"
@@ -223,7 +230,7 @@ normalization_params:
   stage_normalization:
     class: "instance"
     condition: "$norm_granularity == 'stage'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     normalization:
       class: "param"
@@ -241,7 +248,7 @@ normalization_params:
   block_stage_normalization:
     class: "instance"
     condition: "$norm_granularity == 'block_stage'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     normalization:
       class: "param"
@@ -255,11 +262,11 @@ normalization_params:
         convnext: ["layer_norm", "batch_norm", "group_norm"]
       description: "Block-stage specific normalization method"
   
-  # Stem normalization instance (激活于非global模式)
+  # Stem normalization instance (active when granularity != global)
   stem_normalization:
     class: "instance"
     condition: "$norm_granularity != 'global'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     normalization:
       class: "param"
@@ -278,6 +285,7 @@ normalization_params:
 # =============================================================================
 block_type_params:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   # Block type granularity selection
   selection:
@@ -296,7 +304,7 @@ block_type_params:
   global_block_type:
     class: "instance"
     condition: "$block_type_granularity == 'global'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     block_type:
       class: "param"
@@ -314,7 +322,7 @@ block_type_params:
   stage_block_type:
     class: "instance"
     condition: "$block_type_granularity == 'stage'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     block_type:
       class: "param"
@@ -333,6 +341,7 @@ block_type_params:
 # =============================================================================
 depth_generation:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
 
   # Unified depth generation method selection
   selection:
@@ -411,11 +420,12 @@ depth_generation:
 # =============================================================================
 global_architecture_params:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   # Width multiplier (Wide ResNet style - affects all architectures)
   width_multiplier:
     class: "instance"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
     
     width_multiplier:
       class: "param"
@@ -429,6 +439,7 @@ global_architecture_params:
 # SE (Squeeze-and-Excitation) module configuration - shared by all architectures
 se_params:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   selection:
     class: "param"
@@ -445,7 +456,7 @@ se_params:
   se_pooling:
     class: "instance"
     condition: "$se_selection == 'enabled'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
 
     se_pooling:
       class: "param"
@@ -459,6 +470,7 @@ se_params:
 # Layer scale technique - shared by all architectures
 layer_scale:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   selection:
     class: "param"
@@ -475,7 +487,7 @@ layer_scale:
   layer_scale_instance:
     class: "instance"
     condition: "$layer_scale_selection == 'enabled'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
 
     layer_scale_init_value:
       class: "param"
@@ -490,6 +502,7 @@ layer_scale:
 # Stochastic depth technique - shared by all architectures
 stochastic_depth:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   selection:
     class: "param"
@@ -506,7 +519,7 @@ stochastic_depth:
   stochastic_depth_prob:
     class: "instance"
     condition: "$stochastic_depth_selection == 'enabled'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
 
     stochastic_depth_prob:
       class: "param"
@@ -519,6 +532,7 @@ stochastic_depth:
 # Conv dropout technique - shared by all architectures
 conv_dropout:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   selection:
     class: "param"
@@ -535,7 +549,7 @@ conv_dropout:
   conv_drop_prob:
     class: "instance"
     condition: "$conv_dropout_selection == 'enabled'"
-    skip_instance_layer: true  # 跳过instance层，直接在technique下创建参数
+    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
 
     conv_drop_prob:
       class: "param"
@@ -549,6 +563,7 @@ conv_dropout:
 # Projection type for shortcut connections - always enabled, just method selection
 projection_params:
   class: "technique"
+  depends_on: ["architecture_selection", "num_stages_selection"]
   
   projection_type:
     class: "instance"

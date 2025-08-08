@@ -1,15 +1,12 @@
 """
 Safe expression evaluator for dynamic parameter resolution.
 
-This module provides safe evaluation of dynamic expressions in configuration files,
-using a whitelist of allowed built-in functions to prevent code injection while
-enabling flexible parameter dependencies and conditional logic.
+Supports:
+- Conditional evaluation in `condition` fields (e.g., "$param == 'value'")
+- Dynamic values for fields like `low`, `high` (string starting with '$')
 
-Features:
-- Safe evaluation of conditional expressions (e.g., "$param_name == 'value'")
-- Dynamic value resolution for expressions starting with '$'
-- Whitelist-based security model to prevent code injection
-- Comprehensive error reporting with available parameter context
+Security: restricts available built-ins to a small whitelist and passes only
+the current trial params as variables.
 """
 
 from typing import Dict, Any

@@ -1,15 +1,13 @@
 """
-Handler for different parameter granularity levels.
+Granularity handler.
 
-This module manages the sampling of parameters at different granularity levels,
-providing specialized handling for stage, block-stage, and block-type parameters.
-It handles the complex logic of expanding single parameter configurations into
-multiple architecture-specific parameters.
+Expands single PARAM configs into multiple architecture-specific parameters:
+- Stage: one value per stage (stage_1_of_N, ...)
+- Block-type: one value per unique block type (basic, bottleneck, ...)
+- Block-stage: one value per (stage, block_type) pair
 
-Granularity Levels:
-- Stage: One parameter per stage (e.g., stage_1_of_4, stage_2_of_4, ...)
-- Block-stage: One parameter per (stage, block_type) combination
-- Block-type: One parameter per unique block type (e.g., basic, bottleneck)
+Relies on `sampler.num_stages` and block-type selections already available
+in the current trial context (via sampler.sampled params).
 """
 
 from typing import Dict, Any, List, Set, Optional

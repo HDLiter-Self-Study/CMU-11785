@@ -2,7 +2,6 @@
 # @package task_configs
 
 defaults:
-  - /search_spaces/classification_heads@search_spaces.heads: all  
   - _self_
 
 # Task identification

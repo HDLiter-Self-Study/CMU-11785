@@ -10,3 +10,5 @@ defaults:
 # CONVNEXT ARCHITECTURE CONFIGURATION
 # =============================================================================
 class: "technique"
+depends_on: ["architecture_selection"]
+condition: "$architecture_type == 'convnext'"

@@ -3,7 +3,6 @@
 # @package task_configs
 
 defaults:
-  - verification  # Inherit from base verification config
   - _self_
 
 # Override for fine-tuning mode
@@ -26,11 +25,8 @@ finetune:
 
 # Override training settings for fine-tuning
 training:
-  max_epochs: 30  # Fewer epochs for fine-tuning
-  early_stopping_patience: 8
+  epochs: 30  # Fewer epochs for fine-tuning
   
-  # Conservative learning rates
-  learning_rate_range: [1e-6, 1e-3]  # Narrower range for fine-tuning
   
 # Override Optuna settings for fine-tuning
 optuna:
@@ -51,4 +47,4 @@ wandb:
 
 # Model saving for fine-tuning
 checkpoints:
-  save_dir: "./checkpoints/verification_finetune"
+  # save_dir is defined per task template or runtime; not hardcoded here

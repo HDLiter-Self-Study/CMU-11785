@@ -1,15 +1,22 @@
 """
-Main search space sampler class for Optuna-based hyperparameter optimization.
+Main search space sampler for Optuna-based hyperparameter optimization.
 
-This module provides the main SearchSpaceSampler class that orchestrates the entire
-parameter sampling process. It supports hierarchical configuration sampling with
-architecture-aware parameters and multiple granularity levels.
+Key design (Phase 2):
+- Global dependency-managed execution: the top-level `search_spaces` container is
+  passed to the dependency manager, which sorts STRATEGY nodes by same-level
+  `depends_on`. This guarantees `architectures` runs before others.
+- No pre-sampling: special keys like `architecture_type` and `num_stages` are
+  sampled as normal PARAMs under `architectures`.
+- Global keys: PARAMs can declare `arch_irrelevant: true` (no architecture prefix)
+  and `export_to_global: true` (exposed via `self.globals`). The sampler then uses
+  these to build prefixed parameter names for architecture-aware params.
+- Granularity support is delegated to `GranularityHandler`.
 """
 
 from typing import Dict, Any, List, Optional, Set
 import inspect
 import optuna
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 from config.config_manager import get_config
 from .parameter_naming import ParameterNaming
@@ -21,7 +28,14 @@ from .enums import GranularityLevel, ConfigClass, parse_config_class
 
 class SearchSpaceSampler:
     """
-    Main search space sampler class for Optuna-based hyperparameter optimization.
+    Orchestrates dependency-ordered sampling across all strategies and techniques.
+
+    Responsibilities:
+    - Build globally sorted strategy list (via DependencyManager) and traverse it.
+    - Sample PARAMs respecting per-node conditions and `depends_on` ordering.
+    - Apply naming rules: `arch_irrelevant` (no prefix) vs architecture-aware (prefixed).
+    - Maintain `globals` for cross-strategy keys (e.g., architecture_type, num_stages).
+    - Expand stage/block-type/block-stage parameters using `GranularityHandler`.
     """
 
     PARAM_TYPE_REQUIREMENTS = {
@@ -35,10 +49,16 @@ class SearchSpaceSampler:
         "int": int,
     }
 
-    def __init__(self, config_name: str = "main", overrides: Optional[List[str]] = None, silent: bool = False):
+    def __init__(
+        self,
+        config_name: str = "main",
+        overrides: Optional[List[str]] = None,
+        silent: bool = False,
+    ):
         """
         Initialize the search space sampler.
         """
+        # Compose config using Hydra overrides
         self.config: DictConfig = get_config(config_name, overrides)
         self.search_spaces: DictConfig = self.config.search_spaces
         self.search_space_categories = list(self.search_spaces.keys())
@@ -50,8 +70,8 @@ class SearchSpaceSampler:
         self.dependency_manager = DependencyManager(self, silent=self.silent)
         self.naming = ParameterNaming()
 
-        self.current_architecture_type: Optional[str] = None
-        self.current_num_stages: Optional[int] = None
+        # Global key-value store for cross-strategy parameters (e.g., architecture_type, num_stages)
+        self.globals: Dict[str, Any] = {}
         self._trial_in_progress: bool = False
 
     def _log(self, message: str):
@@ -59,89 +79,104 @@ class SearchSpaceSampler:
         if not self.silent:
             print(message)
 
-    def sample_all_params(
-        self, trial: optuna.Trial, categories: Optional[List[str]] = None, include_hierarchical: bool = True
-    ) -> Dict[str, Any]:
+    def sample_all_params(self, trial: optuna.Trial, include_hierarchical: bool = True) -> Dict[str, Any]:
         """
-        Sample parameters for all or specified search space categories.
+        Sample parameters for all strategies in the order determined by global
+        dependency analysis. Returns both flat and hierarchical views when requested.
         """
         self._reset_trial_state()
         self._trial_in_progress = True
 
         try:
-            if categories is None:
-                categories = self.search_space_categories
+            # Global sorted tree (strategies at top-level, techniques/instances/params in order)
+            sorted_root = self.dependency_manager.get_sorted_config_tree(self.search_spaces)
 
-            flat_results = {}
-            hierarchical_results = {} if include_hierarchical else None
-            global_sampled_params = {}
+            flat_results: Dict[str, Dict[str, Any]] = {}
+            hierarchical_results: Optional[Dict[str, Any]] = {} if include_hierarchical else None
+            sampled_params: Dict[str, Any] = {}
+            # Seed context with any pre-populated globals (e.g., task from wrapper)
+            if self.globals:
+                sampled_params.update(self.globals)
 
-            self._pre_sample_and_set_architecture_info(trial, categories, global_sampled_params)
+            # No pre-pass: global ordering with same-level `depends_on` ensures
+            # `architectures` (and its selection keys) are sampled first.
 
-            for category in categories:
-                if category not in self.search_space_categories:
-                    continue
-
-                cat_cfg = getattr(self.search_spaces, category)
-                cat_sampled = dict(global_sampled_params)
+            for strategy_node in sorted_root:
+                category = strategy_node["_original_key"]
                 category_tree = {} if include_hierarchical else None
+                category_out: Dict[str, Any] = {}
 
-                cat_res = self._process_strategy_node(trial, cat_cfg, cat_sampled, "", category_tree)
-                cat_res = self._merge_min_max_pairs(cat_res)
+                self._process_sorted_strategy_node(
+                    trial=trial,
+                    strategy_node=strategy_node,
+                    sampled=sampled_params,
+                    hierarchical_tree=category_tree,
+                    out=category_out,
+                )
 
-                if category == "architectures" and "architecture_type" in global_sampled_params:
-                    cat_res["architecture_type"] = global_sampled_params["architecture_type"]
-                    if include_hierarchical and category_tree is not None:
-                        category_tree["architecture_type"] = global_sampled_params["architecture_type"]
-
-                flat_results[category] = cat_res
+                flat_results[category] = self._merge_min_max_pairs(category_out)
                 if include_hierarchical and category_tree is not None:
                     hierarchical_results[category] = self._merge_min_max_hierarchical(category_tree)
 
             if include_hierarchical:
                 return {"flat": flat_results, "hierarchical": hierarchical_results}
-            else:
-                return flat_results
+            return flat_results
         finally:
             self._trial_in_progress = False
 
-    def _pre_sample_and_set_architecture_info(
-        self, trial: optuna.Trial, categories: List[str], global_sampled_params: Dict[str, Any]
-    ) -> None:
-        if "architectures" not in categories:
-            return
-        try:
-            arch_strategy_level = self.search_spaces.architectures.strategy_level
-            arch_sel_cfg = self.search_spaces.architectures.architecture_selection.selection
-            arch_val = self._sample_single_param(
-                trial, arch_sel_cfg, "architecture_type", {"strategy_level": arch_strategy_level}
-            )
-            num_stages_sel_cfg = self.search_spaces.architectures.num_stages_selection.selection
-            num_stages_val = self._sample_single_param(
-                trial, num_stages_sel_cfg, "num_stages", {"strategy_level": arch_strategy_level}
-            )
-            self.current_architecture_type = arch_val
-            self.current_num_stages = num_stages_val
-            global_sampled_params["architecture_type"] = arch_val
-            global_sampled_params["num_stages"] = num_stages_val
-        except Exception as e:
-            raise RuntimeError(f"Failed to pre-sample architecture_type: {e}")
+    # pre-sample flow removed in global dependency-driven flow
 
     def _reset_trial_state(self) -> None:
-        self.current_architecture_type = None
-        self.current_num_stages = None
+        # Preserve externally injected globals (e.g., task) across trials
+        preserved_keys = {"task"}
+        preserved = {k: v for k, v in self.globals.items() if k in preserved_keys}
+        self.globals = preserved
 
     @property
     def architecture_type(self) -> str:
-        if not self._trial_in_progress or self.current_architecture_type is None:
-            raise RuntimeError("architecture_type is only available during an active trial")
-        return self.current_architecture_type
+        if not self._trial_in_progress or "architecture_type" not in self.globals:
+            raise RuntimeError("architecture_type is only available after it has been sampled in the current trial")
+        return str(self.globals["architecture_type"])
 
     @property
     def num_stages(self) -> int:
-        if not self._trial_in_progress or self.current_num_stages is None:
-            raise RuntimeError("num_stages is only available during an active trial")
-        return self.current_num_stages
+        if not self._trial_in_progress or "num_stages" not in self.globals:
+            raise RuntimeError("num_stages is only available after it has been sampled in the current trial")
+        return int(self.globals["num_stages"])
+
+    def _process_sorted_strategy_node(
+        self,
+        trial: optuna.Trial,
+        strategy_node: DictConfig,
+        sampled: Dict[str, Any],
+        hierarchical_tree: Optional[Dict[str, Any]],
+        out: Dict[str, Any],
+    ) -> None:
+        """Process a STRATEGY node already sorted by the dependency manager.
+
+        - Writes `strategy_level` into outputs when present
+        - Iterates over technique nodes in their dependency-sorted order
+        - Accumulates sampled values into `sampled` and `out`
+        """
+        # Persist strategy level if present
+        if hasattr(strategy_node, "strategy_level") and "strategy_level" not in sampled:
+            sampled["strategy_level"] = strategy_node.strategy_level
+            out["strategy_level"] = strategy_node.strategy_level
+
+        # Process techniques in dependency order (already sorted by DM)
+        for technique_node in strategy_node.get("_ordered_children", []):
+            key = technique_node["_original_key"]
+            technique_out: Dict[str, Any] = {}
+            self._process_sorted_technique_node(
+                trial=trial,
+                node=technique_node,
+                key=key,
+                sampled=sampled,
+                hierarchical_tree=hierarchical_tree,
+                out=technique_out,
+            )
+            sampled.update(technique_out)
+            out.update(technique_out)
 
     def _process_strategy_node(
         self,
@@ -177,29 +212,31 @@ class SearchSpaceSampler:
 
         return out
 
-    def _process_technique_node(
+    def _process_sorted_technique_node(
         self,
         trial: optuna.Trial,
         node: DictConfig,
         key: str,
         sampled: Dict[str, Any],
-        prefix: str,
         hierarchical_tree: Optional[Dict[str, Any]],
         out: Dict[str, Any],
     ) -> None:
+        """Process a TECHNIQUE node and its children.
+
+        - Handles an optional `selection` PARAM before other instances
+        - Respects technique-level `condition`
+        - Delegates INSTANCE processing to `_process_instance_node`
+        """
+        # Respect technique-level condition BEFORE any selection sampling
+        if hasattr(node, "condition"):
+            context = {**self.globals, **sampled}
+            if not self.evaluator.evaluate_condition(node.condition, context):
+                return
+
+        # Handle technique-level selection param if exists
         if "selection" in node:
             sel_cfg = node["selection"]
-            raw = sel_cfg.param_name
-            arch = self.architecture_type
-            sel_name = self.naming.build_param_name(arch, raw)
-            if raw not in sampled:
-                sel_val = self._sample_single_param(trial, sel_cfg, sel_name, sampled)
-                sampled[raw] = sel_val
-                out[sel_name] = sel_val
-
-        if hasattr(node, "condition"):
-            if not self.evaluator.evaluate_condition(node.condition, sampled):
-                return
+            self._process_param_node(trial, sel_cfg, "selection", sampled, hierarchical_tree, out)
 
         # Iterate over the ordered children provided by the DependencyManager.
         for sub_node in node.get("_ordered_children", []):
@@ -212,7 +249,7 @@ class SearchSpaceSampler:
             sub_node_class = parse_config_class(sub_node["class"])
 
             if sub_node_class == ConfigClass.INSTANCE.value:
-                self._process_instance_node(trial, sub_node, sub_key, sampled, prefix, hierarchical_tree, out)
+                self._process_instance_node(trial, sub_node, sub_key, sampled, None, hierarchical_tree, out)
             else:
                 raise ValueError(
                     f"Only instance nodes are allowed at technique level, not {sub_node_class} for {sub_key}"
@@ -227,14 +264,33 @@ class SearchSpaceSampler:
         hierarchical_tree: Optional[Dict[str, Any]],
         out: Dict[str, Any],
     ) -> None:
+        """Process a PARAM node with unified handling of naming and granularity.
+
+        Naming rules:
+        - If `arch_irrelevant: true`, use raw `param_name` without prefix
+        - Else, the architecture prefix from `globals['architecture_type']` is applied
+        - If `export_to_global: true`, store the sampled raw value into `self.globals`
+
+        Granularity rules:
+        - stage/block_type/block_stage/stem are expanded via `GranularityHandler`
+        - global values are placed directly
+        """
         raw = node.param_name
-        arch = self.architecture_type
-        name = self.naming.build_param_name(arch, raw)
+        arch_irrelevant = bool(getattr(node, "arch_irrelevant", False))
+        export_to_global = bool(getattr(node, "export_to_global", False))
+
+        if arch_irrelevant:
+            name = raw
+        else:
+            arch = self.architecture_type
+            name = self.naming.build_param_name(arch, raw)
 
         if raw in sampled:
             return
-        if hasattr(node, "condition") and not self.evaluator.evaluate_condition(node.condition, sampled):
-            return
+        if hasattr(node, "condition"):
+            context = {**self.globals, **sampled}
+            if not self.evaluator.evaluate_condition(node.condition, context):
+                return
 
         granularity = getattr(node, "granularity", GranularityLevel.GLOBAL.value)
 
@@ -282,6 +338,12 @@ class SearchSpaceSampler:
                 else:
                     hierarchical_tree[key] = val
 
+        # Export to global namespace if requested
+        if export_to_global:
+            if raw in self.globals and self.globals[raw] != sampled.get(raw):
+                raise ValueError(f"Global key '{raw}' already exists with a different value.")
+            self.globals[raw] = sampled.get(raw)
+
     def _process_instance_node(
         self,
         trial: optuna.Trial,
@@ -292,8 +354,10 @@ class SearchSpaceSampler:
         hierarchical_tree: Optional[Dict[str, Any]],
         out: Dict[str, Any],
     ) -> None:
-        if hasattr(node, "condition") and not self.evaluator.evaluate_condition(node.condition, sampled):
-            return
+        if hasattr(node, "condition"):
+            context = {**self.globals, **sampled}
+            if not self.evaluator.evaluate_condition(node.condition, context):
+                return
 
         skip_instance_layer = getattr(node, "skip_instance_layer", False)
 
@@ -358,7 +422,13 @@ class SearchSpaceSampler:
             resolved_value = self._resolve_param_value(
                 raw_value, param_config, sampled_params, f"{key} for {param_name}"
             )
-            final_value = self.evaluator.resolve_dynamic_value(resolved_value, sampled_params)
+            context = {**self.globals, **sampled_params}
+            final_value = self.evaluator.resolve_dynamic_value(resolved_value, context)
+            # Normalize OmegaConf containers to plain Python for Optuna/storage
+            try:
+                final_value = OmegaConf.to_container(final_value, resolve=True)
+            except Exception:
+                pass
             if key in {"low", "high"}:
                 try:
                     final_value = self.TYPE_CAST_FUNCTIONS[param_type](final_value)

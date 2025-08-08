@@ -6,6 +6,9 @@
 # TRAINING STRATEGY CONFIGURATION
 # =============================================================================
 class: "strategy"
+# Same-level dependency: ensure training runs after architectures so that
+# architecture-aware naming can use the selected `architecture_type`.
+depends_on: ["architectures"]
 
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
@@ -167,6 +170,7 @@ training_techniques:
   # Batch size configuration
   batch_configuration:
     class: "instance"
+    skip_instance_layer: true
     # Always active
 
     batch_size:

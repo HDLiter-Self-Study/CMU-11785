@@ -1,0 +1,24 @@
+# Shortcut registry: name -> typing and target paths
+#
+# Each entry supports:
+# - type: one of [int, list[int], float, str, bool]
+# - targets: list of dot-paths to assign the value to
+# - coerce_scalar_to_list: when true and type is list[...], wrap scalar into a one-element list
+
+epochs:
+  type: int
+  targets:
+    - task_configs.training.epochs
+
+batch_size:
+  type: list[int]
+  coerce_scalar_to_list: true
+  targets:
+    - search_spaces.training.training_techniques.batch_configuration.batch_size.choices
+
+n_trials:
+  type: int
+  targets:
+    - optuna.n_trials
+
+
