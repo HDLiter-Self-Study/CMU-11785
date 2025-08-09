@@ -7,6 +7,12 @@ class: "strategy"
 depends_on: ["architectures"]
 strategy_level: "robust"
 
+# Policy: unified grouped output validation
+policy:
+  allowed_multi_modes: ["random_choice"]
+  require_selection_when_multi: true
+  
+
 # Classification heads (active only for classification tasks)
 classification_heads:
   class: "technique"
@@ -20,24 +26,18 @@ classification_heads:
     choices:
       basic: ["standard"]
       robust: ["standard", "dropout_head"]
-      comprehensive: ["standard", "dropout_head", "attention_pooling"]
-      custom: ["standard", "dropout_head", "attention_pooling"]
+      comprehensive: ["standard", "dropout_head"]
+      custom: ["standard", "dropout_head"]
     description: "Classification head architecture selection"
 
   standard:
     class: "instance"
     condition: "$classification_head_type == 'standard'"
-    use_global_pooling:
-      class: "param"
-      param_name: "cls_standard_use_global_pooling"
-      type: "categorical"
-      choices: [true, false]
     pooling_type:
       class: "param"
       param_name: "cls_standard_pooling_type"
       type: "categorical"
-      choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
-      condition: "$cls_standard_use_global_pooling == true"
+      choices: ["avg", "max", "adaptive_avg", "adaptive_max","none"]
     hidden_dims:
       class: "param"
       param_name: "cls_standard_hidden_dims"
@@ -59,17 +59,11 @@ classification_heads:
   dropout_head:
     class: "instance"
     condition: "$classification_head_type == 'dropout_head'"
-    use_global_pooling:
-      class: "param"
-      param_name: "cls_dropout_use_global_pooling"
-      type: "categorical"
-      choices: [true, false]
     pooling_type:
       class: "param"
       param_name: "cls_dropout_pooling_type"
       type: "categorical"
-      choices: ["avg", "max", "adaptive_avg", "adaptive_max"]
-      condition: "$cls_dropout_use_global_pooling == true"
+      choices: ["avg", "max", "adaptive_avg", "adaptive_max","none"]
     hidden_dims:
       class: "param"
       param_name: "cls_dropout_hidden_dims"

@@ -21,6 +21,12 @@ depends_on: ["architectures"]
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
+# Policy: losses support sum/weighted_sum in addition to random_choice
+policy:
+  allowed_multi_modes: ["random_choice", "sum", "weighted_sum"]
+  require_selection_when_multi: true
+  
+
 # =============================================================================
 # CLASSIFICATION LOSS FUNCTIONS
 # =============================================================================

@@ -24,6 +24,12 @@ class: "strategy"
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
+# Policy: required for unified grouped output parsing/validation
+policy:
+  allowed_multi_modes: ["random_choice"]
+  require_selection_when_multi: true
+  
+
 # Architecture selection technique (actual hyperparameter search)
 # architecture_type is exported globally with no prefix so that other strategies
 # can use it for prefixed naming and conditions.

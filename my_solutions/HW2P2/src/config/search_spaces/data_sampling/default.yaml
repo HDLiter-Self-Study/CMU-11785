@@ -21,6 +21,12 @@ depends_on: ["architectures"]
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
+# Policy: unified grouped output validation
+policy:
+  allowed_multi_modes: ["random_choice"]
+  require_selection_when_multi: true
+  
+
 # Sampling techniques (influenced by primary strategy)
 sampling_techniques:
   class: "technique"
