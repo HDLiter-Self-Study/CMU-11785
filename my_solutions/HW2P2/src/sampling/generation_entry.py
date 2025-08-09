@@ -93,33 +93,59 @@ def _normalize_shortcuts(template: Dict[str, Any]) -> Tuple[Dict[str, Any], int]
 
 
 def _normalize_strategy_levels(template: Dict[str, Any]) -> Dict[str, Any]:
-    """Turn strategy_levels into kv overrides; support embedded custom_choices.
+    """Turn strategy_levels into kv overrides using the NEW format only.
 
-    Input format example:
-    strategy_levels:
-      architectures:
-        level: custom
-        custom_choices:
-          activation_params.selection.choices.custom: [stage]
-      training: robust
+    New format (level-centric):
+      strategy_levels:
+        basic: [augmentation, data_sampling]
+        robust: [losses, training]
+        custom:
+          architectures:
+            activation_params.selection.choices.custom: [stage]
+
+    Semantics:
+      - Keys are level names (e.g., basic/robust/comprehensive/custom)
+      - A list value applies that level to the listed categories
+      - For custom: a mapping of {category: {custom_choice_overrides}}
+        is allowed; the resolver will set the level to 'custom' for those
+        categories and apply the embedded override keys under the category.
     """
     levels = template.get("strategy_levels", {}) or {}
+    if not isinstance(levels, dict):
+        raise ValueError("strategy_levels must be a mapping of level -> categories")
+
     kv: Dict[str, Any] = {}
 
-    for cat, spec in levels.items():
-        if isinstance(spec, dict):
-            level = spec.get("level")
-            if level is None:
-                raise ValueError(f"strategy_levels.{cat}.level missing")
-            kv[f"search_spaces.{cat}.strategy_level"] = str(level)
-            # embedded custom choices
-            if str(level) == "custom":
-                custom = spec.get("custom_choices", {}) or {}
-                for rel_path, value in custom.items():
+    for level_name, value in levels.items():
+        # Case 1: list of categories
+        if isinstance(value, list):
+            for cat in value:
+                if not isinstance(cat, str):
+                    raise ValueError("strategy_levels entries must be category names (strings)")
+                kv[f"search_spaces.{cat}.strategy_level"] = str(level_name)
+            continue
+
+        # Case 2: mapping of category -> embedded overrides (primarily for custom)
+        if isinstance(value, dict):
+            for cat, overrides in value.items():
+                if not isinstance(cat, str):
+                    raise ValueError("strategy_levels category keys must be strings")
+                kv[f"search_spaces.{cat}.strategy_level"] = str(level_name)
+                if overrides is None:
+                    continue
+                if not isinstance(overrides, dict):
+                    raise ValueError(
+                        f"strategy_levels.{level_name}.{cat} must be a mapping of relative override paths -> values"
+                    )
+                for rel_path, v in overrides.items():
                     full_path = f"search_spaces.{cat}.{rel_path}"
-                    kv[full_path] = value
-        else:
-            kv[f"search_spaces.{cat}.strategy_level"] = str(spec)
+                    kv[full_path] = v
+            continue
+
+        raise ValueError(
+            "strategy_levels values must be either a list of categories or a mapping of category -> overrides"
+        )
+
     return kv
 
 
@@ -188,23 +214,38 @@ def generate_configs_from_template(template_path: str, allow_new_paths: bool = F
     # Compose final config via Hydra overrides
     cfg = get_config("main", overrides=[f"+task_configs={task}", *override_list])
 
-    # run sampling
+    # run sampling (reuse a single in-memory study to reduce logs/noise)
     sampler = SearchSpaceSampler(silent=True, overrides=[f"+task_configs={task}", *override_list])
-    # inject task into sampler.globals
     sampler.globals["task"] = str(task)
     sampled_list: List[Dict[str, Any]] = []
-    for _ in range(n_trials):
-        import optuna
+    import optuna
 
-        study = optuna.create_study(storage="sqlite:///:memory:", study_name="entry_trial", direction="maximize")
+    study = optuna.create_study(storage="sqlite:///:memory:", study_name="entry_trials", direction="maximize")
+    for _ in range(n_trials):
         trial = study.ask()
         res = sampler.sample_all_params(trial, include_hierarchical=True)
         sampled_list.append(res["hierarchical"])  # keep hierarchical view only
 
-    # build final dict (without search_spaces), attach sampled list
+    # build final dict, extract policies, drop heavy search_spaces
     cfg_dict = OmegaConf.to_container(cfg, resolve=True)
     if not isinstance(cfg_dict, dict):
         raise ValueError("resolved config is not a mapping")
+    # Extract lightweight policies from search_spaces; enforce presence
+    try:
+        ss = cfg.search_spaces
+        policies: Dict[str, Any] = {}
+        for cat, node in ss.items():
+            if not hasattr(node, "policy"):
+                raise ValueError(f"search_spaces.{cat}.policy is required")
+            pol = node.policy
+            if pol is not None:
+                policies[str(cat)] = OmegaConf.to_container(pol, resolve=True)
+        # All categories must have policies
+        if not policies:
+            raise ValueError("No policies extracted from search_spaces; each category must define a policy block")
+        cfg_dict["policies"] = policies
+    except Exception:
+        raise
     cfg_dict.pop("search_spaces", None)
     cfg_dict["task"] = str(task)
     cfg_dict["sampled"] = sampled_list

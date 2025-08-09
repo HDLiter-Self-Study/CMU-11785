@@ -14,11 +14,12 @@ batch_size:
   type: list[int]
   coerce_scalar_to_list: true
   targets:
-    - search_spaces.training.training_techniques.batch_configuration.batch_size.choices
+    - search_spaces.loader.training_techniques.batch_configuration.batch_size.choices
 
 n_trials:
   type: int
   targets:
     - optuna.n_trials
+
 
 

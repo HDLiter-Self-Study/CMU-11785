@@ -1,8 +1,10 @@
 """
-Enumerations for the search space sampling system.
+Enumerations and registries for the sampling/resolving system.
 
-This module defines the core enumerations used throughout the sampling system
-to ensure type safety and consistency.
+This module centralizes enums (granularity, config classes, pipeline modes/slots)
+and name registries (optimizer/scheduler/etc.) to avoid scattered literals.
+New developers should treat this file as the single source of truth for these
+constants.
 """
 
 from enum import Enum
@@ -48,11 +50,21 @@ def parse_config_class(config_class: str) -> str:
     for cls in ConfigClass:
         if cls.value == config_class:
             return cls.value
-    return "unknown"
+    # Fast-fail instead of returning ambiguous 'unknown'
+    raise ValueError(f"Unknown config class: {config_class}")
 
 
 def parse_granularity_level(granularity_level: str) -> str:
     for level in GranularityLevel:
         if level.value == granularity_level:
             return level.value
-    return "unknown"
+    raise ValueError(f"Unknown granularity level: {granularity_level}")
+
+
+class SelectionMode(Enum):
+    """Supported group selection/combination modes for pipelines."""
+
+    SINGLE = "single"
+    RANDOM_CHOICE = "random_choice"
+    SUM = "sum"
+    WEIGHTED_SUM = "weighted_sum"

@@ -16,7 +16,7 @@ Key design (Phase 2):
 from typing import Dict, Any, List, Optional, Set
 import inspect
 import optuna
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, OmegaConf, ListConfig
 
 from config.config_manager import get_config
 from .parameter_naming import ParameterNaming
@@ -73,6 +73,7 @@ class SearchSpaceSampler:
         # Global key-value store for cross-strategy parameters (e.g., architecture_type, num_stages)
         self.globals: Dict[str, Any] = {}
         self._trial_in_progress: bool = False
+        self._cached_eval_context: Optional[Dict[str, Any]] = None
 
     def _log(self, message: str):
         """Prints a log message if the silent flag is not set."""
@@ -103,14 +104,15 @@ class SearchSpaceSampler:
 
             for strategy_node in sorted_root:
                 category = strategy_node["_original_key"]
-                category_tree = {} if include_hierarchical else None
+                # Unified hierarchical structure: always a list of technique groups
+                category_tree: Optional[List[Dict[str, Any]]] = [] if include_hierarchical else None
                 category_out: Dict[str, Any] = {}
 
                 self._process_sorted_strategy_node(
                     trial=trial,
                     strategy_node=strategy_node,
                     sampled=sampled_params,
-                    hierarchical_tree=category_tree,
+                    hierarchical_tree=category_tree,  # type: ignore[arg-type]
                     out=category_out,
                 )
 
@@ -131,6 +133,16 @@ class SearchSpaceSampler:
         preserved_keys = {"task"}
         preserved = {k: v for k, v in self.globals.items() if k in preserved_keys}
         self.globals = preserved
+        self._cached_eval_context = None
+
+    def _get_eval_context(self, sampled: Dict[str, Any]) -> Dict[str, Any]:
+        """Return merged evaluator context, caching within a trial until sampled changes."""
+        # Simple cache invalidation by length match; sufficient since we only ever add keys
+        if self._cached_eval_context is None or len(self._cached_eval_context) != (len(self.globals) + len(sampled)):
+            ctx = dict(self.globals)
+            ctx.update(sampled)
+            self._cached_eval_context = ctx
+        return self._cached_eval_context
 
     @property
     def architecture_type(self) -> str:
@@ -149,7 +161,7 @@ class SearchSpaceSampler:
         trial: optuna.Trial,
         strategy_node: DictConfig,
         sampled: Dict[str, Any],
-        hierarchical_tree: Optional[Dict[str, Any]],
+        hierarchical_tree: Optional[List[Dict[str, Any]]],
         out: Dict[str, Any],
     ) -> None:
         """Process a STRATEGY node already sorted by the dependency manager.
@@ -164,53 +176,48 @@ class SearchSpaceSampler:
             out["strategy_level"] = strategy_node.strategy_level
 
         # Process techniques in dependency order (already sorted by DM)
+        grouped_mode = isinstance(hierarchical_tree, list)
         for technique_node in strategy_node.get("_ordered_children", []):
             key = technique_node["_original_key"]
             technique_out: Dict[str, Any] = {}
-            self._process_sorted_technique_node(
-                trial=trial,
-                node=technique_node,
-                key=key,
-                sampled=sampled,
-                hierarchical_tree=hierarchical_tree,
-                out=technique_out,
-            )
-            sampled.update(technique_out)
-            out.update(technique_out)
 
-    def _process_strategy_node(
-        self,
-        trial: optuna.Trial,
-        cfg: DictConfig,
-        sampled: Dict[str, Any],
-        prefix: str = "",
-        hierarchical_tree: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        out = {}
+            if grouped_mode:
+                # Build per-technique hierarchical subtree (instances collected under their names)
+                group_tree: Dict[str, Any] = {}
+                self._process_sorted_technique_node(
+                    trial=trial,
+                    node=technique_node,
+                    key=key,
+                    sampled=sampled,
+                    hierarchical_tree=group_tree,
+                    out=technique_out,
+                    grouped_mode=True,
+                )
+                sampled.update(technique_out)
+                out.update(technique_out)
 
-        # Use the DependencyManager to get a topologically sorted list of technique nodes.
-        sorted_techniques = self.dependency_manager.get_sorted_config_tree(cfg)
-        self._log(f"🔗 [STRATEGY] Processing {len(sorted_techniques)} techniques in dependency order.")
-
-        if hasattr(cfg, "strategy_level") and "strategy_level" not in sampled:
-            sampled["strategy_level"] = cfg.strategy_level
-            out["strategy_level"] = cfg.strategy_level
-        elif "strategy_level" not in sampled and hasattr(cfg, "architectures"):
-            if hasattr(cfg.architectures, "strategy_level"):
-                sampled["strategy_level"] = cfg.architectures.strategy_level
-                out["strategy_level"] = cfg.architectures.strategy_level
-
-        # Iterate over the sorted list of techniques.
-        for technique_node in sorted_techniques:
-            key = technique_node["_original_key"]
-            technique_out = {}
-            self._process_technique_node(trial, technique_node, key, sampled, prefix, hierarchical_tree, technique_out)
-
-            # Accumulate sampled results for subsequent techniques
-            sampled.update(technique_out)
-            out.update(technique_out)
-
-        return out
+                # Construct the group record
+                selection_value = technique_out.get("selection") if isinstance(technique_out, dict) else None
+                instances: Dict[str, Any] = {}
+                for inst_name, inst_cfg in group_tree.items():
+                    if inst_name == "selection":
+                        continue
+                    instances[inst_name] = inst_cfg if inst_cfg is not None else {}
+                # Drop empty groups
+                if hierarchical_tree is not None and not (selection_value is None and not instances):
+                    hierarchical_tree.append({"selection": selection_value, "instances": instances})
+            else:
+                self._process_sorted_technique_node(
+                    trial=trial,
+                    node=technique_node,
+                    key=key,
+                    sampled=sampled,
+                    hierarchical_tree=None,
+                    out=technique_out,
+                    grouped_mode=False,
+                )
+                sampled.update(technique_out)
+                out.update(technique_out)
 
     def _process_sorted_technique_node(
         self,
@@ -220,6 +227,7 @@ class SearchSpaceSampler:
         sampled: Dict[str, Any],
         hierarchical_tree: Optional[Dict[str, Any]],
         out: Dict[str, Any],
+        grouped_mode: bool,
     ) -> None:
         """Process a TECHNIQUE node and its children.
 
@@ -229,14 +237,29 @@ class SearchSpaceSampler:
         """
         # Respect technique-level condition BEFORE any selection sampling
         if hasattr(node, "condition"):
-            context = {**self.globals, **sampled}
+            context = self._get_eval_context(sampled)
             if not self.evaluator.evaluate_condition(node.condition, context):
                 return
 
         # Handle technique-level selection param if exists
         if "selection" in node:
             sel_cfg = node["selection"]
-            self._process_param_node(trial, sel_cfg, "selection", sampled, hierarchical_tree, out)
+            # In grouped mode, selection is kept out of the instance subtree and surfaced via out["selection"]
+            self._process_param_node(
+                trial,
+                sel_cfg,
+                "selection",
+                sampled,
+                None if grouped_mode else hierarchical_tree,
+                out,
+            )
+            if grouped_mode:
+                try:
+                    raw_name = sel_cfg.param_name
+                    if raw_name in sampled:
+                        out["selection"] = sampled[raw_name]
+                except Exception:
+                    pass
 
         # Iterate over the ordered children provided by the DependencyManager.
         for sub_node in node.get("_ordered_children", []):
@@ -249,7 +272,15 @@ class SearchSpaceSampler:
             sub_node_class = parse_config_class(sub_node["class"])
 
             if sub_node_class == ConfigClass.INSTANCE.value:
-                self._process_instance_node(trial, sub_node, sub_key, sampled, None, hierarchical_tree, out)
+                self._process_instance_node(
+                    trial,
+                    sub_node,
+                    sub_key,
+                    sampled,
+                    None,
+                    hierarchical_tree if grouped_mode else None,
+                    out,
+                )
             else:
                 raise ValueError(
                     f"Only instance nodes are allowed at technique level, not {sub_node_class} for {sub_key}"
@@ -288,7 +319,7 @@ class SearchSpaceSampler:
         if raw in sampled:
             return
         if hasattr(node, "condition"):
-            context = {**self.globals, **sampled}
+            context = self._get_eval_context(sampled)
             if not self.evaluator.evaluate_condition(node.condition, context):
                 return
 
@@ -299,7 +330,8 @@ class SearchSpaceSampler:
             sampled[raw] = "stage_expanded"
             out.update(stage_params)
             if hierarchical_tree is not None:
-                stage_list = self._build_stage_list(raw, sampled, arch, stage_params)
+                # Use ParameterNaming helper to extract ordered values
+                stage_list = self.naming.extract_stage_values_from_params(arch, raw, self.num_stages, stage_params)
                 if raw == "stage_block_type_selection":
                     hierarchical_tree["block_type"] = stage_list
                 hierarchical_tree[key] = stage_list
@@ -308,7 +340,10 @@ class SearchSpaceSampler:
             sampled[raw] = "block_stage_expanded"
             out.update(block_stage_params)
             if hierarchical_tree is not None:
-                hierarchical_tree[key] = self._build_block_stage_list(raw, sampled, arch, block_stage_params)
+                stage_list = self.naming.extract_block_stage_values_from_params(
+                    arch, raw, self.num_stages, block_stage_params
+                )
+                hierarchical_tree[key] = stage_list
         elif granularity == GranularityLevel.BLOCK_TYPE.value:
             block_type_params = self.granularity_handler.sample_block_type_params(trial, node, raw, sampled, arch)
             sampled[raw] = "block_type_expanded"
@@ -332,11 +367,9 @@ class SearchSpaceSampler:
             sampled[raw] = val
             out[name] = val
             if hierarchical_tree is not None:
-                if granularity == GranularityLevel.GLOBAL.value and key in ["activation", "normalization"]:
-                    num_stages = self.num_stages
-                    hierarchical_tree[key] = [val] * num_stages if num_stages > 0 else val
-                else:
-                    hierarchical_tree[key] = val
+                # When hierarchical_tree is a dict (grouped-mode per-instance subtree), write as-is
+                # For global strategy-level grouping we collect values via technique_out
+                hierarchical_tree[key] = val
 
         # Export to global namespace if requested
         if export_to_global:
@@ -355,7 +388,7 @@ class SearchSpaceSampler:
         out: Dict[str, Any],
     ) -> None:
         if hasattr(node, "condition"):
-            context = {**self.globals, **sampled}
+            context = self._get_eval_context(sampled)
             if not self.evaluator.evaluate_condition(node.condition, context):
                 return
 
@@ -422,13 +455,11 @@ class SearchSpaceSampler:
             resolved_value = self._resolve_param_value(
                 raw_value, param_config, sampled_params, f"{key} for {param_name}"
             )
-            context = {**self.globals, **sampled_params}
+            context = self._get_eval_context(sampled_params)
             final_value = self.evaluator.resolve_dynamic_value(resolved_value, context)
-            # Normalize OmegaConf containers to plain Python for Optuna/storage
-            try:
+            # Normalize OmegaConf containers to plain Python for Optuna/storage only when needed
+            if isinstance(final_value, (DictConfig, ListConfig)):
                 final_value = OmegaConf.to_container(final_value, resolve=True)
-            except Exception:
-                pass
             if key in {"low", "high"}:
                 try:
                     final_value = self.TYPE_CAST_FUNCTIONS[param_type](final_value)
@@ -519,8 +550,13 @@ class SearchSpaceSampler:
                 merged_results[f"{base_name}_max"] = max_val
         return merged_results
 
-    def _merge_min_max_hierarchical(self, tree: Dict[str, Any]) -> Dict[str, Any]:
-        if not isinstance(tree, dict):
-            return tree
-        processed_tree = {k: self._merge_min_max_hierarchical(v) if isinstance(v, dict) else v for k, v in tree.items()}
-        return self._merge_min_max_pairs(processed_tree)
+    def _merge_min_max_hierarchical(self, tree: Any) -> Any:
+        # Support lists of groups as hierarchical structure
+        if isinstance(tree, list):
+            return [self._merge_min_max_hierarchical(t) for t in tree]
+        if isinstance(tree, dict):
+            processed_tree = {
+                k: self._merge_min_max_hierarchical(v) if isinstance(v, (dict, list)) else v for k, v in tree.items()
+            }
+            return self._merge_min_max_pairs(processed_tree)
+        return tree
