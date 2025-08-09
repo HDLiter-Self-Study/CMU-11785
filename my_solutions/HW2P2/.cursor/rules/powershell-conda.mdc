@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+description: Shell usage on Windows PowerShell; non-interactive commands; conda env switch to use_pytorch_dl_py312 when packages are missing
+---
+### Shell and environment defaults (Windows PowerShell)
+
+- Assume the shell is Windows PowerShell at `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`.
+- Write commands in PowerShell-friendly syntax; avoid Bash-only constructs.
+- Prefer non-interactive flags by default to avoid prompts (e.g., `conda install -y`, tools' `--yes/--non-interactive` when available). If a pager could be invoked, append `| cat` to force plain output.
+
+### Package-missing policy (conda)
+
+- If a command fails due to missing packages, do not continue silently.
+- First attempt to switch the environment to `use_pytorch_dl_py312` and retry the command once:
+
+```powershell
+conda activate use_pytorch_dl_py312
+# retry the previous command once
+```
+
+- If it still fails, stop and surface the error (do not keep retrying across environments).
+
+### General command behavior
+
+- Favor explicit errors over implicit fallbacks. When automation is necessary, be conservative and log the exact command executed.
+- For long-running commands that would normally hold the terminal, prefer running them in the background when appropriate.

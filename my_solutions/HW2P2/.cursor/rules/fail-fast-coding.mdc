@@ -1,0 +1,20 @@
+---
+alwaysApply: true
+description: Fail-fast coding guidance — raise exceptions instead of silent fallbacks; clear docs for new contributors
+---
+### Fail-fast principle
+
+- Validate inputs early and raise explicit exceptions on invalid state.
+- Avoid silent fallbacks, implicit defaults, or broad `except` blocks that swallow errors.
+- Prefer guard clauses and clear error messages over continuing in an unknown state.
+- CLI entry points should exit with non-zero status on failure and print an actionable message.
+
+### Error handling guidance
+
+- Catch only expected exceptions and re-raise with context; never mask the root cause.
+- Log details at the failure site; do not defer critical checks.
+
+### Code clarity for new developers
+
+- Include concise docstrings and high-signal comments explaining intent and invariants.
+- Remove outdated or misleading comments during edits.

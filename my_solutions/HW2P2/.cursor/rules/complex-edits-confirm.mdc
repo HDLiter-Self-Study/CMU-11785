@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+description: For complex modifications, present a plan and obtain user confirmation before editing code
+---
+### Workflow for complex changes
+
+- Before making complex or behavior-changing edits (multi-file refactors, new features, schema/protocol changes):
+  - Propose a short plan outlining intent, scope, risky areas, and a testing/rollback strategy.
+  - Wait for explicit user confirmation before applying any code edits.
+
+- Small, mechanical, or clearly local fixes (typos, formatting, single-line bug fixes) may proceed directly, while still adhering to the fail-fast rule.
+
+### What to include in proposals
+
+- Summary of the problem and the intended approach.
+- Files and modules likely to be affected.
+- Test/validation steps to prove correctness after the change.

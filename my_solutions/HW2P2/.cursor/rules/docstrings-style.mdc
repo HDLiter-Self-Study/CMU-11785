@@ -1,0 +1,23 @@
+---
+alwaysApply: true
+description: Write comments/docstrings in English, timeless, and oriented to new developers; avoid change-log phrasing
+---
+### Comments and docstrings style
+
+- Write all comments and docstrings in English.
+- Document for a new developer, not for the current change process.
+  - Avoid phrasing like "this function adds parameter X" or "now supports Y".
+  - Prefer timeless descriptions like "This function has five parameters" and describe each parameter's role.
+- Focus on purpose, inputs, outputs, side effects, invariants, and error conditions.
+- Keep comments concise and high-signal; explain "why" more than "how" when the code is clear.
+- Remove outdated or misleading comments; do not keep change-log style notes in code.
+
+### Python docstrings
+
+- Use language-appropriate docstrings (for Python, triple-quoted docstrings) at module, class, and function levels.
+- Prefer Google-style docstrings (or match existing project style) including:
+  - Args: parameter names, types, and meanings.
+  - Returns: type and meaning of the return value.
+  - Raises: specific exceptions and when they occur.
+  - Notes/Examples: only when they add significant value.
+- Avoid TODOs in code; if necessary, make them actionable with owner and deadline, otherwise track in issues.
