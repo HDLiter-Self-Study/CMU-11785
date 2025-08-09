@@ -1,0 +1,40 @@
+# Gradient Processing Strategy Search Space
+# @package search_spaces.grad_clip
+
+class: "strategy"
+depends_on: ["optimizer"]
+
+strategy_level: "robust"
+
+gradient_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "gradient_strategy"
+    type: "categorical"
+    choices:
+      basic: ["none"]
+      robust: ["none", "clip_norm"]
+      comprehensive: ["none", "clip_norm"]
+      custom: ["none", "clip_norm"]
+    dependency_order: ["strategy_level"]
+
+  clip_norm:
+    class: "instance"
+    condition: "$gradient_strategy in ['clip_norm']"
+
+    max_norm:
+      class: "param"
+      param_name: "gradient_clip_norm"
+      type: "float"
+      low: 0.1
+      high: 5.0
+
+    norm_type:
+      class: "param"
+      param_name: "gradient_clip_norm_type"
+      type: "categorical"
+      choices: [2.0, "inf"]
+
+

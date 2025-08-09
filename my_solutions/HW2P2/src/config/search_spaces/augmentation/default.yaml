@@ -26,7 +26,15 @@ core_augmentation:
 
   trivial_augment_wide:
     class: "instance"
+    skip_instance_layer: true
     # TrivialAugmentWide - no additional parameters needed
+
+    trivial_augment_wide:
+      class: "param"
+      param_name: "trivial_augment_wide"
+      type: "categorical"
+      choices: [true]
+      description: "TrivialAugmentWide - always enabled using dummy parameter"
 
 # Spatial augmentation strategy (influenced by primary augmentation strategy)
 spatial_augmentation:

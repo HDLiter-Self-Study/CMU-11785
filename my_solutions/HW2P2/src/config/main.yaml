@@ -11,26 +11,10 @@ defaults:
 device: cuda  # Will be auto-detected if not specified
 seed: 42
 
-# Evaluation flags  
-eval_cls: true    # Whether to evaluate classification task
-eval_ver: true    # Whether to evaluate verification task
-
 # Resume training
 resume_from: null  # Path to checkpoint to resume from (e.g., "./checkpoints/last.pth")
 
-# Training configuration
-training:
-  
-  # Checkpointing
-  checkpoints:
-    save_top_k: 3
-  
-  # Common data settings
-  data:
-    num_workers: 4
-    pin_memory: true
-    image_size: 224
-    normalize: true
+# Keep only global defaults truly shared across tasks, if any. Prefer task_configs for epochs/paths.
 
 # Optuna configuration
 optuna:
@@ -43,7 +27,6 @@ optuna:
     n_startup_trials: 40
     multivariate: true
     group: true
-
 
   
   # Pruning configuration

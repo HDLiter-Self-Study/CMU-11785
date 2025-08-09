@@ -1,0 +1,22 @@
+# Loader Strategy Search Space
+# @package search_spaces.loader
+
+class: "strategy"
+depends_on: []
+
+strategy_level: "basic"
+
+training_techniques:
+  class: "technique"
+
+  batch_configuration:
+    class: "instance"
+    skip_instance_layer: true
+
+    batch_size:
+      class: "param"
+      param_name: "batch_size"
+      type: "categorical"
+      choices: [64, 128, 256]
+
+

@@ -1,0 +1,122 @@
+# Scheduler Strategy Search Space
+# @package search_spaces.scheduler
+
+class: "strategy"
+depends_on: ["optimizer"]
+
+strategy_level: "robust"
+
+lr_scheduler_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "lr_scheduler_strategy"
+    type: "categorical"
+    choices:
+      basic: ["plateau"]
+      robust: ["plateau", "step"]
+      comprehensive: ["cosine", "step", "plateau"]
+      custom: ["cosine", "step", "plateau"]
+    dependency_order: ["strategy_level"]
+
+  cosine:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['cosine']"
+
+    warmup_epochs:
+      class: "param"
+      param_name: "cosine_warmup_epochs"
+      type: "int"
+      low: 0
+      high: 15
+
+    eta_min_ratio:
+      class: "param"
+      param_name: "cosine_eta_min_ratio"
+      type: "float"
+      low: 0.001
+      high: 0.1
+      log: true
+
+  step:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['step']"
+
+    warmup_epochs:
+      class: "param"
+      param_name: "step_warmup_epochs"
+      type: "int"
+      low: 0
+      high: 10
+
+    step_size:
+      class: "param"
+      param_name: "step_size"
+      type: "int"
+      low: 20
+      high: 40
+
+    gamma:
+      class: "param"
+      param_name: "step_gamma"
+      type: "float"
+      low: 0.3
+      high: 0.7
+
+  plateau:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['plateau']"
+
+    patience:
+      class: "param"
+      param_name: "plateau_patience"
+      type: "int"
+      low: 5
+      high: 20
+
+    factor:
+      class: "param"
+      param_name: "plateau_factor"
+      type: "float"
+      low: 0.1
+      high: 0.8
+
+    threshold:
+      class: "param"
+      param_name: "plateau_threshold"
+      type: "float"
+      low: 1e-5
+      high: 1e-2
+      log: true
+
+    threshold_mode:
+      class: "param"
+      param_name: "plateau_threshold_mode"
+      type: "categorical"
+      choices: ["rel", "abs"]
+
+    cooldown:
+      class: "param"
+      param_name: "plateau_cooldown"
+      type: "int"
+      low: 0
+      high: 10
+
+    min_lr:
+      class: "param"
+      param_name: "plateau_min_lr"
+      type: "float"
+      low: 1e-8
+      high: 1e-4
+      log: true
+
+    eps:
+      class: "param"
+      param_name: "plateau_eps"
+      type: "float"
+      low: 1e-9
+      high: 1e-6
+      log: true
+
+

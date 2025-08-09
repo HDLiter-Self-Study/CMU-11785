@@ -1,0 +1,139 @@
+# Optimizer Strategy Search Space
+# @package search_spaces.optimizer
+
+class: "strategy"
+depends_on: ["architectures"]
+
+# Default level; can be overridden via strategy_levels
+strategy_level: "robust"  # [basic, robust, comprehensive, custom]
+
+optimizer_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "optimizer_strategy"
+    type: "categorical"
+    choices:
+      basic: ["adam", "sgd"]
+      robust: ["adam", "sgd", "adamw"]
+      comprehensive: ["adam", "sgd", "adamw"]
+      custom: ["adam", "sgd", "adamw"]
+    description: "Optimizer selection"
+    dependency_order: ["strategy_level"]
+
+  adam:
+    class: "instance"
+    condition: "$optimizer_strategy in ['adam']"
+
+    learning_rate:
+      class: "param"
+      param_name: "adam_learning_rate"
+      type: "float"
+      low:
+        basic: 5e-4
+        robust: 1e-4
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-3
+        robust: 1e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      dependency_order: ["strategy_level"]
+
+    weight_decay:
+      class: "param"
+      param_name: "adam_weight_decay"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 1e-5
+        comprehensive: 1e-6
+        custom: 1e-6
+      high:
+        basic: 1e-3
+        robust: 5e-3
+        comprehensive: 1e-2
+        custom: 1e-2
+      log: true
+      dependency_order: ["strategy_level"]
+
+  sgd:
+    class: "instance"
+    condition: "$optimizer_strategy in ['sgd']"
+
+    learning_rate:
+      class: "param"
+      param_name: "sgd_learning_rate"
+      type: "float"
+      low:
+        basic: 1e-3
+        robust: 5e-4
+        comprehensive: 1e-4
+        custom: 1e-4
+      high:
+        basic: 1e-2
+        robust: 5e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      dependency_order: ["strategy_level"]
+
+    weight_decay:
+      class: "param"
+      param_name: "sgd_weight_decay"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 1e-5
+        comprehensive: 1e-6
+        custom: 1e-6
+      high:
+        basic: 1e-3
+        robust: 5e-3
+        comprehensive: 1e-2
+        custom: 1e-2
+      log: true
+      dependency_order: ["strategy_level"]
+
+  adamw:
+    class: "instance"
+    condition: "$optimizer_strategy in ['adamw']"
+
+    learning_rate:
+      class: "param"
+      param_name: "adamw_learning_rate"
+      type: "float"
+      low:
+        basic: 1e-4
+        robust: 5e-5
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-3
+        robust: 1e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      dependency_order: ["strategy_level"]
+
+    weight_decay:
+      class: "param"
+      param_name: "adamw_weight_decay"
+      type: "float"
+      low:
+        basic: 1e-3
+        robust: 1e-4
+        comprehensive: 1e-5
+        custom: 1e-5
+      high:
+        basic: 5e-2
+        robust: 5e-2
+        comprehensive: 1e-1
+        custom: 1e-1
+      log: true
+      dependency_order: ["strategy_level"]
+
+

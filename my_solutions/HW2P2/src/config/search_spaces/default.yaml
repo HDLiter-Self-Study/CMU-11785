@@ -3,7 +3,11 @@
 
 defaults:
   - architectures: default  # Default architecture configuration
-  - training: default
+  - optimizer: default
+  - scheduler: default
+  - ema: default
+  - grad_clip: default
+  - loader: default
   - losses: all
   - heads: all
   - augmentation: default   # Data augmentation configuration

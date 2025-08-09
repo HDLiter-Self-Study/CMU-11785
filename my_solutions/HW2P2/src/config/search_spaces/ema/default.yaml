@@ -1,0 +1,34 @@
+# EMA Strategy Search Space
+# @package search_spaces.ema
+
+class: "strategy"
+depends_on: ["optimizer"]
+
+strategy_level: "robust"
+
+model_averaging_techniques:
+  class: "technique"
+
+  selection:
+    class: "param"
+    param_name: "model_averaging_strategy"
+    type: "categorical"
+    choices:
+      basic: ["none"]
+      robust: ["none", "ema"]
+      comprehensive: ["none", "ema"]
+      custom: ["none", "ema"]
+    dependency_order: ["strategy_level"]
+
+  ema:
+    class: "instance"
+    condition: "$model_averaging_strategy in ['ema']"
+
+    start_epoch:
+      class: "param"
+      param_name: "ema_start_epoch"
+      type: "int"
+      low: 0
+      high: 20
+
+
