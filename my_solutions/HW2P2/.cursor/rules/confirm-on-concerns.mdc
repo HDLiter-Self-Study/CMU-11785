@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+description: If an edit instruction seems problematic, pause edits and seek secondary confirmation with analysis
+---
+### Confirmation when concerns arise
+
+- When the user issues an instruction to edit code and there are concerns (ambiguity, risky side effects, conflicts with existing design, security/performance issues, or inconsistency with project rules), do not proceed with edits immediately.
+- First, present a brief analysis outlining:
+  - What appears problematic and why.
+  - Safer or clearer alternatives.
+  - Any assumptions or missing details that block safe implementation.
+- Ask for the user's secondary confirmation before making any code changes.
