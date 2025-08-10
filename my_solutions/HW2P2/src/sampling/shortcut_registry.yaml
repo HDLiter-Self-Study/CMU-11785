@@ -14,12 +14,60 @@ batch_size:
   type: list[int]
   coerce_scalar_to_list: true
   targets:
-    - search_spaces.loader.training_techniques.batch_configuration.batch_size.choices
+    - search_spaces.loader.loader_techniques.data_loader.batch_size.choices
 
 n_trials:
   type: int
   targets:
     - optuna.n_trials
+
+seed:
+  type: int
+  targets:
+    - seed
+
+device:
+  type: str
+  targets:
+    - device
+
+# Task-specific paths and runtime settings
+# Allows quick setup of data paths without touching task config files.
+paths:
+  type: dict
+  targets:
+    - task_configs.data
+  accept_dict: true
+  allow_children: true
+  allow_new_keys: true
+
+# Weights & Biases configuration (merged into task_configs.wandb)
+wandb:
+  type: dict
+  targets:
+    - task_configs.wandb
+  accept_dict: true
+  allow_children: true
+  allow_new_keys: true
+
+
+optuna:
+  type: dict
+  targets:
+    - optuna
+  accept_dict: true
+  allow_children: true
+  allow_new_keys: true
+
+# Loader runtime settings (not searched). Supports both whole-dict and child-key shortcuts.
+loader_settings:
+  type: dict
+  targets:
+    - task_configs.data.loader_settings
+  accept_dict: true
+  allow_children: true
+  # Allow arbitrary keys under loader_settings; factory validates at runtime
+  allow_new_keys: true
 
 
 

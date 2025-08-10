@@ -11,6 +11,7 @@ in the current trial context (via sampler.sampled params).
 """
 
 from typing import Dict, Any, List, Set, Optional
+import re
 import optuna
 from omegaconf import DictConfig
 
@@ -39,6 +40,110 @@ class GranularityHandler:
         self.sampler = sampler
         self.naming = ParameterNaming()
         self.silent = silent
+
+    # -------------------- Build per-unit evaluation context (no variable parsing required) --------------------
+    def _build_unit_eval_ctx(
+        self,
+        param_config: Dict[str, Any],
+        base_ctx: Dict[str, Any],
+        granularity: str,
+        arch_prefix: str,
+        sampled_params: Dict[str, Any],
+        stage_number: Optional[int] = None,
+        block_type: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Build an evaluation context for a single unit by scanning sampled_params.
+
+        Priority order for resolving base parameter names (e.g., 'normalization'):
+        - block_stage > stage > block_type > global
+        The function derives values from naming conventions without hardcoding
+        variable lists or re-parsing condition expressions.
+        """
+        eval_ctx: Dict[str, Any] = dict(base_ctx)
+        if not isinstance(arch_prefix, str) or not arch_prefix:
+            return eval_ctx
+        prefix = f"{arch_prefix}_"
+        num_stages = self.sampler.num_stages
+
+        # Priority cache: base_name -> priority value
+        # Priority depends on current granularity:
+        # - block_stage: block_stage(3) > stage(2) > block_type(1) > global(0)
+        # - stage: stage(2) > block_type(1) > global(0)
+        # - block_type: block_type(2) > stage(1, only stages matching this block_type) > global(0)
+        resolved: Dict[str, Any] = {}
+        priorities: Dict[str, int] = {}
+
+        for full_key, val in sampled_params.items():
+            if not isinstance(full_key, str) or not full_key.startswith(prefix):
+                continue
+            suffix = full_key[len(prefix) :]
+
+            # 1) Block-stage match: {base}_stage_{i}_of_{N}_{bt}
+            m_bs = re.match(r"^(?P<base>.+)_stage_(?P<stage>\d+)_of_(?P<total>\d+)_(?P<bt>.+)$", suffix)
+            if m_bs and stage_number is not None and block_type is not None:
+                i = int(m_bs.group("stage"))
+                total = int(m_bs.group("total"))
+                bt = m_bs.group("bt")
+                if i == stage_number and total == num_stages and bt == block_type:
+                    base = m_bs.group("base")
+                    prio = 3 if granularity == "block_stage" else 2
+                    if priorities.get(base, -1) < prio:
+                        resolved[base] = val
+                        priorities[base] = prio
+                    continue
+
+            # 2) Stage match: {base}_stage_{i}_of_{N}
+            m_s = re.match(r"^(?P<base>.+)_stage_(?P<stage>\d+)_of_(?P<total>\d+)$", suffix)
+            if m_s and stage_number is not None:
+                i = int(m_s.group("stage"))
+                total = int(m_s.group("total"))
+                if i == stage_number and total == num_stages:
+                    base = m_s.group("base")
+                    # When building context for block_type, only use the stage value if
+                    # the current stage's block_type equals the current block_type.
+                    if granularity == "block_type" and block_type is not None:
+                        bt_key = self.naming.build_stage_param_name(arch_prefix, "block_type", stage_number, num_stages)
+                        if sampled_params.get(bt_key) != block_type:
+                            pass
+                        else:
+                            prio = 1
+                            if priorities.get(base, -1) < prio:
+                                resolved[base] = val
+                                priorities[base] = prio
+                    else:
+                        prio = 2
+                        if priorities.get(base, -1) < prio:
+                            resolved[base] = val
+                            priorities[base] = prio
+                    continue
+
+            # 3) Block-type match: {base}_{bt}
+            if block_type is not None and suffix.endswith(f"_{block_type}") and ("_stage_" not in suffix):
+                base = suffix[: -len(block_type) - 1]
+                prio = 1 if granularity == "stage" else 2
+                if priorities.get(base, -1) < prio:
+                    resolved[base] = val
+                    priorities[base] = prio
+                continue
+
+            # 4) Global match: {base}
+            if ("_stage_" not in suffix) and (block_type is None or not suffix.endswith(f"_{block_type}")):
+                base = suffix
+                if priorities.get(base, -1) < 0:
+                    resolved[base] = val
+                    priorities[base] = 0
+
+        # Merge into eval_ctx
+        eval_ctx.update(resolved)
+        return eval_ctx
+
+    def _should_sample(self, param_config: Dict[str, Any], eval_ctx: Dict[str, Any]) -> bool:
+        if hasattr(param_config, "condition"):
+            try:
+                return self.sampler.evaluator.evaluate_condition(param_config.condition, eval_ctx)
+            except Exception:
+                return False
+        return True
 
     def _log(self, message: str):
         """Prints a log message if the silent flag is not set."""
@@ -76,6 +181,18 @@ class GranularityHandler:
             stage_param_name = self.naming.build_stage_param_name(
                 arch_prefix, base_param_name, stage_number, num_stages
             )
+
+            base_ctx = self.sampler._get_eval_context(sampled_params)
+            eval_ctx = self._build_unit_eval_ctx(
+                param_config,
+                base_ctx,
+                granularity="stage",
+                arch_prefix=arch_prefix,
+                sampled_params=sampled_params,
+                stage_number=stage_number,
+            )
+            if not self._should_sample(param_config, eval_ctx):
+                continue
 
             stage_value = self.sampler._sample_single_param(trial, param_config, stage_param_name, sampled_params)
             stage_params[stage_param_name] = stage_value
@@ -122,6 +239,19 @@ class GranularityHandler:
                 arch_prefix, base_param_name, stage_number, num_stages, block_type
             )
 
+            base_ctx = self.sampler._get_eval_context(sampled_params)
+            eval_ctx = self._build_unit_eval_ctx(
+                param_config,
+                base_ctx,
+                granularity="block_stage",
+                arch_prefix=arch_prefix,
+                sampled_params=sampled_params,
+                stage_number=stage_number,
+                block_type=block_type,
+            )
+            if not self._should_sample(param_config, eval_ctx):
+                continue
+
             stage_value = self.sampler._sample_single_param(trial, param_config, block_stage_param_name, sampled_params)
             block_stage_params[block_stage_param_name] = stage_value
             self._log(f"      📋 [BLOCK_STAGE_HANDLER] Stage {stage_idx}: {block_stage_param_name} = {stage_value}")
@@ -164,6 +294,18 @@ class GranularityHandler:
 
         block_type_params = {}
         for block_type in unique_block_types:
+            base_ctx = self.sampler._get_eval_context(sampled_params)
+            eval_ctx = self._build_unit_eval_ctx(
+                param_config,
+                base_ctx,
+                granularity="block_type",
+                arch_prefix=arch_prefix,
+                sampled_params=sampled_params,
+                block_type=block_type,
+            )
+            if not self._should_sample(param_config, eval_ctx):
+                continue
+
             param_name = self.naming.build_block_type_param_name(arch_prefix, base_param_name, block_type)
             value = self.sampler._sample_single_param(trial, param_config, param_name, sampled_params)
             block_type_params[param_name] = value
@@ -195,8 +337,8 @@ class GranularityHandler:
         num_stages = self.sampler.num_stages
         stage_list = []
 
-        # Determine if block types are defined globally or per-stage from sampled_params
-        global_block_type = sampled_params.get(self.naming.build_param_name(arch_prefix, "global_block_type_selection"))
+        # Determine if block types are defined globally or per-stage from sampled_params (new unified naming)
+        global_block_type = sampled_params.get(self.naming.build_param_name(arch_prefix, "block_type"))
 
         if global_block_type:
             # Global block type: use the same value for all stages
@@ -208,7 +350,7 @@ class GranularityHandler:
         for stage_idx in range(num_stages):
             stage_number = stage_idx + 1
             stage_block_type_key = self.naming.build_stage_param_name(
-                arch_prefix, "stage_block_type_selection", stage_number, num_stages
+                arch_prefix, "block_type", stage_number, num_stages
             )
             block_type_for_stage = sampled_params.get(stage_block_type_key)
 
@@ -244,16 +386,14 @@ class GranularityHandler:
         """
         stage_number = stage_idx + 1
 
-        # Try stage-specific block type first
-        stage_block_type_key = self.naming.build_stage_param_name(
-            arch_prefix, "stage_block_type_selection", stage_number, num_stages
-        )
+        # Try stage-specific block type first (new unified naming)
+        stage_block_type_key = self.naming.build_stage_param_name(arch_prefix, "block_type", stage_number, num_stages)
         stage_block_type = sampled_params.get(stage_block_type_key)
         if stage_block_type is not None:
             return stage_block_type
 
-        # Fall back to global block type
-        global_block_type_key = self.naming.build_param_name(arch_prefix, "global_block_type_selection")
+        # Fall back to global block type (new unified naming)
+        global_block_type_key = self.naming.build_param_name(arch_prefix, "block_type")
         global_block_type = sampled_params.get(global_block_type_key)
         if global_block_type is not None:
             return global_block_type
@@ -277,17 +417,17 @@ class GranularityHandler:
         unique_block_types = set()
         num_stages = self.sampler.num_stages
 
-        # Check global block type
-        global_block_type_key = self.naming.build_param_name(arch_prefix, "global_block_type_selection")
+        # Check global block type (new unified naming)
+        global_block_type_key = self.naming.build_param_name(arch_prefix, "block_type")
         if global_block_type_key in sampled_params:
             unique_block_types.add(sampled_params[global_block_type_key])
             return unique_block_types
 
-        # Check stage-specific block types
+        # Check stage-specific block types (new unified naming)
         for stage_idx in range(num_stages):
             stage_number = stage_idx + 1
             stage_block_type_key = self.naming.build_stage_param_name(
-                arch_prefix, "stage_block_type_selection", stage_number, num_stages
+                arch_prefix, "block_type", stage_number, num_stages
             )
             if stage_block_type_key in sampled_params:
                 unique_block_types.add(sampled_params[stage_block_type_key])
@@ -295,8 +435,7 @@ class GranularityHandler:
         if not unique_block_types:
             raise ValueError(
                 f"Cannot collect unique block types for architecture '{arch_prefix}'. "
-                "Ensure that 'global_block_type_selection' or 'stage_block_type_selection' "
-                "is sampled before dependent parameters."
+                "Ensure that 'block_type' (global or stage) is sampled before dependent parameters."
             )
 
         return unique_block_types

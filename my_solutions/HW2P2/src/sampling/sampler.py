@@ -294,6 +294,7 @@ class SearchSpaceSampler:
         sampled: Dict[str, Any],
         hierarchical_tree: Optional[Dict[str, Any]],
         out: Dict[str, Any],
+        inherited_granularity: Optional[str] = None,
     ) -> None:
         """Process a PARAM node with unified handling of naming and granularity.
 
@@ -312,33 +313,51 @@ class SearchSpaceSampler:
 
         if arch_irrelevant:
             name = raw
+            arch: Optional[str] = None
         else:
             arch = self.architecture_type
             name = self.naming.build_param_name(arch, raw)
 
         if raw in sampled:
             return
-        if hasattr(node, "condition"):
-            context = self._get_eval_context(sampled)
+
+        # Resolve granularity, honoring instance-level inheritance and "$var" references
+        context = self._get_eval_context(sampled)
+        granularity = getattr(node, "granularity", inherited_granularity)
+        if isinstance(granularity, str):
+            try:
+                granularity = self.evaluator.resolve_dynamic_value(granularity, context)
+            except Exception:
+                pass
+        if granularity is None:
+            granularity = GranularityLevel.GLOBAL.value
+
+        # Evaluate condition only for GLOBAL-like params here. For non-global
+        # (stage/block_type/block_stage), defer per-unit condition to the
+        # granularity handlers so that unit-local context can be applied.
+        if hasattr(node, "condition") and granularity == GranularityLevel.GLOBAL.value:
             if not self.evaluator.evaluate_condition(node.condition, context):
                 return
 
-        granularity = getattr(node, "granularity", GranularityLevel.GLOBAL.value)
+        if arch is None and granularity != GranularityLevel.GLOBAL.value:
+            arch = self.architecture_type
 
         if granularity == GranularityLevel.STAGE.value:
             stage_params = self.granularity_handler.sample_stage_params(trial, node, raw, sampled, arch)
             sampled[raw] = "stage_expanded"
             out.update(stage_params)
+            sampled.update(stage_params)
             if hierarchical_tree is not None:
                 # Use ParameterNaming helper to extract ordered values
                 stage_list = self.naming.extract_stage_values_from_params(arch, raw, self.num_stages, stage_params)
-                if raw == "stage_block_type_selection":
+                if raw == "block_type":
                     hierarchical_tree["block_type"] = stage_list
                 hierarchical_tree[key] = stage_list
         elif granularity == GranularityLevel.BLOCK_STAGE.value:
             block_stage_params = self.granularity_handler.sample_block_stage_params(trial, node, raw, sampled, arch)
             sampled[raw] = "block_stage_expanded"
             out.update(block_stage_params)
+            sampled.update(block_stage_params)
             if hierarchical_tree is not None:
                 stage_list = self.naming.extract_block_stage_values_from_params(
                     arch, raw, self.num_stages, block_stage_params
@@ -348,9 +367,9 @@ class SearchSpaceSampler:
             block_type_params = self.granularity_handler.sample_block_type_params(trial, node, raw, sampled, arch)
             sampled[raw] = "block_type_expanded"
             out.update(block_type_params)
+            sampled.update(block_type_params)
             if hierarchical_tree is not None:
-                # The new GranularityHandler logic does not require hierarchical_block_type anymore.
-                # It deduces the block types directly from the `sampled` dictionary.
+                # Convert block-type params to per-stage list for hierarchical display
                 stage_list = self.granularity_handler.build_stage_list_for_block_type(
                     raw, sampled, arch, block_type_params
                 )
@@ -393,15 +412,76 @@ class SearchSpaceSampler:
                 return
 
         skip_instance_layer = getattr(node, "skip_instance_layer", False)
+        # Instance-level granularity inheritance (supports "$var" indirection)
+        raw_instance_granularity = getattr(node, "granularity", None)
+        instance_granularity = None
+        if raw_instance_granularity is not None:
+            ctx = self._get_eval_context(sampled)
+            try:
+                instance_granularity = self.evaluator.resolve_dynamic_value(raw_instance_granularity, ctx)
+            except Exception:
+                instance_granularity = raw_instance_granularity
 
         if skip_instance_layer:
-            sub_out = self._process_instance_content(trial, node, sampled, prefix, hierarchical_tree)
+            sub_out = self._process_instance_content(
+                trial, node, sampled, prefix, hierarchical_tree, instance_granularity
+            )
             out.update(sub_out)
         else:
             instance_tree = {} if hierarchical_tree is not None else None
-            sub_out = self._process_instance_content(trial, node, sampled, prefix, instance_tree)
+            sub_out = self._process_instance_content(trial, node, sampled, prefix, instance_tree, instance_granularity)
             out.update(sub_out)
             if hierarchical_tree is not None and instance_tree:
+                # Normalize hierarchical form for non-global granularities
+                try:
+                    if isinstance(instance_granularity, str) and isinstance(instance_tree, dict):
+                        if instance_granularity == GranularityLevel.STAGE.value:
+                            all_lists = [v for v in instance_tree.values() if isinstance(v, list)]
+                            if all_lists and all(len(v) == self.num_stages for v in all_lists):
+                                merged: List[Dict[str, Any]] = []
+                                for i in range(self.num_stages):
+                                    item: Dict[str, Any] = {}
+                                    for field_name, values in instance_tree.items():
+                                        if isinstance(values, list) and len(values) == self.num_stages:
+                                            val = values[i]
+                                            if val is not None:
+                                                item[field_name] = val
+                                    merged.append(item)
+                                if key in hierarchical_tree:
+                                    raise ValueError(f"Hierarchical parameter conflict: key '{key}' already exists.")
+                                hierarchical_tree[key] = merged
+                                return
+                        elif instance_granularity == GranularityLevel.BLOCK_STAGE.value:
+                            # Build per-stage items by reading the 'hierarchical' lists produced earlier
+                            items_by_stage: List[Dict[str, Any]] = [dict() for _ in range(self.num_stages)]
+                            for field_name, values in instance_tree.items():
+                                if isinstance(values, list) and len(values) == self.num_stages:
+                                    for i, v in enumerate(values):
+                                        if v is not None:
+                                            items_by_stage[i][field_name] = v
+                            if key in hierarchical_tree:
+                                raise ValueError(f"Hierarchical parameter conflict: key '{key}' already exists.")
+                            hierarchical_tree[key] = items_by_stage
+                            return
+                        elif instance_granularity == GranularityLevel.BLOCK_TYPE.value:
+                            # Convert dict-of-stage-lists to list-of-dicts
+                            all_lists = [v for v in instance_tree.values() if isinstance(v, list)]
+                            if all_lists and all(len(v) == self.num_stages for v in all_lists):
+                                merged_bt: List[Dict[str, Any]] = []
+                                for i in range(self.num_stages):
+                                    item: Dict[str, Any] = {}
+                                    for field_name, values in instance_tree.items():
+                                        if isinstance(values, list) and len(values) == self.num_stages:
+                                            val = values[i]
+                                            if val is not None:
+                                                item[field_name] = val
+                                    merged_bt.append(item)
+                                if key in hierarchical_tree:
+                                    raise ValueError(f"Hierarchical parameter conflict: key '{key}' already exists.")
+                                hierarchical_tree[key] = merged_bt
+                                return
+                except Exception:
+                    pass
                 if key in hierarchical_tree:
                     raise ValueError(f"Hierarchical parameter conflict: key '{key}' already exists.")
                 hierarchical_tree[key] = instance_tree
@@ -413,6 +493,7 @@ class SearchSpaceSampler:
         sampled: Dict[str, Any],
         prefix: str,
         hierarchical_tree: Optional[Dict[str, Any]],
+        inherited_granularity: Optional[str] = None,
     ) -> Dict[str, Any]:
         out = {}
         # Iterate over the ordered children (params) provided by the DependencyManager.
@@ -421,7 +502,7 @@ class SearchSpaceSampler:
             child_class = parse_config_class(child_node["class"])
 
             if child_class == ConfigClass.PARAM.value:
-                self._process_param_node(trial, child_node, key, sampled, hierarchical_tree, out)
+                self._process_param_node(trial, child_node, key, sampled, hierarchical_tree, out, inherited_granularity)
             else:
                 raise ValueError(f"Only param nodes are allowed at instance level, not {child_class} for {key}")
         return out

@@ -21,7 +21,7 @@ strategies for optimizer/scheduler/ema/grad_clip/loader.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Set
 from .group_utils import parse_groups_with_policy, CategoryPolicy
 from .mode_handlers import get_mode_handler
 
@@ -83,6 +83,58 @@ def _resolve_paths(cfg: Dict[str, Any]) -> Dict[str, Optional[str]]:
         "images_dir": data_cfg.get("images_dir"),
     }
     return out
+
+
+def _resolve_loader(cfg: Dict[str, Any], sampled: Dict[str, Any], policies: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Resolve loader via default path, then inject loader_settings into instance params.
+
+    - Reuses _resolve_default for grouped validation and mode handling.
+    - Injects `task_configs.data.loader_settings` into each instance params.
+    - Fast-fails on overlapping keys.
+    """
+    # First, resolve using the default pipeline mechanism
+    base_groups = _resolve_default("loader", cfg, sampled, policies)
+
+    # Retrieve loader settings with override semantics:
+    # base from cfg.data.loader_settings, then updated by task_configs.data.loader_settings
+    base_settings = _get(cfg, "data.loader_settings", {}) or {}
+    if not isinstance(base_settings, dict):
+        base_settings = {}
+    override_settings = _get(cfg, "task_configs.data.loader_settings", {}) or {}
+    if not isinstance(override_settings, dict):
+        override_settings = {}
+    settings = {**base_settings, **override_settings}
+
+    # Merge settings into each group's instances and collapse into a single canonical instance
+    merged_groups: List[Dict[str, Any]] = []
+    for rendered in base_groups:
+        if isinstance(rendered, dict) and isinstance(rendered.get("instances"), dict):
+            accumulated_params: Dict[str, Any] = {}
+            for inst_name, params in rendered["instances"].items():
+                if not isinstance(params, dict):
+                    raise ValueError("loader instance params must be a dict after rendering")
+                # Flatten scalar wrapper: {"value": v} -> {inst_name: v}
+                if set(params.keys()) == {"value"}:
+                    params = {inst_name: params["value"]}
+                # Merge this instance's params into accumulated param dict
+                dup = set(accumulated_params.keys()) & set(params.keys())
+                if dup:
+                    raise ValueError(f"Duplicate loader param keys across instances: {sorted(dup)}")
+                accumulated_params.update(params)
+
+            # Merge loader_settings; error on overlap
+            overlap: Set[str] = set(accumulated_params.keys()) & set(settings.keys())
+            if overlap:
+                raise ValueError(f"Conflicting keys between loader params and data.loader_settings: {sorted(overlap)}")
+            final_params = {**accumulated_params, **settings} if settings else dict(accumulated_params)
+
+            new_group = dict(rendered)
+            new_group["instances"] = {"batch_configuration": final_params}
+            merged_groups.append(new_group)
+        else:
+            merged_groups.append(rendered)
+
+    return merged_groups
 
 
 def _merge_wandb(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
