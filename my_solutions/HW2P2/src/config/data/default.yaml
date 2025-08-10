@@ -1,10 +1,15 @@
-# Data paths and settings configuration
+# Data paths and loader runtime settings (non-search)
 # @package data
 
-# Data directories
-data_dir: "./data/cls_data"      # Classification data directory
-data_ver_dir: "./data/ver_data"  # Verification data directory
+# Paths are task-specific. Keep placeholders here; real values should come from task_configs.<task>.yaml
+paths:
+  train_dir: null      # e.g., "data/cls_data/train"
+  val_dir: null        # e.g., "data/cls_data/dev"
+  train_pairs: null    # optional, for verification pairing lists
+  val_pairs: null      # optional, for verification pairing lists
+  images_dir: null     # optional, common image root if pairs are used
 
-# Data loading settings
-num_workers: 4       # Number of data loading workers
-pin_memory: true     # Whether to use pinned memory
+# Loader runtime settings (not searched). Can be overridden in task_configs.<task>.yaml
+loader_settings:
+  num_workers: 4
+  pin_memory: true

@@ -26,9 +26,10 @@ strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
 # Policy: required for unified grouped output parsing/validation
 policy:
-  allowed_multi_modes: ["random_choice"]
+  allowed_multi_modes: []
   require_selection_when_multi: true
-  
+  # Here is actually a dummy policy, because architectures is processed alone, without using the pipeline resolver.
+  # But we still need to define it, to keep the validation simple (no hard-coded whitelist)
 
 # Architecture selection technique (actual hyperparameter search)
 # architecture_type is exported globally with no prefix so that other strategies
@@ -70,13 +71,14 @@ num_stages_selection:
     description: "Number of stages for architecture"
 
 # =============================================================================
-# ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS
+# ARCHITECTURE-AWARE ACTIVATION & NORMALIZATION PARAMETERS (UNIFIED INSTANCE)
 # =============================================================================
-# Activation configuration (architecture-aware)
+
+# Activation configuration (architecture-aware) - unified instance with instance-level granularity
 activation_params:
   class: "technique"
   depends_on: ["architecture_selection", "num_stages_selection", "block_type_params"]
-  
+
   selection:
     class: "param"
     param_name: "activation_granularity"
@@ -88,102 +90,26 @@ activation_params:
       comprehensive: ["global", "block_type", "stage"]
       custom: ["global", "block_type", "stage", "block_stage"]
     description: "Granularity level for activation function control"
-  
-  # Global activation instance
-  global_activation:
-    class: "instance"
-    condition: "$activation_granularity == 'global'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    activation:
-      class: "param"
-      param_name: "global_activation"
-      granularity: "global"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity"]  # Depends on granularity selection, block_type and number of stages
-      choices:
-        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-      description: "Global activation function for entire network"
-  
-  # Block-type specific activation instance
-  block_type_activation:
-    class: "instance"
-    condition: "$activation_granularity == 'block_type'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    activation:
-      class: "param"
-      param_name: "block_type_activation"
-      granularity: "block_type"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity", "block_type_granularity"]  # Depends on activation granularity, block_type granularity and either block_type OR block_type
-      choices:
-        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-      description: "Block-type specific activation function (generates one param per unique block_type)"
-  
-  # Stage-specific activation instance
-  stage_activation:
-    class: "instance"
-    condition: "$activation_granularity == 'stage'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    activation:
-      class: "param"
-      param_name: "stage_activation"
-      granularity: "stage"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity"]  # Depends on activation granularity and stage-specific block_type
-      choices:
-        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-      description: "Stage-specific activation function"
-  
-  # Block-stage activation instance
-  block_stage_activation:
-    class: "instance"
-    condition: "$activation_granularity == 'block_stage'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    activation:
-      class: "param"
-      param_name: "block_stage_activation"
-      granularity: "block_stage"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity"]
-      choices:
-        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-      description: "Block-stage specific activation function"
-  
-  # Stem activation instance (active when granularity != global)
-  stem_activation:
-    class: "instance"
-    condition: "$activation_granularity != 'global'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    activation:
-      class: "param"
-      param_name: "stem_activation"
-      granularity: "stem"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["activation_granularity"]  # Depends on activation granularity (stem doesn't depend on block_type)
-      choices:
-        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
-        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
-      description: "Stem-specific activation function (active when granularity != global)"
 
-# Normalization configuration (architecture-aware)
+  activation:
+    class: "instance"
+    granularity: "$activation_granularity"
+
+    activation:
+      class: "param"
+      param_name: "activation"
+      type: "categorical"
+      dependency_order: ["architecture_type"]
+      choices:
+        resnet: ["relu", "gelu", "swish", "leaky_relu", "elu", "mish"]
+        convnext: ["gelu", "relu", "swish", "silu", "leaky_relu", "elu", "mish"]
+      description: "Activation function with unified granularity"
+
+# Normalization configuration (architecture-aware) - unified instance with instance-level granularity
 normalization_params:
   class: "technique"
   depends_on: ["architecture_selection", "num_stages_selection", "block_type_params"]
-  
+
   selection:
     class: "param"
     param_name: "norm_granularity"
@@ -195,96 +121,29 @@ normalization_params:
       comprehensive: ["global", "block_type", "stage"]
       custom: ["global", "block_type", "stage", "block_stage"]
     description: "Granularity level for normalization method control"
-  
-  # Global normalization instance
-  global_normalization:
+
+  normalization:
     class: "instance"
-    condition: "$norm_granularity == 'global'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
+    granularity: "$norm_granularity"
+
     normalization:
       class: "param"
-      param_name: "global_normalization"
-      granularity: "global"
+      param_name: "normalization"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity"]  # Depends on normalization granularity, block_type and stages
       choices:
         resnet: ["batch_norm", "group_norm", "layer_norm"]
         convnext: ["layer_norm", "batch_norm", "group_norm"]
-      description: "Global normalization method for entire network"
-  
-  # Block-type specific normalization instance
-  block_type_normalization:
-    class: "instance"
-    condition: "$norm_granularity == 'block_type'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    normalization:
+      description: "Normalization method with unified granularity"
+
+    num_groups:
       class: "param"
-      param_name: "block_type_normalization"
-      granularity: "block_type"
+      param_name: "num_groups"
       type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "block_type_granularity"]  # Depends on normalization granularity, block_type granularity and either block_type OR block_type
-      choices:
-        resnet: ["batch_norm", "group_norm", "layer_norm"]
-        convnext: ["layer_norm", "batch_norm", "group_norm"]
-      description: "Block-type specific normalization method"
-  
-  # Stage-specific normalization instance
-  stage_normalization:
-    class: "instance"
-    condition: "$norm_granularity == 'stage'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    normalization:
-      class: "param"
-      param_name: "stage_normalization"
-      granularity: "stage"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "stage_activation"]
-      choices:
-        resnet: ["batch_norm", "group_norm", "layer_norm"]
-        convnext: ["layer_norm", "batch_norm", "group_norm"]
-      description: "Stage-specific normalization method"
-  
-  # Block-stage normalization instance
-  block_stage_normalization:
-    class: "instance"
-    condition: "$norm_granularity == 'block_stage'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    normalization:
-      class: "param"
-      param_name: "block_stage_normalization"
-      granularity: "block_stage"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity"]
-      choices:
-        resnet: ["batch_norm", "group_norm", "layer_norm"]
-        convnext: ["layer_norm", "batch_norm", "group_norm"]
-      description: "Block-stage specific normalization method"
-  
-  # Stem normalization instance (active when granularity != global)
-  stem_normalization:
-    class: "instance"
-    condition: "$norm_granularity != 'global'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    normalization:
-      class: "param"
-      param_name: "stem_normalization"
-      granularity: "stem"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["norm_granularity", "stem_activation"]  # Depends on normalization granularity and stem activation
-      choices:
-        resnet: ["batch_norm", "group_norm", "layer_norm"]
-        convnext: ["layer_norm", "batch_norm", "group_norm"]
-      description: "Stem-specific normalization method (active when granularity != global)"
+      choices: [4,8,16,32]
+      condition: "$normalization == 'group_norm'"
+      description: "Number of groups for GroupNorm (active only when normalization == group_norm)"
+      depends_on: ["normalization"]
 
 # =============================================================================
 # BLOCK TYPE CONFIGURATION (ARCHITECTURE-AWARE WITH GRANULARITY)
@@ -292,8 +151,7 @@ normalization_params:
 block_type_params:
   class: "technique"
   depends_on: ["architecture_selection", "num_stages_selection"]
-  
-  # Block type granularity selection
+
   selection:
     class: "param"
     param_name: "block_type_granularity"
@@ -305,42 +163,20 @@ block_type_params:
       comprehensive: ["global", "stage"]
       custom: ["global", "stage"]
     description: "Granularity level for block type control"
-  
-  # Global block type (same for all stages)
-  global_block_type:
+
+  block_type:
     class: "instance"
-    condition: "$block_type_granularity == 'global'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
+    granularity: "$block_type_granularity"
+
     block_type:
       class: "param"
-      param_name: "global_block_type_selection"
-      granularity: "global"
+      param_name: "block_type"
       type: "categorical"
       dependency_order: ["architecture_type"]
-      depends_on: ["block_type_granularity"]  # Depends on block type granularity selection
       choices:
         resnet: ["basic", "bottleneck"]
         convnext: ["inverted_bottleneck"]
-      description: "Global block type for entire network"
-  
-  # Stage-specific block type
-  stage_block_type:
-    class: "instance"
-    condition: "$block_type_granularity == 'stage'"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    block_type:
-      class: "param"
-      param_name: "stage_block_type_selection"
-      granularity: "stage"
-      type: "categorical"
-      dependency_order: ["architecture_type"]
-      depends_on: ["block_type_granularity"]  # Depends on block type granularity selection
-      choices:
-        resnet: ["basic", "bottleneck"]
-        convnext: ["inverted_bottleneck"]
-      description: "Stage-specific block type (different for each stage)"
+      description: "Block type with unified granularity (global or stage)"
 
 # =============================================================================
 # ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)

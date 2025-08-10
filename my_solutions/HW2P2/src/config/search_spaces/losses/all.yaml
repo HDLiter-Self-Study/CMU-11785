@@ -23,7 +23,7 @@ strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
 
 # Policy: losses support sum/weighted_sum in addition to random_choice
 policy:
-  allowed_multi_modes: ["random_choice", "sum", "weighted_sum"]
+  allowed_multi_modes: []
   require_selection_when_multi: true
   
 
