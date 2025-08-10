@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+description: Require textual explanation for every code edit
+---
+### Edit explanation requirements
+
+- Every code change must be accompanied by a concise textual explanation clarifying the purpose and impact.
+- Keep explanations short but high-signal, and include:
+  - Motivation and background (why the change is needed).
+  - Scope of change (affected files/modules/interfaces).
+  - Behavioral impact and potential risks (compatibility/performance/security).
+  - Validation and testing plan (how to demonstrate correctness without regressions).
+- Even for small, mechanical edits (spelling, formatting, single-line bug fixes), provide at least one sentence of explanation.
+- If potential issues or risks are identified while executing an instruction, follow `confirm-on-concerns.mdc`: pause, provide analysis, and wait for secondary confirmation before continuing.
+- Use Chinese for user-facing communication per `chinese-communication.mdc`, while code comments/docstrings remain in English per `docstrings-style.mdc`.

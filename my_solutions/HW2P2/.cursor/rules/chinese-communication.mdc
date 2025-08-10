@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+description: Communicate with the user in Chinese while keeping code comments/docstrings in English
+---
+### Communication language
+
+- All interactions with the user (explanations, plans, status updates, summaries, analysis) must be in Chinese by default.
+- Code comments and docstrings must remain in English, following `docstrings-style.mdc` (timeless and new-developer oriented).
+- Follow existing Markdown/formatting conventions: use code blocks and lists only when necessary; wrap file/directory/function names with backticks.
