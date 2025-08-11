@@ -223,12 +223,6 @@ def _normalize_architectures(sampled: Dict[str, Any]) -> Dict[str, Any]:
                 else:
                     out["extras"][k] = v
             continue
-        if selection == "regnet_rule":
-            if "regnet_rule" in instances and isinstance(instances["regnet_rule"], dict):
-                out["regnet_rule"] = instances["regnet_rule"]
-            else:
-                out["extras"].update(instances)
-            continue
 
         # Selection is None or other: route by instance key
         for k, v in instances.items():
@@ -236,10 +230,12 @@ def _normalize_architectures(sampled: Dict[str, Any]) -> Dict[str, Any]:
                 out.setdefault("stem", {}).update(v)
             elif k.endswith("_block") and isinstance(v, dict):
                 out.setdefault("blocks", {})[k] = v
+            elif k == "regnet_rule" and isinstance(v, dict):
+                # Allow routing regnet_rule regardless of selection label
+                out["regnet_rule"] = v
             elif k == "block_type":
                 out["block_type"] = v
             elif k in {
-                "width_multiplier",
                 "projection_type",
                 "stochastic_depth_prob",
                 "conv_drop_prob",
@@ -253,15 +249,17 @@ def _normalize_architectures(sampled: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 out["extras"][k] = v
 
-    # Expand string-valued fields to per-stage lists when needed
-    num_stages = out.get("num_stages")
-    if isinstance(num_stages, int) and num_stages > 0:
-        for key in ("activation", "normalization", "block_type"):
-            val = out.get(key)
-            if isinstance(val, str):
-                out[key] = [val] * num_stages
-            elif isinstance(val, list) and len(val) != num_stages:
-                raise ValueError(f"architectures.{key} list length {len(val)} != num_stages {num_stages}")
+            # Expand string-valued fields to per-stage lists when needed
+        num_stages = out.get("num_stages")
+        if isinstance(num_stages, int) and num_stages > 0:
+            for key in ("activation", "normalization", "block_type"):
+                val = out.get(key)
+                if isinstance(val, str):
+                    out[key] = [val] * num_stages
+                elif isinstance(val, list) and len(val) != num_stages:
+                    raise ValueError(f"architectures.{key} list length {len(val)} != num_stages {num_stages}")
+
+        # Note: width_multiplier is now handled within regnet_rule and extracted by StagePlanner
 
     # Final cleanup: drop empty fields
     cleaned = {k: v for k, v in out.items() if v not in (None, {}, [])}

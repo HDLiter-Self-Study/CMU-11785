@@ -554,6 +554,11 @@ class SearchSpaceSampler:
         missing_keys = self.PARAM_TYPE_REQUIREMENTS.get(param_type, set()) - kwargs.keys()
         if missing_keys:
             raise ValueError(f"{param_name} missing required key(s): {missing_keys}")
+
+        # Auto-fix range constraints if enabled
+        if param_type in {"int", "float"} and "low" in kwargs and "high" in kwargs:
+            kwargs = self._auto_fix_range_constraints(param_config, param_name, kwargs, sampled_params)
+
         return kwargs
 
     def _resolve_param_value(
@@ -582,6 +587,48 @@ class SearchSpaceSampler:
         if not choices:
             raise ValueError(f"No valid choices for {param_name}")
         return choices
+
+    def _auto_fix_range_constraints(
+        self, param_config: DictConfig, param_name: str, kwargs: Dict[str, Any], sampled_params: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Automatically fix range constraints to ensure low <= high.
+
+        This method handles cases where dynamic expressions might result in invalid ranges.
+        It respects the auto_fix_range flag in the parameter configuration.
+
+        Args:
+            param_config: Parameter configuration containing auto_fix_range flag
+            param_name: Name of the parameter for logging
+            kwargs: Dictionary containing low and high values
+
+        Returns:
+            Updated kwargs with fixed range constraints
+        """
+        auto_fix = getattr(param_config, "auto_fix_range", False)
+        if not auto_fix:
+            return kwargs
+
+        low_val = kwargs["low"]
+        high_val = kwargs["high"]
+
+        # Check if range is valid
+        if low_val <= high_val:
+            return kwargs
+
+        # Log the fix for debugging
+        arch_shape = sampled_params.get("arch_shape")
+        num_stages = sampled_params.get("num_stages")
+        regnet_initial_width = sampled_params.get("regnet_initial_width")
+        self._log(
+            f"Auto-fixing range for {param_name}: low={low_val}, high={high_val}, arch_shape={arch_shape}, num_stages={num_stages}, regnet_initial_width={regnet_initial_width}"
+        )
+
+        # Swap low and high
+        kwargs["low"] = high_val
+        kwargs["high"] = low_val
+
+        return kwargs
 
     def _is_dict_like(self, value: Any) -> bool:
         return isinstance(value, dict) or hasattr(value, "keys")

@@ -10,6 +10,7 @@ the current trial params as variables.
 """
 
 from typing import Dict, Any
+import math
 
 
 class SafeEvaluator:
@@ -32,6 +33,9 @@ class SafeEvaluator:
         "list": list,
         "dict": dict,
         "abs": abs,
+        # Add math functions for proper rounding in dynamic range calculations
+        "ceil": math.ceil,
+        "floor": math.floor,
     }
 
     @classmethod
