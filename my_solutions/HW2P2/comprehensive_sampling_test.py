@@ -20,7 +20,9 @@ from collections import defaultdict
 import argparse
 
 
-def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_file=None, categories=None, silent=False):
+def test_granularity_sampling(
+    strategy_overrides=None, num_samples=5, output_file=None, silent=False, task="classification"
+):
     """
     测试不同粒度级别的参数采样
 
@@ -28,7 +30,6 @@ def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_fil
         strategy_overrides: Hydra override列表，用于强制特定strategy
         num_samples: 采样次数
         output_file: 输出文件名
-        categories: 要采样的搜索空间类别列表，None表示采样所有类别
         silent: If True, suppress all log output from the sampler.
     """
     if not silent:
@@ -48,12 +49,11 @@ def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_fil
         if not silent:
             print("✅ 采样器创建成功")
 
-        # 确定要采样的类别
-        if categories is None:
-            categories = sampler.search_space_categories
+        # 注入 task 到全局上下文，供 condition 使用
+        sampler.globals["task"] = task
 
         if not silent:
-            print(f"📊 将采样的搜索空间类别: {categories}")
+            print(f"📊 将采样的搜索空间类别: {sampler.search_space_categories}")
 
     except Exception as e:
         print(f"❌ 采样器创建失败: {e}")
@@ -65,7 +65,7 @@ def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_fil
             "timestamp": datetime.now().isoformat(),
             "num_samples": num_samples,
             "strategy_overrides": strategy_overrides or [],
-            "sampled_categories": categories,
+            "sampled_categories": sampler.search_space_categories,
             "test_type": "comprehensive_granularity_sampling",
         },
         "samples": [],
@@ -86,7 +86,7 @@ def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_fil
             trial = study.ask()
 
             # 进行采样
-            result = sampler.sample_all_params(trial, categories)
+            result = sampler.sample_all_params(trial)
             flat_params = result["flat"]
             hierarchical_params = result["hierarchical"]
 
@@ -224,7 +224,7 @@ def test_granularity_sampling(strategy_overrides=None, num_samples=5, output_fil
     return results
 
 
-def test_forced_scenarios(silent=False):
+def test_forced_scenarios(silent=False, task="classification"):
     """测试强制场景"""
     if not silent:
         print("\n\n🎯 强制场景测试")
@@ -237,6 +237,22 @@ def test_forced_scenarios(silent=False):
             "overrides": [
                 "++search_spaces.architectures.strategy_level=custom",
                 "+search_spaces.architectures.activation_params.selection.choices.custom=[block_stage]",
+            ],
+            "samples": 3,
+        },
+        {
+            "name": "强制Block_Stage归一化",
+            "overrides": [
+                "++search_spaces.architectures.strategy_level=custom",
+                "+search_spaces.architectures.normalization_params.selection.choices.custom=[block_stage]",
+            ],
+            "samples": 3,
+        },
+        {
+            "name": "强制Block_Type归一化",
+            "overrides": [
+                "++search_spaces.architectures.strategy_level=custom",
+                "+search_spaces.architectures.normalization_params.selection.choices.custom=[block_type]",
             ],
             "samples": 3,
         },
@@ -278,6 +294,7 @@ def test_forced_scenarios(silent=False):
             num_samples=scenario["samples"],
             output_file=f"scenario_{scenario['name'].replace(' ', '_').lower()}.json",
             silent=silent,  # Pass silent flag down
+            task=task,
         )
 
         if result:
@@ -301,11 +318,13 @@ def main():
     parser.add_argument("--basic-only", action="store_true", help="只运行基础随机采样")
     parser.add_argument("--silent", action="store_true", help="Run in silent mode with no log output")
     parser.add_argument(
-        "--categories",
-        nargs="+",
-        help="指定要采样的搜索空间类别 (默认: 所有类别)",
-        choices=["architectures", "training", "losses", "augmentation", "data_sampling", "label_mixing"],
+        "--task",
+        type=str,
+        default="classification",
+        choices=["classification", "verification_finetune"],
+        help="全局任务类型，注入到sampler.globals 用于条件判断",
     )
+    # categories 参数已移除，始终全量采样
 
     args = parser.parse_args()
 
@@ -321,13 +340,13 @@ def main():
             strategy_overrides=args.override,
             num_samples=args.samples,
             output_file=args.output,
-            categories=args.categories,
             silent=args.silent,
+            task=args.task,
         )
 
     # 强制场景测试
     if args.scenarios and not args.basic_only:
-        scenario_results = test_forced_scenarios(silent=args.silent)
+        scenario_results = test_forced_scenarios(silent=args.silent, task=args.task)
 
         # 保存所有场景结果的汇总
         summary_file = "all_scenarios_summary.json"
