@@ -179,102 +179,137 @@ block_type_params:
       description: "Block type with unified granularity (global or stage)"
 
 # =============================================================================
-# ARCHITECTURE DEPTH GENERATION METHODS (DYNAMIC ARCHITECTURE-AWARE)
+# ARCHITECTURE SHAPE SELECTION (unified width + regnet params)
 # =============================================================================
-depth_generation:
+shape_search:
   class: "technique"
   depends_on: ["architecture_selection", "num_stages_selection"]
 
-  # Unified depth generation method selection
   selection:
     class: "param"
-    param_name: "depth_generation_method"
+    param_name: "arch_shape"
     type: "categorical"
+    arch_irrelevant: true
+    export_to_global: true
     dependency_order: ["strategy_level"]
     choices:
-      basic: ["regnet_rule"]
-      robust: ["regnet_rule"] 
-      comprehensive: ["regnet_rule"] 
-      custom: ["regnet_rule"]
-    description: "Method for generating architecture depth configuration"
+      basic: ["balanced"]
+      robust: ["balanced", "wide_shallow", "narrow_deep"]
+      comprehensive: ["balanced", "wide_shallow", "narrow_deep"]
+      custom: ["balanced", "wide_shallow", "narrow_deep"]
+    description: "Shape family driving width & RegNet parameter ranges"
+
 
   # RegNet-based depth generation (architecture-aware parameters)
   # See <https://arxiv.org/abs/2101.00590> for details
   # The number of stages is sampled in upper level because it is needed by other parameters
   regnet_rule:
     class: "instance"
-    condition: "$depth_generation_method == 'regnet_rule'"
 
     width_slope:
       class: "param"
       param_name: "regnet_width_slope"
       type: "float"
-      low: 1.5 
-      high: 4.0
-      description: "Width multiplier between stages"
+      dependency_order: ["num_stages"]
+      low:
+        3: 1.8
+        4: 1.6
+        5: 1.4
+      high:
+        3: 2.2
+        4: 2.0
+        5: 1.8
 
     initial_width:
       class: "param"
       param_name: "regnet_initial_width"
       type: "categorical"
-      choices: [16, 24, 32, 48, 64]
-      description: "Initial width for depth calculation"
+      choices: [32,48,64]
+
+    # Width multiplier with stage-specific dynamic ranges to prevent extreme combinations
+    # This ensures the product (initial_width × width_multiplier) stays within reasonable bounds
+    # Using int type with dynamic low/high for Optuna compatibility
+    width_multiplier:
+      class: "param"
+      param_name: "regnet_width_multiplier"
+      type: "int"
+      dependency_order: ["num_stages", "arch_shape"]
+      depends_on: ["regnet_initial_width"]
+      auto_fix_range: true
+      # Stage-specific ranges: tighter control for higher num_stages to keep models ≤18M
+      # Logic: as num_stages increases, both low and high should decrease to control model size
+      # Carefully arrange the ranges to avoid low > high, we have auto_fix_range to fix it, but it'll produce results away from your intention
+      low:
+        3:
+          wide_shallow: "$max(1, ceil(128 / regnet_initial_width))"    
+          balanced: "$max(1, ceil(96 / regnet_initial_width))"         
+          narrow_deep: "$max(1, ceil(64 / regnet_initial_width))"     
+        4:
+          wide_shallow: "$max(1, ceil(112 / regnet_initial_width))"    
+          balanced: "$max(1, ceil(80 / regnet_initial_width))"         
+          narrow_deep: "$max(1, ceil(48 / regnet_initial_width))"     
+        5:
+          wide_shallow: "$max(1, ceil(96 / regnet_initial_width))"     
+          balanced: "$max(1, ceil(64 / regnet_initial_width))"         
+          narrow_deep: "$max(1, ceil(32 / regnet_initial_width))"     
+      high:
+        3:
+          wide_shallow: "$min(4, floor(192 / regnet_initial_width))"   
+          balanced: "$min(4, floor(144 / regnet_initial_width))"       
+          narrow_deep: "$min(3, floor(128 / regnet_initial_width))"    
+        4:
+          wide_shallow: "$min(4, floor(160 / regnet_initial_width))"   
+          balanced: "$min(3, floor(128 / regnet_initial_width))"       
+          narrow_deep: "$min(3, floor(96 / regnet_initial_width))"     
+        5:
+          wide_shallow: "$min(3, floor(128 / regnet_initial_width))"   
+          balanced: "$min(2, floor(96 / regnet_initial_width))"        
+          narrow_deep: "$min(2, floor(72 / regnet_initial_width))"     
 
     depth_slope:
       class: "param"
       param_name: "regnet_depth_slope"
       type: "float"
-      low: 0.005
-      high: 0.08
-      description: "Depth generation slope"
+      dependency_order: ["arch_shape"]
+      low:
+        balanced: 0.40
+        wide_shallow: 0.20
+        narrow_deep: 0.55
+      high:
+        balanced: 0.60
+        wide_shallow: 0.35
+        narrow_deep: 0.80
 
     depth_bias:
       class: "param"
       param_name: "regnet_depth_bias"
       type: "float"
-      low: -0.5
-      high: 2.5
-      description: "Depth generation bias"
+      dependency_order: ["arch_shape"]
+      low:
+        balanced: 2.5
+        wide_shallow: 2.2
+        narrow_deep: 2.6
+      high:
+        balanced: 3.2
+        wide_shallow: 2.8
+        narrow_deep: 3.6
 
-    # Architecture-aware stage depth limits
+    # Stage depth limits
     min_stage_depth:
       class: "param"
       param_name: "regnet_min_stage_depth"
       type: "categorical"
-      dependency_order: ["architecture_type"]
-      choices:
-        resnet: [1]
-        convnext: [1]
-      description: "Minimum depth per stage (typically 1 for all architectures)"
+      choices: [2]
 
     max_stage_depth:
       class: "param"
       param_name: "regnet_max_stage_depth"
       type: "categorical"
-      dependency_order: ["architecture_type"]
+      dependency_order: ["num_stages"]
       choices:
-        resnet: [12]
-        convnext: [12]
-      description: "Maximum depth per stage (architecture-dependent)"
-
-# =============================================================================
-# GLOBAL ARCHITECTURE SHAPE PARAMETERS (UPPER LEVEL)
-# =============================================================================
-global_architecture_params:
-  class: "technique"
-  depends_on: ["architecture_selection", "num_stages_selection"]
-  
-  # Width multiplier (Wide ResNet style - affects all architectures)
-  width_multiplier:
-    class: "instance"
-    skip_instance_layer: true  # Skip intance level when creating hierachy dict for better format
-    
-    width_multiplier:
-      class: "param"
-      param_name: "width_multiplier"
-      type: "categorical"
-      choices: [1, 2, 3, 4, 6, 8, 10, 12, 16, 20]
-      description: "Global width multiplier for all channels (Wide ResNet style)"
+        3: [8, 10]
+        4: [8, 10]
+        5: [6, 8]
 
 
   

@@ -131,7 +131,7 @@ verification_heads:
       class: "param"
       param_name: "ver_head_hidden_dims"
       type: "categorical"
-      choices: [[], [512], [1024], [512, 256]]
+      choices: ["[]", "[512]", "[1024]", "[512, 256]"]
     activation:
       class: "param"
       param_name: "ver_head_activation"
@@ -157,7 +157,7 @@ verification_heads:
       class: "param"
       param_name: "ver_head_similarity_layers"
       type: "categorical"
-      choices: [[256], [512], [256, 128], [512, 256]]
+      choices: ["[256]", "[512]", "[256, 128]", "[512, 256]"]
     similarity_activation:
       class: "param"
       param_name: "ver_head_similarity_activation"
@@ -173,7 +173,7 @@ verification_heads:
       class: "param"
       param_name: "ver_head_hidden_dims"
       type: "categorical"
-      choices: [[], [512], [1024], [512, 256]]
+      choices: ["[]", "[512]", "[1024]", "[512, 256]"]
     activation:
       class: "param"
       param_name: "ver_head_activation"
@@ -220,7 +220,7 @@ verification_heads:
       class: "param"
       param_name: "ver_head_hidden_dims"
       type: "categorical"
-      choices: [[], [512], [1024], [512, 256]]
+      choices: ["[]", "[512]", "[1024]", "[512, 256]"]
     activation:
       class: "param"
       param_name: "ver_head_activation"
