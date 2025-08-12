@@ -210,21 +210,53 @@ shape_search:
       class: "param"
       param_name: "regnet_width_slope"
       type: "float"
-      dependency_order: ["num_stages"]
+      dependency_order: ["num_stages", "arch_shape"]
       low:
-        3: 1.8
-        4: 1.6
-        5: 1.4
+        3:
+          balanced: 1.8
+          wide_shallow: 1.8
+          narrow_deep: 1.9
+        4:
+          balanced: 1.4
+          wide_shallow: 1.6
+          narrow_deep: 1.6
+        5:
+          balanced: 1.3
+          wide_shallow: 1.4
+          narrow_deep: 1.5
       high:
-        3: 2.2
-        4: 2.0
-        5: 1.8
+        3:
+          balanced: 2.1
+          wide_shallow: 2.2
+          narrow_deep: 2.3
+        4:
+          balanced: 1.8
+          wide_shallow: 1.8
+          narrow_deep: 2.0
+        5:
+          balanced: 1.6
+          wide_shallow: 1.6
+          narrow_deep: 1.9
 
     initial_width:
       class: "param"
       param_name: "regnet_initial_width"
       type: "categorical"
-      choices: [32,48,64]
+      # Constrain initial width by num_stages and shape to curb wide_shallow extremes (ns=4)
+      dependency_order: ["num_stages", "arch_shape"]
+      choices:
+        3:
+          balanced: [48, 64]
+          wide_shallow: [48, 64]
+          narrow_deep: [48, 64]
+        4:
+          balanced: [32, 48]
+          wide_shallow: [32]
+          narrow_deep: [32]
+        5:
+          balanced: [32]
+          wide_shallow: [32]
+          narrow_deep: [32, 48]
 
     # Width multiplier with stage-specific dynamic ranges to prevent extreme combinations
     # This ensures the product (initial_width × width_multiplier) stays within reasonable bounds
@@ -236,35 +268,59 @@ shape_search:
       dependency_order: ["num_stages", "arch_shape"]
       depends_on: ["regnet_initial_width"]
       auto_fix_range: true
-      # Stage-specific ranges: tighter control for higher num_stages to keep models ≤18M
+      # Stage- & shape-specific ranges: tighter control for higher num_stages to keep models ≤18M
       # Logic: as num_stages increases, both low and high should decrease to control model size
-      # Carefully arrange the ranges to avoid low > high, we have auto_fix_range to fix it, but it'll produce results away from your intention
+      # Keep ranges consistent with target width ceilings per shape, auto_fix_range works as a safety net only
       low:
         3:
-          wide_shallow: "$max(1, ceil(128 / regnet_initial_width))"    
-          balanced: "$max(1, ceil(96 / regnet_initial_width))"         
-          narrow_deep: "$max(1, ceil(64 / regnet_initial_width))"     
+          wide_shallow: "$max(1, ceil(120 / regnet_initial_width))"
+          balanced: "$max(1, ceil(96 / regnet_initial_width))"
+          narrow_deep: "$max(1, ceil(64 / regnet_initial_width))"
         4:
-          wide_shallow: "$max(1, ceil(112 / regnet_initial_width))"    
-          balanced: "$max(1, ceil(80 / regnet_initial_width))"         
-          narrow_deep: "$max(1, ceil(48 / regnet_initial_width))"     
+          wide_shallow: "$max(1, ceil(112 / regnet_initial_width))"
+          balanced: "$max(1, ceil(80 / regnet_initial_width))"
+          narrow_deep: "$max(1, ceil(48 / regnet_initial_width))"
         5:
-          wide_shallow: "$max(1, ceil(96 / regnet_initial_width))"     
+          wide_shallow: "$max(1, ceil(104 / regnet_initial_width))"     
           balanced: "$max(1, ceil(64 / regnet_initial_width))"         
           narrow_deep: "$max(1, ceil(32 / regnet_initial_width))"     
       high:
         3:
-          wide_shallow: "$min(4, floor(192 / regnet_initial_width))"   
-          balanced: "$min(4, floor(144 / regnet_initial_width))"       
-          narrow_deep: "$min(3, floor(128 / regnet_initial_width))"    
+          wide_shallow: "$min(3, floor(136 / regnet_initial_width))"
+          balanced: "$min(4, floor(136 / regnet_initial_width))"
+          narrow_deep: "$min(3, floor(128 / regnet_initial_width))"
         4:
-          wide_shallow: "$min(4, floor(160 / regnet_initial_width))"   
-          balanced: "$min(3, floor(128 / regnet_initial_width))"       
-          narrow_deep: "$min(3, floor(96 / regnet_initial_width))"     
+          wide_shallow: "$min(3, floor(152 / regnet_initial_width))"
+          balanced: "$min(2, floor(120 / regnet_initial_width))"
+          narrow_deep: "$min(2, floor(72 / regnet_initial_width))"
         5:
-          wide_shallow: "$min(3, floor(128 / regnet_initial_width))"   
-          balanced: "$min(2, floor(96 / regnet_initial_width))"        
-          narrow_deep: "$min(2, floor(72 / regnet_initial_width))"     
+          wide_shallow: "$min(2, floor(120 / regnet_initial_width))"
+          balanced: "$min(3, floor(112 / regnet_initial_width))"
+          narrow_deep: "$min(2, floor(56 / regnet_initial_width))"
+
+    # Optional stage width cap to guard extreme tails without shrinking earlier stages.
+    # When present, StagePlanner will clamp each stage width: width_i = min(width_i, max_stage_width)
+    # Keep this conservative and only enable for risky combinations, e.g. wide_shallow x ns=3.
+    max_stage_width:
+      class: "param"
+      param_name: "regnet_max_stage_width"
+      type: "categorical"
+      dependency_order: ["num_stages", "arch_shape"]
+      # Provide values for all combinations to satisfy dependency resolution.
+      # Use a large cap (e.g., 1024) for combos that should effectively never trigger the clamp.
+      choices:
+        3:
+          wide_shallow: [640, 704]
+          balanced: [1024]
+          narrow_deep: [1024]
+        4:
+          wide_shallow: [1024]
+          balanced: [1024]
+          narrow_deep: [1024]
+        5:
+          wide_shallow: [1024]
+          balanced: [1024]
+          narrow_deep: [1024]
 
     depth_slope:
       class: "param"
@@ -305,11 +361,21 @@ shape_search:
       class: "param"
       param_name: "regnet_max_stage_depth"
       type: "categorical"
-      dependency_order: ["num_stages"]
+      # Further tighten deeper tails for wide_shallow at ns=4; slightly tighten balanced at ns=5
+      dependency_order: ["arch_shape", "num_stages"]
       choices:
-        3: [8, 10]
-        4: [8, 10]
-        5: [6, 8]
+        balanced:
+          3: [8, 10]
+          4: [6, 8]
+          5: [6, 7]
+        wide_shallow:
+          3: [5, 6]
+          4: [4, 5]
+          5: [4, 5]
+        narrow_deep:
+          3: [8, 10]
+          4: [7, 8]
+          5: [8, 10]
 
 
   
