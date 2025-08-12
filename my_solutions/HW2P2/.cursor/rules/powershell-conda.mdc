@@ -20,6 +20,16 @@ description: Shell usage on Windows PowerShell; non-interactive commands; conda 
   - Redirect to a file and open with `Get-Content`.
   - Use tool-specific non-interactive/quiet flags when available.
 
+### Chaining and conditional execution
+
+- Do not use `&&` or `||` for command chaining; these are not supported in Windows PowerShell (they require PowerShell 7+).
+- For sequential execution, use `;` or place commands on separate lines.
+- For conditional execution based on success/failure:
+  - Use `$?` (success of last operation) or `$LASTEXITCODE` (native process exit code), for example:
+    - `if ($?) { <next-command> } else { Write-Error 'Previous command failed' }`
+    - `if ($LASTEXITCODE -eq 0) { <next-command> } else { throw 'Previous native command failed' }`
+- Prefer explicit error handling: set `$ErrorActionPreference = 'Stop'` and use `try { ... } catch { throw }` to fail fast.
+
 ### Package-missing policy (conda)
 
 - If a command fails due to missing packages, do not continue silently.
