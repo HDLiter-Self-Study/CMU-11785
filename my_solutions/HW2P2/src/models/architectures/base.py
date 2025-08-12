@@ -19,11 +19,8 @@ class BaseArchitecture(nn.Module, ABC):
 
     # Registry for block types - can be extended by subclasses
     BLOCK_REGISTRY: Dict[str, Type[nn.Module]] = {}
-
-    # Registry for head types
-    HEAD_REGISTRY: Dict[str, Type[nn.Module]] = {
-        "classification": ClassificationHead,
-    }
+    # Optional registry for heads (kept for compatibility; heads are built in pipeline)
+    HEAD_REGISTRY: Dict[str, Type[nn.Module]] = {}
 
     def __init__(
         self,
@@ -33,8 +30,7 @@ class BaseArchitecture(nn.Module, ABC):
         downsamplings: List[int],
         block_types: List[str],
         block_params: List[Dict[str, Any]],
-        head_type: str = "classification",
-        head_params: Dict[str, Any] = None,
+        head: Optional[nn.Module] = None,
         stem_channels: int = 64,
         stem_params: Dict[str, Any] = None,
         width_multiplier: float = 1.0,
@@ -71,13 +67,6 @@ class BaseArchitecture(nn.Module, ABC):
         self.stem_channels = stem_channels
         self.width_multiplier = width_multiplier
 
-        # Process head parameters
-        head_params = head_params or {}
-        try:
-            self.num_classes = head_params["num_classes"]
-        except KeyError as e:
-            raise ValueError(f"Missing required head parameter: {e}")
-
         # Apply width multiplier
         self.out_channels = [int(c * width_multiplier) for c in out_channels]
 
@@ -86,7 +75,10 @@ class BaseArchitecture(nn.Module, ABC):
         self.backbone = self._create_backbone(
             stem_channels, stages, self.out_channels, block_types, block_params, downsamplings
         )
-        self.head = self._create_head(head_type, head_params, self.out_channels[-1])
+        # Optional attached head (provided by pipeline). May be None.
+        self.head: Optional[nn.Module] = None
+        if head:
+            self.attach_head(head)
 
     def _validate_architecture_params(
         self,
@@ -124,14 +116,6 @@ class BaseArchitecture(nn.Module, ABC):
         """Register a new head type"""
         cls.HEAD_REGISTRY[name] = head_class
 
-    def _create_head(self, head_type: str, head_params: Dict[str, Any], in_features: int) -> nn.Module:
-        """Create the classification head based on type and parameters"""
-        if head_type not in self.HEAD_REGISTRY:
-            raise ValueError(f"Unsupported head type: {head_type}. Available: {list(self.HEAD_REGISTRY.keys())}")
-
-        head_class = self.HEAD_REGISTRY[head_type]
-        return head_class(in_features, **head_params)
-
     def _create_backbone(
         self,
         stem_channels: int,
@@ -168,6 +152,32 @@ class BaseArchitecture(nn.Module, ABC):
             backbone.extend(stage_blocks)
 
         return nn.Sequential(*backbone)
+
+    def attach_head(self, head: nn.Module, strict: bool = True) -> None:
+        """Attach a head module after backbone construction and update metadata.
+
+        Args:
+            head: A torch.nn.Module that maps backbone features to logits.
+            strict: When True, perform simple compatibility checks (e.g., input
+                feature size if available).
+        """
+        if not isinstance(head, nn.Module):
+            raise TypeError("head must be an instance of torch.nn.Module")
+
+        # Simple compatibility check based on declared in_features, when available
+        if strict and hasattr(head, "in_features"):
+            try:
+                expected_in = int(getattr(head, "in_features"))
+                last_c = int(self.out_channels[-1]) if self.out_channels else None
+                if last_c is not None and expected_in != last_c:
+                    raise ValueError(
+                        f"Incompatible head: in_features={expected_in}, but backbone last channels={last_c}"
+                    )
+            except Exception:
+                # Do not block if we cannot parse the attribute cleanly
+                pass
+
+        self.head = head
 
     def _create_stage_blocks(
         self,
@@ -248,7 +258,7 @@ class BaseArchitecture(nn.Module, ABC):
         Returns:
             Dictionary containing features and output:
             - "feats": Feature tensor before classification head
-            - "out": Final output tensor of shape (batch_size, num_classes)
+            - "out": Final output tensor
         """
         # Stem processing
         x = self.stem(x)
@@ -257,11 +267,12 @@ class BaseArchitecture(nn.Module, ABC):
         x = self.backbone(x)
         feats = x  # Save features for verification task
 
-        # Classification head
-        x = self.head(x)
-
-        # Return features and output
-        return {"feats": feats, "out": x}
+        # Classification head (optional)
+        if self.head is not None:
+            x = self.head(x)
+            return {"feats": feats, "out": x}
+        # If no head is attached, return features only
+        return {"feats": feats}
 
     def get_num_parameters(self) -> int:
         """
@@ -314,7 +325,8 @@ class BaseArchitecture(nn.Module, ABC):
         """
         return {
             "architecture": self.__class__.__name__,
-            "num_classes": self.num_classes,
+            "has_head": self.head is not None,
+            "head_type": (self.head.__class__.__name__ if self.head is not None else None),
             "in_channels": self.in_channels,
             "total_parameters": self.get_num_parameters(),
             "trainable_parameters": self.get_num_trainable_parameters(),
