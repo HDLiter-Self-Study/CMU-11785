@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ..utils import get_activation, get_2d_normalization
+from ..utils import get_activation, get_2d_normalization, get_1d_normalization
 from typing import Dict, Any
 
 
@@ -31,7 +31,7 @@ class ClassificationHead(nn.Module):
             nn.Flatten(),  # Flatten to (batch_size, in_features)
             nn.Linear(in_features, hidden_dims) if hidden_dims else nn.Identity(),
             get_activation(activation, activation_params),
-            get_2d_normalization(norm, norm_params),
+            get_1d_normalization(norm, norm_params),
             nn.Dropout(dropout_rate),
             nn.Linear(hidden_dims if hidden_dims else in_features, num_classes),
         )

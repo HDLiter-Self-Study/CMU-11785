@@ -70,6 +70,14 @@ NORMALIZATION_2D_MAP = {
     "none": nn.Identity,
     "identity": nn.Identity,
 }
+NORMALIZATION_1D_MAP = {
+    "batch_norm": nn.BatchNorm1d,
+    "instance_norm": nn.InstanceNorm1d,
+    "group_norm": nn.GroupNorm,
+    "layer_norm": nn.LayerNorm,
+    "none": nn.Identity,
+    "identity": nn.Identity,
+}
 
 
 def _get_function_params(func, exclude_params=None):
@@ -110,7 +118,7 @@ def _create_activation_with_params(activation_class, provided_params):
     return activation_class(**filtered_params)
 
 
-def _create_2d_norm_with_params(norm_class, num_features, provided_params):
+def _create_norm_with_params(norm_class, num_features, provided_params):
     """Create normalization layer with provided parameters, automatically validating them"""
     # Get normalization layer parameter signature
     default_params = _get_function_params(norm_class.__init__, exclude_params={"self", "num_features", "num_channels"})
@@ -203,7 +211,38 @@ def get_2d_normalization(name: str, num_features: int, **kwargs) -> nn.Module:
     if name_lower == "layer_norm":
         return nn.GroupNorm(1, num_features, **kwargs)
 
-    return _create_2d_norm_with_params(norm_class, num_features, kwargs)
+    return _create_norm_with_params(norm_class, num_features, kwargs)
+
+
+def get_1d_normalization(name: str, num_features: int, **kwargs) -> nn.Module:
+    """Get 1D normalization layer by name, with optional parameters.
+
+    All normalization layers are designed for 1D feature maps with shape (B, C).
+
+    Args:
+        name (str): Name of the normalization layer.
+        num_features (int): Number of features/channels (C dimension). Required for all normalization layers.
+        **kwargs: Additional parameters for the normalization layer.
+
+    Returns:
+        nn.Module: The 1D normalization layer module.
+
+    Examples:
+        >>> get_1d_normalization('batch_norm', 64)
+        >>> get_1d_normalization('group_norm', 64, num_groups=16)
+        >>> get_1d_normalization('instance_norm', 64, eps=1e-6)
+        >>> get_1d_normalization('none', 64)
+    """
+    if name is None:
+        name = "identity"  # Default to identity if no name provided
+
+    name_lower = name.lower()
+    if name_lower not in NORMALIZATION_1D_MAP:
+        raise ValueError(f"Unknown 1D normalization: {name}. Available: {list(NORMALIZATION_1D_MAP.keys())}")
+
+    norm_class = NORMALIZATION_1D_MAP[name_lower]
+
+    return _create_norm_with_params(norm_class, num_features, kwargs)
 
 
 def get_activation_params(name: str) -> Dict[str, Any]:
