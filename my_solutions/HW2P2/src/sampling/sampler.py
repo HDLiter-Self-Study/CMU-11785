@@ -624,9 +624,10 @@ class SearchSpaceSampler:
             f"Auto-fixing range for {param_name}: low={low_val}, high={high_val}, arch_shape={arch_shape}, num_stages={num_stages}, regnet_initial_width={regnet_initial_width}"
         )
 
-        # Swap low and high
+        # Conservative fix: clamp to upper bound to avoid widening range unintentionally
+        # Ensures we do not allow values above the intended high
         kwargs["low"] = high_val
-        kwargs["high"] = low_val
+        # Keep high as-is (>= low after this assignment)
 
         return kwargs
 
