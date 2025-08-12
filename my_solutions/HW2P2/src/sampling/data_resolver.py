@@ -159,110 +159,70 @@ def _merge_wandb(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, An
 def _normalize_architectures(sampled: Dict[str, Any]) -> Dict[str, Any]:
     """Convert sampler's grouped architectures output into a compact model spec.
 
-    Returns a dict with keys like: type, num_stages, stem, blocks, stage_block_type,
-    stagewise, global, regnet_rule, width_multiplier, projection_type, stochastic_depth_prob,
-    conv_drop_prob, se_pooling, layer_scale_init_value, extras.
+    This function is now a pure passthrough and restructuring utility. It iterates
+    through the sampler's output groups and unpacks all instances directly into the
+    output spec. It no longer contains complex routing logic based on 'selection'
+    values, as the new sampler provides a consistent hierarchical structure.
     """
     if "architectures" not in sampled:
         return {}
-    groups = sampled["architectures"]
+    groups = sampled.get("architectures")
     if not isinstance(groups, list):
         raise ValueError("'architectures' must be a list of groups")
 
-    out: Dict[str, Any] = {
-        "type": None,
-        "num_stages": None,
-        "stem": {},
-        "blocks": {},
-        "block_type": None,
-        # activation/normalization will be set directly at top-level as str (global) or list (stage-wise)
-        "activation": None,
-        "normalization": None,
-        "extras": {},
-    }
+    out: Dict[str, Any] = {"extras": {}}
 
-    def put_scalar(name: str, value: Any) -> None:
-        if value is not None:
-            out[name] = value
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
 
-    for idx, g in enumerate(groups):
-        if not isinstance(g, dict):
-            raise ValueError(f"architectures[{idx}] must be a dict")
-        selection = g.get("selection")
-        instances = g.get("instances", {})
-        if not isinstance(instances, dict):
-            raise ValueError(f"architectures[{idx}].instances must be a dict")
-
-        # Selection-based routing
+        # Handle top-level selection keys that are not instances
+        selection = group.get("selection")
         if isinstance(selection, str) and selection in {"resnet", "convnext"}:
             out["type"] = selection
-            continue
-        if isinstance(selection, int):
+        elif isinstance(selection, int):
             out["num_stages"] = selection
-            continue
-        if selection == "stage":
-            # stage-wise values like activation/normalization and block_type list
-            for k, v in instances.items():
-                if k == "block_type" and isinstance(v, list):
-                    out["block_type"] = v
-                elif k in {"activation", "normalization"}:
-                    out[k] = v
-                elif k.startswith("stem_"):
-                    sub_key = k[len("stem_") :]
-                    out.setdefault("stem", {})[sub_key] = v
-                else:
-                    out["extras"][k] = v
-            continue
-        if selection == "global":
-            for k, v in instances.items():
-                if k in {"activation", "normalization"}:
-                    out[k] = v
-                elif k.startswith("stem_"):
-                    sub_key = k[len("stem_") :]
-                    out.setdefault("stem", {})[sub_key] = v
-                else:
-                    out["extras"][k] = v
+
+        # Unpack all instances directly
+        instances = group.get("instances", {})
+        if not isinstance(instances, dict):
             continue
 
-        # Selection is None or other: route by instance key
-        for k, v in instances.items():
-            if k == "stem_block" and isinstance(v, dict):
-                out.setdefault("stem", {}).update(v)
-            elif k.endswith("_block") and isinstance(v, dict):
-                out.setdefault("blocks", {})[k] = v
-            elif k == "regnet_rule" and isinstance(v, dict):
-                # Allow routing regnet_rule regardless of selection label
-                out["regnet_rule"] = v
-            elif k == "block_type":
-                out["block_type"] = v
-            elif k in {
+        for key, value in instances.items():
+            if key in {"activation", "normalization", "block_type"}:
+                # Flatten nested dicts like {'activation': 'relu'} that can be produced
+                # by the sampler for global-granularity parameters.
+                if isinstance(value, dict) and key in value and len(value) == 1:
+                    out[key] = value[key]
+                else:
+                    out[key] = value
+            elif key == "regnet_rule":
+                out[key] = value
+            elif key == "stem_block" and isinstance(value, dict):
+                out.setdefault("stem", {}).update(value)
+            elif key.endswith("_block") and isinstance(value, dict):
+                out.setdefault("blocks", {})[key] = value
+            elif key in {
                 "projection_type",
                 "stochastic_depth_prob",
                 "conv_drop_prob",
                 "se_pooling",
                 "layer_scale_init_value",
+                "pre_activation",
             }:
-                put_scalar(k, v)
-            elif k == "pre_activation":
-                # Some archs expose a toggle here; flatten to top-level
-                out["pre_activation"] = v.get("selection") if isinstance(v, dict) else v
+                if key == "pre_activation" and isinstance(value, dict):
+                    # Flatten pre_activation selection
+                    out[key] = value.get("selection")
+                else:
+                    out[key] = value
             else:
-                out["extras"][k] = v
+                out["extras"][key] = value
 
-            # Expand string-valued fields to per-stage lists when needed
-        num_stages = out.get("num_stages")
-        if isinstance(num_stages, int) and num_stages > 0:
-            for key in ("activation", "normalization", "block_type"):
-                val = out.get(key)
-                if isinstance(val, str):
-                    out[key] = [val] * num_stages
-                elif isinstance(val, list) and len(val) != num_stages:
-                    raise ValueError(f"architectures.{key} list length {len(val)} != num_stages {num_stages}")
+    # Final cleanup: drop empty fields and ensure required fields exist
+    cleaned = {k: v for k, v in out.items() if v is not None and v != {}}
+    if "extras" in cleaned and not cleaned["extras"]:
+        del cleaned["extras"]
 
-        # Note: width_multiplier is now handled within regnet_rule and extracted by StagePlanner
-
-    # Final cleanup: drop empty fields
-    cleaned = {k: v for k, v in out.items() if v not in (None, {}, [])}
     return cleaned
 
 

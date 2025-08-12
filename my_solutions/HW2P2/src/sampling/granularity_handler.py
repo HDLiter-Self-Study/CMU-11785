@@ -10,13 +10,23 @@ Relies on `sampler.num_stages` and block-type selections already available
 in the current trial context (via sampler.sampled params).
 """
 
-from typing import Dict, Any, List, Set, Optional
+from typing import Dict, Any, List, Optional, TYPE_CHECKING, Set
 import re
 import optuna
 from omegaconf import DictConfig
 
 from .parameter_naming import ParameterNaming
 from .enums import ConfigClass
+import inspect
+import optuna
+from omegaconf import DictConfig, OmegaConf, ListConfig
+
+from config.config_manager import get_config
+from .parameter_naming import ParameterNaming
+
+
+if TYPE_CHECKING:
+    from .sampler import SearchSpaceSampler
 
 
 class GranularityHandler:
@@ -29,7 +39,7 @@ class GranularityHandler:
     - Block-type: One parameter per unique block type
     """
 
-    def __init__(self, sampler, silent: bool = False):
+    def __init__(self, sampler: "SearchSpaceSampler", silent: bool = False):
         """
         Initialize granularity handler.
 
@@ -37,8 +47,10 @@ class GranularityHandler:
             sampler: Reference to the main SearchSpaceSampler instance
             silent: If True, suppress all log output.
         """
+        # GranularityHandler needs access to the sampler's trial-scoped context
         self.sampler = sampler
-        self.naming = ParameterNaming()
+        self.naming = sampler.naming
+        self.evaluator = sampler.evaluator
         self.silent = silent
 
     # -------------------- Build per-unit evaluation context (no variable parsing required) --------------------
@@ -232,7 +244,7 @@ class GranularityHandler:
 
         for stage_idx in range(num_stages):
             stage_number = stage_idx + 1
-            block_type = self._get_stage_block_type(stage_idx, num_stages, sampled_params, arch_prefix)
+            block_type = self._get_block_type_for_stage(stage_idx, sampled_params, arch_prefix)
             self._log(f"      📋 [BLOCK_STAGE_HANDLER] Stage {stage_idx}: block_type = {block_type}")
 
             block_stage_param_name = self.naming.build_block_stage_param_name(
@@ -366,41 +378,38 @@ class GranularityHandler:
 
         return stage_list
 
-    def _get_stage_block_type(
-        self, stage_idx: int, num_stages: int, sampled_params: Dict[str, Any], arch_prefix: str = ""
-    ) -> str:
-        """
-        Get the block type for a specific stage.
+    def _get_block_type_for_stage(self, stage_idx: int, sampled: Dict[str, Any], arch_prefix: str) -> str:
+        """Helper to find the block_type for a given stage."""
+        num_stages = self.sampler.num_stages
+        stage_num = stage_idx + 1
 
-        Args:
-            stage_idx: Stage index (0-based)
-            num_stages: Total number of stages
-            sampled_params: Already sampled parameters
-            arch_prefix: Architecture prefix
+        # 1. Check for stage-specific flat key (e.g., resnet_block_type_stage_1_of_4)
+        stage_key = self.naming.build_stage_param_name(arch_prefix, "block_type", stage_num, num_stages)
+        if stage_key in sampled:
+            return sampled[stage_key]
 
-        Returns:
-            Block type for the specified stage
+        # 2. Check for global flat key (e.g., resnet_block_type)
+        global_key = self.naming.build_param_name(arch_prefix, "block_type")
+        if global_key in sampled:
+            return sampled[global_key]
 
-        Raises:
-            ValueError: If block type cannot be determined
-        """
-        stage_number = stage_idx + 1
-
-        # Try stage-specific block type first (new unified naming)
-        stage_block_type_key = self.naming.build_stage_param_name(arch_prefix, "block_type", stage_number, num_stages)
-        stage_block_type = sampled_params.get(stage_block_type_key)
-        if stage_block_type is not None:
-            return stage_block_type
-
-        # Fall back to global block type (new unified naming)
-        global_block_type_key = self.naming.build_param_name(arch_prefix, "block_type")
-        global_block_type = sampled_params.get(global_block_type_key)
-        if global_block_type is not None:
-            return global_block_type
+        # 3. Fallback to raw 'block_type' key which might hold hierarchical info
+        raw_key = "block_type"
+        if raw_key in sampled:
+            val = sampled[raw_key]
+            # It could be an expanded list from 'stage' or 'all_stage' granularity
+            if isinstance(val, list):
+                if stage_idx < len(val):
+                    item = val[stage_idx]
+                    # The list can contain dicts {'block_type': '...'} or plain strings
+                    return item.get("block_type") if isinstance(item, dict) else item
+            # It could be a single string from 'global'/'all_stage' before instance expansion
+            elif isinstance(val, str):
+                return val
 
         raise ValueError(
             f"Cannot determine block_type for stage {stage_idx}. "
-            f"Checked keys: [{stage_block_type_key}, {global_block_type_key}]"
+            f"Checked keys: [{stage_key}, {global_key}] and raw '{raw_key}' in sampled data."
         )
 
     def _collect_unique_block_types(self, sampled_params: Dict[str, Any], arch_prefix: str) -> Set[str]:

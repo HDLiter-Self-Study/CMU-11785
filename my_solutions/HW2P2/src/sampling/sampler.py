@@ -66,9 +66,9 @@ class SearchSpaceSampler:
 
         # Initialize helper components
         self.evaluator = SafeEvaluator()
+        self.naming = ParameterNaming()
         self.granularity_handler = GranularityHandler(self, silent=self.silent)
         self.dependency_manager = DependencyManager(self, silent=self.silent)
-        self.naming = ParameterNaming()
 
         # Global key-value store for cross-strategy parameters (e.g., architecture_type, num_stages)
         self.globals: Dict[str, Any] = {}
@@ -335,8 +335,9 @@ class SearchSpaceSampler:
         # Evaluate condition only for GLOBAL-like params here. For non-global
         # (stage/block_type/block_stage), defer per-unit condition to the
         # granularity handlers so that unit-local context can be applied.
-        if hasattr(node, "condition") and granularity == GranularityLevel.GLOBAL.value:
-            if not self.evaluator.evaluate_condition(node.condition, context):
+        if hasattr(node, "condition"):
+            is_global_like = granularity in [GranularityLevel.GLOBAL.value, GranularityLevel.ALL_STAGE.value]
+            if is_global_like and not self.evaluator.evaluate_condition(node.condition, context):
                 return
 
         if arch is None and granularity != GranularityLevel.GLOBAL.value:
@@ -374,6 +375,16 @@ class SearchSpaceSampler:
                     raw, sampled, arch, block_type_params
                 )
                 hierarchical_tree[key] = stage_list
+        elif granularity == GranularityLevel.ALL_STAGE.value:
+            # Sample a single value like 'global', and record it in the flat output
+            # so that other parameters can depend on it.
+            val = self._sample_single_param(trial, node, name, sampled)
+            sampled[raw] = val
+            out[name] = val
+            # The value is also stored in the hierarchical tree, where it will be
+            # expanded into a list at the instance processing level.
+            if hierarchical_tree is not None:
+                hierarchical_tree[key] = val
         elif granularity == GranularityLevel.STEM.value:
             stem_param_name = self.naming.build_param_name(arch, raw)
             val = self._sample_single_param(trial, node, stem_param_name, sampled)
@@ -435,7 +446,17 @@ class SearchSpaceSampler:
                 # Normalize hierarchical form for non-global granularities
                 try:
                     if isinstance(instance_granularity, str) and isinstance(instance_tree, dict):
-                        if instance_granularity == GranularityLevel.STAGE.value:
+                        if instance_granularity == GranularityLevel.ALL_STAGE.value:
+                            # For all_stage, instance_tree contains single sampled values.
+                            # We combine them into one dict and expand it to a list of size num_stages.
+                            combined_item = {k: v for k, v in instance_tree.items()}
+                            if combined_item:
+                                expanded_list = [combined_item] * self.num_stages
+                                if key in hierarchical_tree:
+                                    raise ValueError(f"Hierarchical parameter conflict: key '{key}' already exists.")
+                                hierarchical_tree[key] = expanded_list
+                                return
+                        elif instance_granularity == GranularityLevel.STAGE.value:
                             all_lists = [v for v in instance_tree.values() if isinstance(v, list)]
                             if all_lists and all(len(v) == self.num_stages for v in all_lists):
                                 merged: List[Dict[str, Any]] = []
@@ -511,6 +532,20 @@ class SearchSpaceSampler:
         self, trial: optuna.Trial, param_config: DictConfig, param_name: str, sampled_params: Dict[str, Any]
     ) -> Any:
         param_type = param_config.type
+
+        # Handle index-based categorical sampling
+        if param_type == "categorical" and getattr(param_config, "index_choices", False):
+            # First, build the full kwargs to resolve the dynamic choices list
+            all_keys = set(param_config.keys())
+            choices_kwargs = self._build_suggest_kwargs(param_config, param_name, sampled_params, param_type, all_keys)
+            choices = choices_kwargs.get("choices")
+            if not choices:
+                raise ValueError(f"index_choices=true requires a non-empty list of choices for '{param_name}'")
+
+            # Sample the index
+            index = trial.suggest_int(f"{param_name}_index", 0, len(choices) - 1)
+            return choices[index]
+
         suggest_fn = getattr(trial, f"suggest_{param_type}", None)
         if not callable(suggest_fn):
             raise ValueError(f"Unsupported parameter type: {param_type}")

@@ -20,9 +20,11 @@ class GranularityLevel(Enum):
     - STAGE: Different parameter values for each stage of the network
     - BLOCK_STAGE: Different parameter values for each (stage, block_type) combination
     - STEM: Special parameter value for the stem/input processing layer
+    - ALL_STAGE: Sampled once like GLOBAL, but expanded to a list for each stage
     """
 
     GLOBAL = "global"
+    ALL_STAGE = "all_stage"
     BLOCK_TYPE = "block_type"
     STAGE = "stage"
     BLOCK_STAGE = "block_stage"
