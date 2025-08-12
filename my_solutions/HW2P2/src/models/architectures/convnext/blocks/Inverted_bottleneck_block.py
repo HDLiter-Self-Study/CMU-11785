@@ -19,8 +19,8 @@ class InvertedBottleneckBlock(BaseResNetBlock):
     def __init__(
         self,
         in_channels: int,
-        neck_channels: int,
-        expansion: int = 4,
+        out_channels: int,
+        expansion_ratio: int = 4,
         activation: str = "relu",
         norm: str = "batch_norm",
         activation_params: Dict[str, Any] = None,
@@ -32,10 +32,13 @@ class InvertedBottleneckBlock(BaseResNetBlock):
         layer_scale: bool = False,
         layer_scale_init_value: float = 1e-6,
         stochastic_depth_prob: float = 0.0,
+        depthwise_kernel_size: int = 7,
         **conv_kwargs,
     ):
-        self.neck_channels = neck_channels
-        self.expansion = expansion
+        self.expansion = int(expansion_ratio)
+        self.neck_channels = out_channels * expansion_ratio
+        self.depthwise_kernel_size = depthwise_kernel_size
+
         super().__init__(
             in_channels=in_channels,
             stride=1,  # ConvNeXt has separate downsample layers, so stride is not used here
@@ -58,12 +61,13 @@ class InvertedBottleneckBlock(BaseResNetBlock):
         """Build InvertedBottleneckBlock layers: 7x7 depthwise conv -> 1x1 pointwise conv -> 1x1 pointwise conv"""
         out_channels = self.neck_channels // self.expansion  # Inverted bottleneck reduces channels
 
+        kdw = int(self.depthwise_kernel_size)
         layers = nn.Sequential(
             # 7x7 depthwise conv (reduce, has normalization)
             self.conv_block_cls(
                 in_channels=in_channels,
                 out_channels=in_channels,
-                kernel_size=7,
+                kernel_size=kdw,
                 stride=1,
                 padding="same",
                 activation=None,  # No activation after depthwise conv
