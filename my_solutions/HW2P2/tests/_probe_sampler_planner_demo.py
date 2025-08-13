@@ -6,6 +6,13 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Optional
 
+# Add StagePlan to imports
+# add src to PYTHONPATH
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_PATH = PROJECT_ROOT / "src"
+sys.path.insert(0, str(SRC_PATH))
+from models.architecture_planner import StagePlan
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = PROJECT_ROOT / "src"
@@ -15,7 +22,7 @@ sys.path.insert(0, str(SRC_DIR))
 # ---------------- Parameter estimation & summary helpers ---------------- #
 
 
-def _dump_trial_summary(idx: int, arch_spec: Dict[str, Any], planned: Dict[str, Any]) -> Dict[str, Any]:
+def _dump_trial_summary(idx: int, arch_spec: Dict[str, Any], planned: StagePlan) -> Dict[str, Any]:
     """Build a compact summary for analysis with parameter estimates.
 
     The parameter estimates are coarse and derived from stage/block shapes only.
@@ -30,10 +37,10 @@ def _dump_trial_summary(idx: int, arch_spec: Dict[str, Any], planned: Dict[str, 
         "trial": idx,
         "arch_type": arch_spec.get("type"),
         "arch_shape": arch_shape,
-        "num_stages": planned.get("num_stages"),
-        "out_channels": planned.get("out_channels"),
-        "stages": planned.get("stages"),
-        "downsamplings": planned.get("downsamplings"),
+        "num_stages": planned.num_stages,
+        "out_channels": planned.out_channels,
+        "stages": planned.depths,
+        "downsamplings": planned.downsamplings,
         "regnet": {
             "width_multiplier": width_multiplier,
             "rule": regnet_rule,
@@ -126,7 +133,7 @@ def _extract_block_type(bt: Any) -> str:
     return "unknown"
 
 
-def _estimate_params_coarse(planned: Dict[str, Any]) -> Dict[str, Any]:
+def _estimate_params_coarse(planned: StagePlan) -> Dict[str, Any]:
     """Coarse parameter estimation per stage and total.
 
     Assumptions:
@@ -136,17 +143,17 @@ def _estimate_params_coarse(planned: Dict[str, Any]) -> Dict[str, Any]:
     - Norms approximated as 2*C per conv output.
     - Downsample projection added when channels change between stages.
     """
-    num_stages: int = int(planned.get("num_stages") or 0)
-    out_channels: List[int] = list(planned.get("out_channels") or [])
-    depths: List[int] = list(planned.get("stages") or [])
-    block_types_raw: List[Any] = list(planned.get("block_type") or [])
+    num_stages: int = planned.num_stages
+    out_channels: List[int] = planned.out_channels
+    depths: List[int] = planned.depths
+    block_types_raw: List[Any] = planned.block_types
     block_types: List[str] = [_extract_block_type(x) for x in block_types_raw]
-    arch_type: str = str((planned.get("meta") or {}).get("type") or "")
+    arch_type: str = str(planned.meta.get("type") or "")
 
     if not num_stages or len(out_channels) != num_stages or len(depths) != num_stages:
         return {"total": 0, "stages": []}
 
-    stem = (planned.get("meta") or {}).get("stem") or {}
+    stem = planned.meta.get("stem") or {}
     stem_out = stem.get("out_channels")
     prev_c = int(stem_out) if isinstance(stem_out, int) else (out_channels[0] if out_channels else 3)
 
@@ -210,7 +217,31 @@ def _estimate_params_coarse(planned: Dict[str, Any]) -> Dict[str, Any]:
 
         prev_c = ci
 
-    return {"total": int(total_params), "stages": stage_summaries}
+    # ---------------- Head (classification) params ---------------- #
+    # Assumptions match src/models/common_blocks/head.py default behavior:
+    # - Global avg pool: no parameters
+    # - 2D normalization with affine: 2 * C_last
+    # - Optional hidden MLP is disabled by default (hidden_dims is None)
+    # - Final Linear: (C_last -> num_classes)
+    # If future runs provide num_classes in meta.extras, prefer it; else use default.
+    DEFAULT_NUM_CLASSES = 8631
+    meta = planned.meta or {}
+    extras = meta.get("extras") or {}
+    num_classes = int(extras.get("num_classes") or DEFAULT_NUM_CLASSES)
+    hidden_dims = extras.get("head_hidden_dims")  # optional; None by default
+    try:
+        hidden_dims = int(hidden_dims) if hidden_dims is not None else None
+    except Exception:
+        hidden_dims = None
+
+    last_c = int(out_channels[-1]) if out_channels else 0
+    head_norm_params = 2 * last_c if last_c > 0 else 0
+    head_fc1_params = (last_c * hidden_dims + hidden_dims) if (hidden_dims and last_c > 0) else 0
+    head_in_to_fc2 = hidden_dims if hidden_dims else last_c
+    head_fc2_params = (head_in_to_fc2 * num_classes + num_classes) if head_in_to_fc2 > 0 else 0
+    head_total = head_norm_params + head_fc1_params + head_fc2_params
+
+    return {"total": int(total_params + head_total), "stages": stage_summaries, "head_total": int(head_total)}
 
 
 # ---------------- Stats computation & rendering ---------------- #
@@ -241,6 +272,155 @@ def _compute_total_depth_stats(results: List[Dict[str, Any]]) -> Dict[int, Dict[
         bucket = totals.setdefault(ns, {})
         bucket[tot] = bucket.get(tot, 0) + 1
     return totals
+
+
+def _compute_depth_stats_by_shape(results: List[Dict[str, Any]]) -> Dict[str, Dict[int, Dict[int, Dict[int, int]]]]:
+    """Per-shape depth histogram per stage position.
+
+    Returns a nested mapping:
+      shape -> num_stages -> stage_index -> { depth_value -> count }
+    """
+    grouped: Dict[str, Dict[int, Dict[int, Dict[int, int]]]] = {}
+    for item in results:
+        shape = str(item.get("_group_shape") or item.get("arch_shape") or "<none>")
+        ns = int(item.get("num_stages") or 0)
+        depths = item.get("stages") or []
+        if not ns or not isinstance(depths, list):
+            continue
+        grouped.setdefault(shape, {})
+        grouped[shape].setdefault(ns, {})
+        for i, d in enumerate(depths, start=1):
+            by_stage = grouped[shape][ns].setdefault(i, {})
+            by_stage[int(d)] = by_stage.get(int(d), 0) + 1
+    return grouped
+
+
+def _compute_total_depth_stats_by_shape(results: List[Dict[str, Any]]) -> Dict[str, Dict[int, Dict[int, int]]]:
+    """Per-shape total depth histogram.
+
+    Returns a nested mapping:
+      shape -> num_stages -> { total_depth -> count }
+    """
+    totals: Dict[str, Dict[int, Dict[int, int]]] = {}
+    for item in results:
+        shape = str(item.get("_group_shape") or item.get("arch_shape") or "<none>")
+        ns = int(item.get("num_stages") or 0)
+        depths = item.get("stages") or []
+        if not ns or not isinstance(depths, list):
+            continue
+        tot = int(sum(int(x) for x in depths))
+        totals.setdefault(shape, {})
+        bucket = totals[shape].setdefault(ns, {})
+        bucket[tot] = bucket.get(tot, 0) + 1
+    return totals
+
+
+def _compute_width_summary(results: List[Dict[str, Any]]) -> Dict[int, Dict[int, Dict[str, int]]]:
+    """Compute per-stage width summary grouped by num_stages.
+
+    Returns:
+      num_stages -> stage_index -> summary dict (count/min/mean/median/p90/p95/max)
+    """
+    from collections import defaultdict
+
+    buckets: Dict[int, Dict[int, List[int]]] = defaultdict(lambda: defaultdict(list))
+    for item in results:
+        ns = int(item.get("num_stages") or 0)
+        widths = item.get("out_channels") or []
+        if not ns or not isinstance(widths, list) or len(widths) < ns:
+            continue
+        for i in range(ns):
+            try:
+                w = int(widths[i])
+            except Exception:
+                continue
+            buckets[ns][i + 1].append(w)
+
+    summaries: Dict[int, Dict[int, Dict[str, int]]] = {}
+    for ns, stage_map in buckets.items():
+        summaries[ns] = {}
+        for stage_idx, vals in stage_map.items():
+            summaries[ns][stage_idx] = _summarize(vals)
+    return summaries
+
+
+def _compute_width_summary_by_shape(results: List[Dict[str, Any]]) -> Dict[str, Dict[int, Dict[int, Dict[str, int]]]]:
+    """Compute per-stage width summary grouped by shape and num_stages.
+
+    Returns:
+      shape -> num_stages -> stage_index -> summary dict
+    """
+    from collections import defaultdict
+
+    buckets: Dict[str, Dict[int, Dict[int, List[int]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for item in results:
+        shape = str(item.get("_group_shape") or item.get("arch_shape") or "<none>")
+        ns = int(item.get("num_stages") or 0)
+        widths = item.get("out_channels") or []
+        if not ns or not isinstance(widths, list) or len(widths) < ns:
+            continue
+        for i in range(ns):
+            try:
+                w = int(widths[i])
+            except Exception:
+                continue
+            buckets[shape][ns][i + 1].append(w)
+
+    summaries: Dict[str, Dict[int, Dict[int, Dict[str, int]]]] = {}
+    for shape, ns_map in buckets.items():
+        summaries[shape] = {}
+        for ns, stage_map in ns_map.items():
+            summaries[shape][ns] = {}
+            for stage_idx, vals in stage_map.items():
+                summaries[shape][ns][stage_idx] = _summarize(vals)
+    return summaries
+
+
+def _compute_max_width_summary(results: List[Dict[str, Any]]) -> Dict[int, Dict[str, int]]:
+    """Compute max stage width summary per trial grouped by num_stages."""
+    from collections import defaultdict
+
+    buckets: Dict[int, List[int]] = defaultdict(list)
+    for item in results:
+        ns = int(item.get("num_stages") or 0)
+        widths = item.get("out_channels") or []
+        if not ns or not isinstance(widths, list) or len(widths) == 0:
+            continue
+        try:
+            m = max(int(w) for w in widths)
+        except Exception:
+            continue
+        buckets[ns].append(m)
+
+    summaries: Dict[int, Dict[str, int]] = {}
+    for ns, vals in buckets.items():
+        summaries[ns] = _summarize(vals)
+    return summaries
+
+
+def _compute_max_width_summary_by_shape(results: List[Dict[str, Any]]) -> Dict[str, Dict[int, Dict[str, int]]]:
+    """Compute max stage width summary per trial grouped by shape and num_stages."""
+    from collections import defaultdict
+
+    buckets: Dict[str, Dict[int, List[int]]] = defaultdict(lambda: defaultdict(list))
+    for item in results:
+        shape = str(item.get("_group_shape") or item.get("arch_shape") or "<none>")
+        ns = int(item.get("num_stages") or 0)
+        widths = item.get("out_channels") or []
+        if not ns or not isinstance(widths, list) or len(widths) == 0:
+            continue
+        try:
+            m = max(int(w) for w in widths)
+        except Exception:
+            continue
+        buckets[shape][ns].append(m)
+
+    summaries: Dict[str, Dict[int, Dict[str, int]]] = {}
+    for shape, ns_map in buckets.items():
+        summaries[shape] = {}
+        for ns, vals in ns_map.items():
+            summaries[shape][ns] = _summarize(vals)
+    return summaries
 
 
 def _compute_breakdown(
@@ -372,6 +552,8 @@ def _render_ascii_table(
     param_stats: Tuple[Dict[str, Dict[str, int]], Dict[str, Dict[str, Dict[int, int]]]],
     param_by_shape_stage: Dict[str, Dict[int, Dict[str, Any]]],
     threshold_millions: float,
+    per_stage_by_shape: Optional[Dict[str, Dict[int, Dict[int, Dict[int, int]]]]] = None,
+    total_stats_by_shape: Optional[Dict[str, Dict[int, Dict[int, int]]]] = None,
 ) -> str:
     lines: List[str] = []
 
@@ -533,6 +715,53 @@ def _render_ascii_table(
                 bar = "#" * bar_len
                 lines.append(f"  total={total:3d}  count={cnt:4d}  {bar}")
 
+    # Optional: Per-shape per-stage depth distributions
+    if per_stage_by_shape and total_stats_by_shape:
+        header2 = "Depth distribution by shape and num_stages (per stage position)"
+        lines.append("")
+        lines.append(header2)
+        lines.append("=" * len(header2))
+
+        for shape in sorted(per_stage_by_shape.keys()):
+            lines.append("")
+            lines.append(f"Shape: {shape}")
+            ns_map = per_stage_by_shape[shape]
+            for ns in sorted(ns_map.keys()):
+                lines.append("")
+                lines.append(f"num_stages = {ns}")
+                lines.append("-" * (14 + len(str(ns))))
+                stage_map = ns_map[ns]
+                max_count = 1
+                for _, freq in stage_map.items():
+                    if freq:
+                        max_count = max(max_count, max(freq.values()))
+                scale = max(1, max_count // 50)
+                for stage_idx in range(1, ns + 1):
+                    freq = stage_map.get(stage_idx, {})
+                    if not freq:
+                        lines.append(f"Stage {stage_idx}: (no data)")
+                        continue
+                    lines.append(f"Stage {stage_idx}:")
+                    for depth in sorted(freq.keys()):
+                        count = freq[depth]
+                        bar_len = max(1, count // scale)
+                        bar = "#" * bar_len
+                        lines.append(f"  depth={depth:2d}  count={count:4d}  {bar}")
+
+                # Totals per shape+ns
+                totals2 = (total_stats_by_shape.get(shape) or {}).get(ns) or {}
+                if totals2:
+                    lines.append("")
+                    lines.append(f"Total depth distribution (shape={shape}, num_stages={ns})")
+                    lines.append("~" * (29 + len(str(ns)) + len(shape)))
+                    t_max = max(totals2.values()) if totals2 else 1
+                    t_scale = max(1, t_max // 50)
+                    for total in sorted(totals2.keys()):
+                        cnt = totals2[total]
+                        bar_len = max(1, cnt // t_scale)
+                        bar = "#" * bar_len
+                        lines.append(f"  total={total:3d}  count={cnt:4d}  {bar}")
+
     return "\n".join(lines)
 
 
@@ -550,7 +779,7 @@ def _run_generation(template_path: Path, n_trials: int) -> List[Dict[str, Any]]:
     for idx, hierarchical in enumerate(sampled):
         eff = resolve_effective_data_config(cfg_dict, hierarchical)
         arch_spec = eff["model"]["architectures"]
-        planned = StagePlanner.plan(arch_spec)
+        planned: StagePlan = StagePlanner.plan(arch_spec)
         results.append(_dump_trial_summary(idx=idx, arch_spec=arch_spec, planned=planned))
     return results
 
@@ -676,6 +905,16 @@ def main():
     param_stats = _compute_param_stats(all_results)
     threshold = int(args.lte_threshold_millions * 1_000_000)
     param_by_shape_stage = _compute_param_stats_by_shape_stage_with_threshold(all_results, threshold=threshold)
+    # Extended shape-specific depth stats
+    per_stage_by_shape = _compute_depth_stats_by_shape(all_results)
+    total_stats_by_shape = _compute_total_depth_stats_by_shape(all_results)
+
+    # Width summaries
+    width_per_stage = _compute_width_summary(all_results)
+    width_per_stage_by_shape = _compute_width_summary_by_shape(all_results)
+    max_width_by_ns = _compute_max_width_summary(all_results)
+    max_width_by_shape_ns = _compute_max_width_summary_by_shape(all_results)
+
     report = _render_ascii_table(
         per_stage_stats,
         total_stats,
@@ -683,7 +922,63 @@ def main():
         param_stats,
         param_by_shape_stage,
         threshold_millions=float(args.lte_threshold_millions),
+        per_stage_by_shape=per_stage_by_shape,
+        total_stats_by_shape=total_stats_by_shape,
     )
+    # Append width summaries to report
+    lines_extra: List[str] = []
+    lines_extra.append("")
+    lines_extra.append("Width summary by num_stages (per stage)")
+    lines_extra.append("======================================")
+    for ns in sorted(width_per_stage.keys()):
+        lines_extra.append("")
+        lines_extra.append(f"num_stages = {ns}")
+        for stage_idx in sorted(width_per_stage[ns].keys()):
+            sm = width_per_stage[ns][stage_idx]
+            lines_extra.append(
+                f"  stage={stage_idx}  count={sm.get('count',0):3d}  min={sm.get('min',0):,}  median={sm.get('median',0):,}  "
+                f"mean={sm.get('mean',0):,}  p90={sm.get('p90',0):,}  p95={sm.get('p95',0):,}  max={sm.get('max',0):,}"
+            )
+
+    lines_extra.append("")
+    lines_extra.append("Width summary by shape x num_stages (per stage)")
+    lines_extra.append("===============================================")
+    for shape in sorted(width_per_stage_by_shape.keys()):
+        lines_extra.append("")
+        lines_extra.append(f"{shape}:")
+        ns_map = width_per_stage_by_shape[shape]
+        for ns in sorted(ns_map.keys()):
+            for stage_idx in sorted(ns_map[ns].keys()):
+                sm = ns_map[ns][stage_idx]
+                lines_extra.append(
+                    f"  ns={ns} stage={stage_idx}  count={sm.get('count',0):3d}  min={sm.get('min',0):,}  median={sm.get('median',0):,}  "
+                    f"mean={sm.get('mean',0):,}  p90={sm.get('p90',0):,}  p95={sm.get('p95',0):,}  max={sm.get('max',0):,}"
+                )
+
+    lines_extra.append("")
+    lines_extra.append("Max stage width summary by num_stages")
+    lines_extra.append("=====================================")
+    for ns in sorted(max_width_by_ns.keys()):
+        sm = max_width_by_ns[ns]
+        lines_extra.append(
+            f"ns={ns}  count={sm.get('count',0):3d}  min={sm.get('min',0):,}  median={sm.get('median',0):,}  "
+            f"mean={sm.get('mean',0):,}  p90={sm.get('p90',0):,}  p95={sm.get('p95',0):,}  max={sm.get('max',0):,}"
+        )
+
+    lines_extra.append("")
+    lines_extra.append("Max stage width summary by shape x num_stages")
+    lines_extra.append("=============================================")
+    for shape in sorted(max_width_by_shape_ns.keys()):
+        lines_extra.append(f"{shape}:")
+        ns_map = max_width_by_shape_ns[shape]
+        for ns in sorted(ns_map.keys()):
+            sm = ns_map[ns]
+            lines_extra.append(
+                f"  ns={ns}  count={sm.get('count',0):3d}  min={sm.get('min',0):,}  median={sm.get('median',0):,}  "
+                f"mean={sm.get('mean',0):,}  p90={sm.get('p90',0):,}  p95={sm.get('p95',0):,}  max={sm.get('max',0):,}"
+            )
+
+    report = report + "\n" + "\n".join(lines_extra)
     stats_path = Path(args.stats_out).resolve()
     stats_path.parent.mkdir(parents=True, exist_ok=True)
     stats_path.write_text(report, encoding="utf-8")
