@@ -20,22 +20,22 @@ lr_scheduler_techniques:
     param_name: "lr_scheduler_strategy"
     type: "categorical"
     choices:
-      basic: ["plateau"]
-      robust: ["plateau", "step"]
-      comprehensive: ["cosine", "step", "plateau"]
-      custom: ["cosine", "step", "plateau"]
+      basic: ["reduce_lr_on_plateau"]
+      robust: ["reduce_lr_on_plateau", "step_lr"]
+      comprehensive: ["cosine_annealing_lr", "step_lr", "reduce_lr_on_plateau"]
+      custom: ["cosine_annealing_lr", "step_lr", "reduce_lr_on_plateau"]
     dependency_order: ["strategy_level"]
 
-  cosine:
+  cosine_annealing_lr:
     class: "instance"
-    condition: "$lr_scheduler_strategy in ['cosine']"
+    condition: "$lr_scheduler_strategy in ['cosine_annealing_lr']"
 
-    warmup_epochs:
+    T_max:
       class: "param"
-      param_name: "cosine_warmup_epochs"
+      param_name: "cosine_T_max"
       type: "int"
-      low: 0
-      high: 15
+      low: 5
+      high: 100
 
     eta_min_ratio:
       class: "param"
@@ -45,16 +45,9 @@ lr_scheduler_techniques:
       high: 0.1
       log: true
 
-  step:
+  step_lr:
     class: "instance"
-    condition: "$lr_scheduler_strategy in ['step']"
-
-    warmup_epochs:
-      class: "param"
-      param_name: "step_warmup_epochs"
-      type: "int"
-      low: 0
-      high: 10
+    condition: "$lr_scheduler_strategy in ['step_lr']"
 
     step_size:
       class: "param"
@@ -70,9 +63,9 @@ lr_scheduler_techniques:
       low: 0.3
       high: 0.7
 
-  plateau:
+  reduce_lr_on_plateau:
     class: "instance"
-    condition: "$lr_scheduler_strategy in ['plateau']"
+    condition: "$lr_scheduler_strategy in ['reduce_lr_on_plateau']"
 
     patience:
       class: "param"

@@ -32,7 +32,7 @@ optimizer_techniques:
     class: "instance"
     condition: "$optimizer_strategy in ['adam']"
 
-    learning_rate:
+    lr:
       class: "param"
       param_name: "adam_learning_rate"
       type: "float"
@@ -70,7 +70,7 @@ optimizer_techniques:
     class: "instance"
     condition: "$optimizer_strategy in ['sgd']"
 
-    learning_rate:
+    lr:
       class: "param"
       param_name: "sgd_learning_rate"
       type: "float"
@@ -104,11 +104,26 @@ optimizer_techniques:
       log: true
       dependency_order: ["strategy_level"]
 
+    momentum:
+      class: "param"
+      param_name: "sgd_momentum"
+      type: "float"
+      low: 0.0
+      high: 0.99
+
+    nesterov:
+      class: "param"
+      param_name: "sgd_nesterov"
+      type: "categorical"
+      choices: [true, false]
+      condition: "$sgd_momentum > 0.0"
+      depends_on: ["sgd_momentum"]
+
   adamw:
     class: "instance"
     condition: "$optimizer_strategy in ['adamw']"
 
-    learning_rate:
+    lr:
       class: "param"
       param_name: "adamw_learning_rate"
       type: "float"
