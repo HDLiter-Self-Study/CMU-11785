@@ -85,10 +85,10 @@ activation_params:
     type: "categorical"
     dependency_order: ["strategy_level"]
     choices:
-      basic: ["global"]
-      robust: ["global", "block_type"]
-      comprehensive: ["global", "block_type", "stage"]
-      custom: ["global", "block_type", "stage", "block_stage"]
+      basic: ["all_stage"]
+      robust: ["all_stage", "stage"]
+      comprehensive: ["all_stage", "stage", "block_type"]
+      custom: ["all_stage", "stage", "block_type", "block_stage"]
     description: "Granularity level for activation function control"
 
   activation:
@@ -116,10 +116,10 @@ normalization_params:
     type: "categorical"
     dependency_order: ["strategy_level"]
     choices:
-      basic: ["global"]
-      robust: ["global", "block_type"]
-      comprehensive: ["global", "block_type", "stage"]
-      custom: ["global", "block_type", "stage", "block_stage"]
+      basic: ["all_stage"]
+      robust: ["all_stage", "stage"]
+      comprehensive: ["all_stage", "stage", "block_type"]
+      custom: ["all_stage", "stage", "block_type", "block_stage"]
     description: "Granularity level for normalization method control"
 
   normalization:
@@ -158,10 +158,10 @@ block_type_params:
     type: "categorical"
     dependency_order: ["strategy_level"]
     choices:
-      basic: ["global"]
-      robust: ["global", "stage"]
-      comprehensive: ["global", "stage"]
-      custom: ["global", "stage"]
+      basic: ["all_stage"]
+      robust: ["all_stage", "stage"]
+      comprehensive: ["all_stage", "stage"]
+      custom: ["all_stage", "stage"]
     description: "Granularity level for block type control"
 
   block_type:
@@ -242,8 +242,11 @@ shape_search:
       class: "param"
       param_name: "regnet_initial_width"
       type: "categorical"
-      # Constrain initial width by num_stages and shape to curb wide_shallow extremes (ns=4)
+      # Allows sampling from a list of choices using an integer index, which supports
+      # dynamically generated choice lists that Optuna's `suggest_categorical` does not.
+      # When true, the sampler will use `suggest_int` on the index of the choices list.
       dependency_order: ["num_stages", "arch_shape"]
+      index_choices: true
       choices:
         3:
           balanced: [48, 64]
@@ -306,6 +309,7 @@ shape_search:
       param_name: "regnet_max_stage_width"
       type: "categorical"
       dependency_order: ["num_stages", "arch_shape"]
+      index_choices: true # Avoid dynamic choices value space
       # Provide values for all combinations to satisfy dependency resolution.
       # Use a large cap (e.g., 1024) for combos that should effectively never trigger the clamp.
       choices:
@@ -363,6 +367,7 @@ shape_search:
       type: "categorical"
       # Further tighten deeper tails for wide_shallow at ns=4; slightly tighten balanced at ns=5
       dependency_order: ["arch_shape", "num_stages"]
+      index_choices: true # Avoid dynamic choices value space
       choices:
         balanced:
           3: [8, 10]
