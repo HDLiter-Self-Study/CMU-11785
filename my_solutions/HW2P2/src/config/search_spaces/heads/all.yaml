@@ -38,23 +38,25 @@ classification_heads:
       param_name: "cls_standard_pooling_type"
       type: "categorical"
       choices: ["avg", "max", "adaptive_avg", "adaptive_max","none"]
-    hidden_dims:
+    # Single-layer bottleneck for ClassificationHead
+    head_hidden_dims:
       class: "param"
-      param_name: "cls_standard_hidden_dims"
+      param_name: "head_hidden_dims"
       type: "categorical"
-      choices: [[], [512], [1024], [512, 256], [1024, 512]]
+      # null means direct Linear(C_last -> num_classes)
+      choices: [null, 256, 384, 512]
+      description: "Hidden dimension for ClassificationHead bottleneck (None for direct)"
+    # Optional search knobs for a future enhanced head; kept but decoupled from hidden dims
     activation:
       class: "param"
       param_name: "cls_standard_activation"
       type: "categorical"
       choices: ["relu", "gelu", "swish", "leaky_relu"]
-      condition: "$cls_standard_hidden_dims != []"
     use_batch_norm:
       class: "param"
       param_name: "cls_standard_use_batch_norm"
       type: "categorical"
       choices: [true, false]
-      condition: "$cls_standard_hidden_dims != []"
 
   dropout_head:
     class: "instance"
