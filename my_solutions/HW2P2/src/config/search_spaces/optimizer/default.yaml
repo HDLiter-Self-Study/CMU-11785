@@ -22,9 +22,9 @@ optimizer_techniques:
     type: "categorical"
     choices:
       basic: ["adam", "sgd"]
-      robust: ["adam", "sgd", "adamw"]
-      comprehensive: ["adam", "sgd", "adamw"]
-      custom: ["adam", "sgd", "adamw"]
+      robust: ["adam", "sgd", "adamw", "rmsprop"]
+      comprehensive: ["adam", "sgd", "adamw", "rmsprop"]
+      custom: ["adam", "sgd", "adamw", "rmsprop"]
     description: "Optimizer selection"
     dependency_order: ["strategy_level"]
 
@@ -36,35 +36,45 @@ optimizer_techniques:
       class: "param"
       param_name: "adam_learning_rate"
       type: "float"
-      low:
-        basic: 5e-4
-        robust: 1e-4
-        comprehensive: 1e-5
-        custom: 1e-5
-      high:
-        basic: 5e-3
-        robust: 1e-2
-        comprehensive: 1e-1
-        custom: 1e-1
+      low: 1e-6
+      high: 1e-1
       log: true
-      dependency_order: ["strategy_level"]
 
     weight_decay:
       class: "param"
       param_name: "adam_weight_decay"
       type: "float"
-      low:
-        basic: 1e-4
-        robust: 1e-5
-        comprehensive: 1e-6
-        custom: 1e-6
-      high:
-        basic: 1e-3
-        robust: 5e-3
-        comprehensive: 1e-2
-        custom: 1e-2
+      low: 1e-7
+      high: 1e-2
       log: true
-      dependency_order: ["strategy_level"]
+
+    eps:
+      class: "param"
+      param_name: "adam_eps"
+      type: "float"
+      low: 1e-10
+      high: 1e-6
+      log: true
+
+    amsgrad:
+      class: "param"
+      param_name: "adam_amsgrad"
+      type: "categorical"
+      choices: [true, false]
+
+    beta1:
+      class: "param"
+      param_name: "adam_beta1"
+      type: "float"
+      low: 0.8
+      high: 0.95
+
+    beta2:
+      class: "param"
+      param_name: "adam_beta2"
+      type: "float"
+      low: 0.98
+      high: 0.999
 
   sgd:
     class: "instance"
@@ -74,35 +84,17 @@ optimizer_techniques:
       class: "param"
       param_name: "sgd_learning_rate"
       type: "float"
-      low:
-        basic: 1e-3
-        robust: 5e-4
-        comprehensive: 1e-4
-        custom: 1e-4
-      high:
-        basic: 1e-2
-        robust: 5e-2
-        comprehensive: 1e-1
-        custom: 1e-1
+      low: 1e-4
+      high: 5e-1
       log: true
-      dependency_order: ["strategy_level"]
 
     weight_decay:
       class: "param"
       param_name: "sgd_weight_decay"
       type: "float"
-      low:
-        basic: 1e-4
-        robust: 1e-5
-        comprehensive: 1e-6
-        custom: 1e-6
-      high:
-        basic: 1e-3
-        robust: 5e-3
-        comprehensive: 1e-2
-        custom: 1e-2
+      low: 1e-7
+      high: 1e-2
       log: true
-      dependency_order: ["strategy_level"]
 
     momentum:
       class: "param"
@@ -119,6 +111,15 @@ optimizer_techniques:
       condition: "$sgd_momentum > 0.0"
       depends_on: ["sgd_momentum"]
 
+    dampening:
+      class: "param"
+      param_name: "sgd_dampening"
+      type: "float"
+      low: 0.0
+      high: 0.1
+      condition: "$sgd_momentum > 0.0"
+      depends_on: ["sgd_momentum"]
+
   adamw:
     class: "instance"
     condition: "$optimizer_strategy in ['adamw']"
@@ -127,34 +128,92 @@ optimizer_techniques:
       class: "param"
       param_name: "adamw_learning_rate"
       type: "float"
-      low:
-        basic: 1e-4
-        robust: 5e-5
-        comprehensive: 1e-5
-        custom: 1e-5
-      high:
-        basic: 5e-3
-        robust: 1e-2
-        comprehensive: 1e-1
-        custom: 1e-1
+      low: 1e-6
+      high: 1e-1
       log: true
-      dependency_order: ["strategy_level"]
 
     weight_decay:
       class: "param"
       param_name: "adamw_weight_decay"
       type: "float"
-      low:
-        basic: 1e-3
-        robust: 1e-4
-        comprehensive: 1e-5
-        custom: 1e-5
-      high:
-        basic: 5e-2
-        robust: 5e-2
-        comprehensive: 1e-1
-        custom: 1e-1
+      low: 1e-6
+      high: 5e-1
       log: true
-      dependency_order: ["strategy_level"]
+
+    eps:
+      class: "param"
+      param_name: "adamw_eps"
+      type: "float"
+      low: 1e-10
+      high: 1e-6
+      log: true
+
+    amsgrad:
+      class: "param"
+      param_name: "adamw_amsgrad"
+      type: "categorical"
+      choices: [true, false]
+
+    beta1:
+      class: "param"
+      param_name: "adamw_beta1"
+      type: "float"
+      low: 0.8
+      high: 0.95
+
+    beta2:
+      class: "param"
+      param_name: "adamw_beta2"
+      type: "float"
+      low: 0.98
+      high: 0.999
+
+  rmsprop:
+    class: "instance"
+    condition: "$optimizer_strategy in ['rmsprop']"
+
+    lr:
+      class: "param"
+      param_name: "rmsprop_learning_rate"
+      type: "float"
+      low: 1e-6
+      high: 1e-2
+      log: true
+
+    alpha:
+      class: "param"
+      param_name: "rmsprop_alpha"
+      type: "float"
+      low: 0.9
+      high: 0.99
+
+    eps:
+      class: "param"
+      param_name: "rmsprop_eps"
+      type: "float"
+      low: 1e-10
+      high: 1e-7
+      log: true
+
+    weight_decay:
+      class: "param"
+      param_name: "rmsprop_weight_decay"
+      type: "float"
+      low: 1e-6
+      high: 1e-2
+      log: true
+
+    momentum:
+      class: "param"
+      param_name: "rmsprop_momentum"
+      type: "float"
+      low: 0.0
+      high: 0.99
+
+    centered:
+      class: "param"
+      param_name: "rmsprop_centered"
+      type: "categorical"
+      choices: [true, false]
 
 
