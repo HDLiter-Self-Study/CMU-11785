@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """
-最终的FMix实现 - 纯PyTorch版本
-基于官方实现但完全使用PyTorch，无需numpy和scipy依赖
+FMix implementation in pure PyTorch.
+
+This module provides a self-contained FMix implementation without external
+dependencies (e.g., numpy, scipy). It follows the core idea of sampling a
+low-frequency mask in the frequency domain and mixing images and labels using
+the sampled mask.
 """
 
 import math
@@ -16,21 +20,21 @@ def fftfreqnd_torch(
     h: int, w: Optional[int] = None, z: Optional[int] = None, device: torch.device = None
 ) -> torch.Tensor:
     """
-    PyTorch版本的频率bin计算
+    Compute frequency bins (nd) in PyTorch.
 
     Args:
-        h: 第一维度大小
-        w: 第二维度大小（可选）
-        z: 第三维度大小（可选）
-        device: 设备
+        h: Height dimension.
+        w: Width dimension (optional).
+        z: Depth dimension (optional).
+        device: Torch device.
 
     Returns:
-        频率距离张量
+        Frequency distance tensor.
     """
     if device is None:
         device = torch.device("cpu")
 
-    # 计算频率
+    # Compute frequency bins
     fy = torch.fft.fftfreq(h, device=device)
 
     if w is not None:
@@ -56,28 +60,28 @@ def get_spectrum_torch(
     freqs: torch.Tensor, decay_power: float, ch: int, h: int, w: int = 0, z: int = 0
 ) -> torch.Tensor:
     """
-    PyTorch版本的频谱生成
+    Generate spectrum in PyTorch.
 
     Args:
-        freqs: 频率bin张量
-        decay_power: 衰减幂
-        ch: 通道数
-        h, w, z: 维度大小
+        freqs: Frequency bins tensor.
+        decay_power: Decay power for 1 / f**decay_power scaling.
+        ch: Number of channels.
+        h, w, z: Spatial dimensions.
 
     Returns:
-        频谱张量
+        Spectrum tensor.
     """
     device = freqs.device
 
-    # 计算衰减因子
+    # Compute decay factor
     min_freq = 1.0 / max(w, h, z) if max(w, h, z) > 0 else 1.0
     scale = 1.0 / (torch.maximum(freqs, torch.tensor(min_freq, device=device)) ** decay_power)
 
-    # 生成随机参数
+    # Generate random spectrum parameters
     param_size = [ch] + list(freqs.shape) + [2]
     param = torch.randn(param_size, device=device)
 
-    # 扩展scale维度
+    # Expand scale dimensions
     scale = scale.unsqueeze(-1).unsqueeze(0)
 
     return scale * param
@@ -87,30 +91,30 @@ def make_low_freq_image_torch(
     decay_power: float, shape: Tuple[int, ...], ch: int = 1, device: torch.device = None
 ) -> torch.Tensor:
     """
-    PyTorch版本的低频图像生成
+    Generate a low-frequency image (mask) in PyTorch.
 
     Args:
-        decay_power: 衰减幂
-        shape: 图像形状
-        ch: 通道数
-        device: 设备
+        decay_power: Decay power.
+        shape: Mask shape.
+        ch: Number of channels.
+        device: Torch device.
 
     Returns:
-        低频图像mask
+        Low-frequency mask tensor scaled to [0, 1].
     """
     if device is None:
         device = torch.device("cpu")
 
-    # 计算频率
+    # Compute frequency bins
     freqs = fftfreqnd_torch(*shape, device=device)
 
-    # 生成频谱
+    # Generate spectrum
     spectrum = get_spectrum_torch(freqs, decay_power, ch, *shape)
 
-    # 转换为复数
+    # Convert to complex
     spectrum_complex = spectrum[:, 0] + 1j * spectrum[:, 1]
 
-    # 逆FFT
+    # Inverse FFT
     if len(shape) == 1:
         mask = torch.fft.irfft(spectrum_complex, n=shape[0], dim=-1)
         mask = mask[:1, : shape[0]]
@@ -123,7 +127,7 @@ def make_low_freq_image_torch(
     else:
         raise ValueError(f"Unsupported shape dimensions: {len(shape)}")
 
-    # 归一化到[0,1]
+    # Normalize to [0, 1]
     mask = mask - mask.min()
     mask = mask / mask.max()
 
@@ -132,15 +136,15 @@ def make_low_freq_image_torch(
 
 def sample_lam_torch(alpha: float, reformulate: bool = False, device: torch.device = None) -> float:
     """
-    PyTorch版本的lambda采样（替代scipy.stats.beta）
+    Sample lambda from Beta distribution in PyTorch (no scipy dependency).
 
     Args:
-        alpha: beta分布参数
-        reformulate: 是否使用重新表述
-        device: 设备
+        alpha: Beta distribution parameter.
+        reformulate: Whether to use the reformulated variant (Beta(alpha+1, alpha)).
+        device: Torch device.
 
     Returns:
-        采样的lambda值
+        Sampled lambda scalar.
     """
     if device is None:
         device = torch.device("cpu")
@@ -159,30 +163,30 @@ def binarise_mask_torch(
     mask: torch.Tensor, lam: float, in_shape: Tuple[int, ...], max_soft: float = 0.0
 ) -> torch.Tensor:
     """
-    PyTorch版本的mask二值化
+    Binarize a mask according to target lambda with optional soft edges.
 
     Args:
-        mask: 输入mask
-        lam: 目标lambda值
-        in_shape: 输入形状
-        max_soft: 软化参数
+        mask: Input mask.
+        lam: Target lambda value in [0, 1].
+        in_shape: Input spatial shape.
+        max_soft: Softening ratio controlling the transition band.
 
     Returns:
-        二值化的mask
+        Binarized (or softly binarized) mask.
     """
     device = mask.device
 
-    # 展平mask
+    # Flatten mask
     mask_flat = mask.reshape(-1)
 
-    # 排序获取索引（降序）
+    # Sort to get indices (descending)
     _, idx = torch.sort(mask_flat, descending=True)
 
-    # 计算需要设为1的像素数量
+    # Compute number of pixels to set to 1
     total_pixels = mask_flat.numel()
     num = math.ceil(lam * total_pixels) if random.random() > 0.5 else math.floor(lam * total_pixels)
 
-    # 计算软化范围
+    # Compute soft band size
     eff_soft = max_soft
     if max_soft > lam or max_soft > (1 - lam):
         eff_soft = min(lam, 1 - lam)
@@ -191,25 +195,25 @@ def binarise_mask_torch(
     num_low = max(0, num - soft_pixels)
     num_high = min(total_pixels, num + soft_pixels)
 
-    # 创建新的mask
+    # Create new mask
     new_mask = torch.zeros_like(mask_flat)
 
-    # 设置高值区域为1
+    # Set high-value region to 1
     if num_high > 0:
         new_mask[idx[:num_high]] = 1.0
 
-    # 设置低值区域为0（已经是0）
+    # Set low-value region to 0 (already zero by init)
     if num_low < total_pixels:
         new_mask[idx[num_low:]] = 0.0
 
-    # 设置软化过渡区域
+    # Set soft transition region
     if num_low < num_high:
         transition_indices = idx[num_low:num_high]
         if len(transition_indices) > 0:
             transition_values = torch.linspace(1.0, 0.0, len(transition_indices), device=device)
             new_mask[transition_indices] = transition_values
 
-    # 重塑回原始形状
+    # Reshape back to original shape
     new_mask = new_mask.reshape(1, *in_shape)
 
     return new_mask
@@ -224,18 +228,18 @@ def sample_mask_torch(
     device: torch.device = None,
 ) -> Tuple[float, torch.Tensor]:
     """
-    PyTorch版本的mask采样
+    Sample an FMix mask and its corresponding lambda.
 
     Args:
-        alpha: beta分布参数
-        decay_power: 衰减幂
-        shape: mask形状
-        max_soft: 软化参数
-        reformulate: 是否重新表述
-        device: 设备
+        alpha: Beta distribution parameter.
+        decay_power: Decay power for low-frequency sampling.
+        shape: Mask shape (int or tuple).
+        max_soft: Softening ratio.
+        reformulate: Whether to use the reformulated Beta.
+        device: Torch device.
 
     Returns:
-        (lambda值, mask张量)
+        (lambda, mask) tuple.
     """
     if device is None:
         device = torch.device("cpu")
@@ -243,13 +247,13 @@ def sample_mask_torch(
     if isinstance(shape, int):
         shape = (shape,)
 
-    # 采样lambda
+    # Sample lambda
     lam = sample_lam_torch(alpha, reformulate, device)
 
-    # 生成低频图像
+    # Generate low-frequency image
     mask = make_low_freq_image_torch(decay_power, shape, ch=1, device=device)
 
-    # 二值化
+    # Binarize mask
     mask = binarise_mask_torch(mask, lam, shape, max_soft)
 
     return lam, mask
@@ -257,17 +261,16 @@ def sample_mask_torch(
 
 class FMix:
     """
-    最终的FMix实现 - 纯PyTorch版本
-    基于官方实现但完全使用PyTorch，无需外部依赖
+    FMix augmentation implemented in pure PyTorch.
 
     Args:
-        decay_power: 频率衰减的衰减幂 prop 1/f**d
-        alpha: beta分布的alpha值，用于采样mask的均值
-        size: 所需mask的形状，最多3维
-        max_soft: 0到0.5之间的软化值，用于平滑mask中的硬边缘
-        reformulate: 如果为True，使用重新表述的形式
-        num_classes: 类别数量
-        spatial_transform: 是否应用空间变换（保留以兼容旧接口）
+        decay_power: Frequency decay power in the 1 / f**decay_power scaling.
+        alpha: Beta distribution alpha parameter controlling expected lambda.
+        size: Required mask shape (up to 3 spatial dimensions).
+        max_soft: Softening ratio in [0, 0.5] to smooth hard mask edges.
+        reformulate: If True, use reformulated Beta(alpha+1, alpha).
+        num_classes: Number of classes. Optional if labels are already one-hot/soft.
+        spatial_transform: Whether to apply simple spatial transforms on the mask.
     """
 
     def __init__(
@@ -277,7 +280,7 @@ class FMix:
         size: Tuple[int, int] = (32, 32),
         max_soft: float = 0.0,
         reformulate: bool = False,
-        num_classes: int = 10,
+        num_classes: Optional[int] = None,
         spatial_transform: bool = True,
     ):
         self.decay_power = decay_power
@@ -286,53 +289,53 @@ class FMix:
         self.max_soft = max_soft
         self.reformulate = reformulate
         self.num_classes = num_classes
-        self.spatial_transform = spatial_transform  # 为了兼容性保留
+        self.spatial_transform = spatial_transform
 
-        # 用于调试的属性
+        # Debug attributes
         self._last_original_lambda = None
         self._last_effective_lambda = None
 
     def __call__(self, images: torch.Tensor, targets: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        应用FMix增强
+        Apply FMix augmentation.
 
         Args:
-            images: 输入图像张量 [B, C, H, W]
-            targets: 目标标签张量 [B] 或 [B, num_classes]
+            images: Input image tensor [B, C, H, W].
+            targets: Target labels as indices [B] or one-hot/soft labels [B, num_classes].
 
         Returns:
-            (混合后的图像, 混合后的标签)
+            (mixed_images, mixed_targets) tuple.
         """
         batch_size = images.size(0)
         device = images.device
 
-        # 使用PyTorch版本的算法生成mask
+        # Generate mask using PyTorch FMix algorithm
         lam, mask = sample_mask_torch(self.alpha, self.decay_power, self.size, self.max_soft, self.reformulate, device)
 
-        # 扩展mask到批次维度
+        # Expand mask to batch dimension
         if mask.dim() == 3:  # [1, H, W]
             mask = mask.expand(batch_size, -1, -1).unsqueeze(1)  # [B, 1, H, W]
 
-        # 调整mask大小到图像大小
+        # Resize mask to image size
         if mask.shape[-2:] != images.shape[-2:]:
             mask = F.interpolate(mask, size=images.shape[-2:], mode="bilinear", align_corners=False)
 
-        # 扩展到所有通道
+        # Expand mask to all channels
         mask = mask.expand(-1, images.size(1), -1, -1)  # [B, C, H, W]
 
-        # 生成随机排列
+        # Generate random permutation indices
         index = torch.randperm(batch_size, device=device)
 
-        # 混合图像
+        # Mix images
         mixed_images = images * mask + images[index] * (1 - mask)
 
-        # 计算有效lambda（实际混合比例）
+        # Compute effective lambda (actual mixing ratio)
         effective_lam = mask.reshape(batch_size, -1).mean(dim=1)
 
-        # 混合标签
+        # Mix labels
         mixed_targets = self._mix_labels(targets, targets[index], effective_lam, device)
 
-        # 保存lambda值用于调试
+        # Save lambda values for debugging
         self._last_original_lambda = torch.tensor([lam] * batch_size, device=device)
         self._last_effective_lambda = effective_lam
 
@@ -342,25 +345,30 @@ class FMix:
         self, targets1: torch.Tensor, targets2: torch.Tensor, lam_batch: torch.Tensor, device: torch.device
     ) -> torch.Tensor:
         """
-        混合标签
+        Mix labels according to the per-sample lambda.
 
         Args:
-            targets1: 第一组标签
-            targets2: 第二组标签
-            lam_batch: 混合比例批次
-            device: 设备
+            targets1: First batch of labels (indices or one-hot/soft).
+            targets2: Second batch of labels (indices or one-hot/soft).
+            lam_batch: Per-sample lambda tensor [B].
+            device: Torch device.
 
         Returns:
-            混合后的标签
+            Mixed labels (one-hot/soft) tensor.
         """
-        if targets1.dim() == 1:  # 类别索引
+        if targets1.dim() == 1:  # class indices
+            if self.num_classes is None:
+                raise ValueError(
+                    "FMix requires 'num_classes' when targets are class indices. "
+                    "Either provide num_classes or pass one-hot/soft labels."
+                )
             targets1_onehot = F.one_hot(targets1, num_classes=self.num_classes).float()
             targets2_onehot = F.one_hot(targets2, num_classes=self.num_classes).float()
-        else:  # 已经是one-hot
+        else:  # already one-hot/soft
             targets1_onehot = targets1.float()
             targets2_onehot = targets2.float()
 
-        # 混合标签
+        # Mix labels
         lam_expanded = lam_batch.reshape(-1, 1)
         mixed_targets = lam_expanded * targets1_onehot + (1 - lam_expanded) * targets2_onehot
 
@@ -368,40 +376,33 @@ class FMix:
 
     def get_last_lambdas(self) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
-        获取最后一次调用的lambda值（用于调试）
+        Get last sampled lambdas for debugging purposes.
 
         Returns:
-            (原始lambda, 有效lambda)
+            (original_lambda, effective_lambda)
         """
         return self._last_original_lambda, self._last_effective_lambda
 
     def apply_spatial_transforms(self, mask: torch.Tensor) -> torch.Tensor:
         """
-        应用空间变换（如果需要）
+        Apply simple spatial transforms to the mask if enabled.
 
         Args:
-            mask: 输入mask
+            mask: Input mask.
 
         Returns:
-            变换后的mask
+            Transformed mask.
         """
         if not self.spatial_transform:
             return mask
 
-        # 简单的空间变换示例
+        # Simple spatial transform examples
         if random.random() > 0.5:
-            # 随机水平翻转
+            # Random horizontal flip
             mask = torch.flip(mask, dims=[-1])
 
         if random.random() > 0.5:
-            # 随机垂直翻转
+            # Random vertical flip
             mask = torch.flip(mask, dims=[-2])
 
         return mask
-
-    def __repr__(self) -> str:
-        """字符串表示"""
-        return (
-            f"FMix(decay_power={self.decay_power}, alpha={self.alpha}, "
-            f"size={self.size}, max_soft={self.max_soft}, num_classes={self.num_classes})"
-        )

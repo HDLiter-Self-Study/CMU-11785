@@ -1,14 +1,17 @@
-"""
-Data package init file
+"""Data package public API.
+
+Only expose stable, up-to-date symbols. Legacy helpers are intentionally
+not imported here to avoid pulling outdated dependencies.
 """
 
-from .datasets import ImagePairDataset, TestImagePairDataset
-from .dataloaders import get_transforms, get_classification_dataloaders, get_verification_dataloaders
+from .datasets import (
+    build_datasets,
+    PairVerificationDataset,
+    PairSubmissionDataset,
+)
 
 __all__ = [
-    "ImagePairDataset",
-    "TestImagePairDataset",
-    "get_transforms",
-    "get_classification_dataloaders",
-    "get_verification_dataloaders",
+    "build_datasets",
+    "PairVerificationDataset",
+    "PairSubmissionDataset",
 ]
