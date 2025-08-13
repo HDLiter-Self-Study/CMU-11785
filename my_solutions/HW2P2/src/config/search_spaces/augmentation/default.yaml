@@ -178,8 +178,8 @@ noise_augmentation:
     choices:
       basic: ["none"]
       robust: ["none", "gaussian", "quality_degradation"]
-      comprehensive: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
-      custom: ["none", "gaussian", "impulse", "quality_degradation", "blur", "random_choice"]
+      comprehensive: ["none", "gaussian", "impulse", "quality_degradation", "blur", "poisson", "speckle", "random_choice"]
+      custom: ["none", "gaussian", "impulse", "quality_degradation", "blur", "poisson", "speckle", "random_choice"]
     description: "Noise and corruption augmentations"
 
   # Gaussian noise technique (additive random noise)
@@ -187,9 +187,9 @@ noise_augmentation:
     class: "instance"
     condition: "$noise_augmentation_strategy in ['gaussian', 'random_choice']"
 
-    std:
+    sigma:
       class: "param"
-      param_name: "gaussian_noise_std"
+      param_name: "gaussian_noise_sigma"
       type: "float"
       low: 0.01
       high: 0.1
@@ -274,6 +274,48 @@ noise_augmentation:
       low: 0.2
       high: 0.5
       description: "Probability of applying Gaussian blur"
+
+  # Poisson noise technique
+  poisson_noise:
+    class: "instance"
+    condition: "$noise_augmentation_strategy in ['poisson', 'random_choice']"
+    
+    scale:
+      class: "param"
+      param_name: "poisson_noise_scale"
+      type: "float"
+      low: 10.0
+      high: 50.0
+      description: "Intensity scale for Poisson noise"
+      
+    prob:
+      class: "param"
+      param_name: "poisson_noise_prob"
+      type: "float"
+      low: 0.2
+      high: 0.6
+      description: "Probability of applying Poisson noise"
+
+  # Speckle noise technique
+  speckle_noise:
+    class: "instance"
+    condition: "$noise_augmentation_strategy in ['speckle', 'random_choice']"
+
+    std:
+      class: "param"
+      param_name: "speckle_noise_std"
+      type: "float"
+      low: 0.05
+      high: 0.2
+      description: "Standard deviation for multiplicative Speckle noise"
+
+    prob:
+      class: "param"
+      param_name: "speckle_noise_prob"
+      type: "float"
+      low: 0.2
+      high: 0.6
+      description: "Probability of applying Speckle noise"
 
 
 
