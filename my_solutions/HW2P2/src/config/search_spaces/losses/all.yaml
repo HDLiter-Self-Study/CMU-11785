@@ -106,8 +106,8 @@ verification_losses:
     choices:
       basic: ["contrastive_loss"]
       robust: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
-      comprehensive: ["contrastive_loss", "triplet_margin_with_distance_loss", "arcface_loss", "bce_with_logits_loss"]
-      custom: ["contrastive_loss", "triplet_margin_with_distance_loss", "arcface_loss", "bce_with_logits_loss"]
+      comprehensive: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
+      custom: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
     description: "Verification loss function selection"
   
   # Contrastive loss implementation
@@ -130,6 +130,21 @@ verification_losses:
       low: 0.5
       high: 2.0
       description: "Weight for positive pairs"
+
+    neg_weight:
+      class: "param"
+      param_name: "ver_contrastive_neg_weight"
+      type: "float"
+      low: 0.5
+      high: 2.0
+      description: "Weight for negative pairs"
+
+    avg_by:
+      class: "param"
+      param_name: "ver_contrastive_avg_by"
+      type: "categorical"
+      choices: ["global", "posneg"]
+      description: "Averaging strategy to handle class imbalance."
   
   # Triplet loss implementation
   triplet_margin_with_distance_loss:
@@ -148,36 +163,24 @@ verification_losses:
       class: "param"
       param_name: "ver_triplet_distance"
       type: "categorical"
-      choices: ["euclidean", "cosine", "manhattan"]
+      choices: ["euclidean", "cosine", "manhattan", "dot"]
       description: "Distance metric for triplet loss"
 
-    p:
+    normalize_embeddings:
       class: "param"
-      param_name: "ver_triplet_p_norm"
+      param_name: "ver_triplet_normalize"
       type: "categorical"
-      choices: [1, 2]
-      description: "The norm degree for p-norm distance. 1 for Manhattan, 2 for Euclidean."
-  
-  # ArcFace loss implementation
-  arcface_loss:
-    class: "instance"
-    condition: "$verification_loss_type == 'arcface_loss'"
-    
-    scale:
+      choices: [true, false]
+      description: "Whether to L2-normalize embeddings before distance calculation."
+
+    squared_distance:
       class: "param"
-      param_name: "ver_arcface_scale"
-      type: "float"
-      low: 10.0
-      high: 64.0
-      description: "ArcFace scale parameter"
-      
-    margin:
-      class: "param"
-      param_name: "ver_arcface_margin"
-      type: "float"
-      low: 0.1
-      high: 0.8 
-      description: "ArcFace margin parameter"
+      param_name: "ver_triplet_squared"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
+      condition: "$ver_triplet_distance == 'euclidean'"
+      depends_on: ["ver_triplet_distance"]
   
   # Binary cross-entropy loss implementation
   bce_with_logits_loss:
