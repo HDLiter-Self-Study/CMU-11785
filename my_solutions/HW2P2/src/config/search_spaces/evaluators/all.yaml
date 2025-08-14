@@ -1,0 +1,98 @@
+# Evaluators Search Space
+# @package search_spaces.evaluators
+# Defines how model outputs (embeddings, logits) are converted to final predictions.
+
+class: "strategy"
+depends_on: ["architectures"] # Depends on output shapes from architecture
+strategy_level: "robust"
+
+policy:
+  allowed_multi_modes: []
+  require_selection_when_multi: true
+
+# =============================================================================
+# CLASSIFICATION EVALUATOR
+# =============================================================================
+classification_evaluator:
+  class: "technique"
+  condition: "$task == 'classification'"
+  
+  # For classification, the evaluator is fixed to argmax.
+  selection:
+    class: "param"
+    param_name: "classification_evaluator_type"
+    type: "categorical"
+    choices: ["argmax"]
+    description: "Evaluator for classification tasks."
+
+  argmax:
+    class: "instance"
+    condition: "$classification_evaluator_type == 'argmax'"
+    # Argmax has no configurable parameters.
+    # This serves as a placeholder to formalize the evaluation step.
+    
+# =============================================================================
+# VERIFICATION EVALUATORS
+# =============================================================================
+verification_evaluators:
+  class: "technique"
+  condition: "$task in ['verification', 'verification_finetune']"
+
+  selection:
+    class: "param"
+    param_name: "verification_evaluator_type"
+    type: "categorical"
+    dependency_order: ["strategy_level"]
+    choices:
+      basic: ["cosine_similarity"]
+      robust: ["cosine_similarity"]
+      comprehensive: ["cosine_similarity"]
+      custom: ["cosine_similarity"]
+      # NOTE: Learned similarity metrics are temporarily disabled.
+      # They require a dedicated auxiliary loss (e.g., BCE on similarity scores)
+      # to train their parameters, which adds significant complexity to the
+      # training pipeline. This can be re-enabled as a future enhancement.
+      # ---
+      # robust: ["cosine_similarity", "learned_similarity"]
+      # comprehensive: ["cosine_similarity", "learned_similarity", "attention_similarity"]
+      # custom: ["cosine_similarity", "learned_similarity", "attention_similarity"]
+    description: "Verification evaluator selection (how to compare embeddings)."
+
+  cosine_similarity:
+    class: "instance"
+    condition: "$verification_evaluator_type == 'cosine_similarity'"
+    # Cosine similarity is a parameter-free calculation, but we can configure
+    # preprocessing steps on the embeddings it receives.
+    use_l2_norm:
+      class: "param"
+      param_name: "ver_eval_use_l2_norm"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to L2 normalize embeddings before calculating cosine similarity."
+    
+    temperature:
+      class: "param"
+      param_name: "ver_eval_temperature"
+      type: "float"
+      low: 0.01
+      high: 1.0
+      description: "Temperature scaling for similarity scores."
+
+# --- DISABLED EVALUATORS ---
+# The following evaluators have trainable parameters and are disabled for now.
+# To re-enable them, ensure the training pipeline supports a multi-task setup
+# with an auxiliary loss for the evaluator itself.
+
+#  learned_similarity:
+#    class: "instance"
+#    condition: "$verification_evaluator_type == 'learned_similarity'"
+#    embedding_dim: ...
+#    similarity_layers: ...
+
+#  attention_similarity:
+#    class: "instance"
+#    condition: "$verification_evaluator_type == 'attention_similarity'"
+#    embedding_dim: ...
+#    attention_dim: ...
+
+
