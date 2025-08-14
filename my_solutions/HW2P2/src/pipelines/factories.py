@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 
 import torch
-from torch import nn, optim
+from torch import optim
 from torchvision.transforms import v2
 
 from .base_factory import BasePipelineFactory
@@ -222,10 +222,171 @@ class SchedulerFactory(BasePipelineFactory):
         # Do not filter parameters; let constructor fast-fail on invalid kwargs
         return CosineAnnealingLR(optimizer=optimizer, **params)
 
+    @staticmethod
+    def create_warmup(
+        optimizer: optim.Optimizer, steps_per_epoch: int = 0, **params: Any
+    ) -> Optional[optim.lr_scheduler.LinearLR]:
+        """
+        Static method to instantiate LinearLR for warmup. Fails fast if required params are missing.
+
+        Args:
+            optimizer: The optimizer instance.
+            steps_per_epoch: Batches per epoch for step calculation.
+            **params: Warmup parameters including 'warmup_epochs' and 'warmup_start_factor'.
+
+        Returns:
+            A torch.optim.lr_scheduler.LinearLR instance for warmup, or None if warmup_epochs <= 0.
+        """
+        from torch.optim.lr_scheduler import LinearLR
+
+        # Fail fast if warmup_epochs is missing from the config.
+        warmup_epochs = params["warmup_epochs"]
+        if warmup_epochs <= 0:
+            return None  # This is a valid configuration for 'no warmup'.
+
+        # Prepare parameters for LinearLR, failing fast if keys are missing.
+        # Let LinearLR use its default for end_factor.
+        warmup_params = {
+            "start_factor": params["warmup_start_factor"],
+            "total_iters": warmup_epochs * steps_per_epoch,
+        }
+
+        return LinearLR(optimizer, **warmup_params)
+
+    @staticmethod
+    def create_multi_step_lr(optimizer: optim.Optimizer, **params: Any) -> optim.lr_scheduler.MultiStepLR:
+        """
+        Static method to instantiate MultiStepLR.
+        It expects 'warmup_epochs' and 'total_epochs' to be injected into params by the build method.
+        It parses 'milestones_ratio' and shifts milestones if warmup is active. Fails fast.
+
+        Args:
+            optimizer: The optimizer instance.
+            **params: Parameters including 'milestones_ratio', 'gamma', and injected context
+                      like 'warmup_epochs' and 'total_epochs'.
+
+        Returns:
+            A torch.optim.lr_scheduler.MultiStepLR instance.
+        """
+        import json
+        from torch.optim.lr_scheduler import MultiStepLR
+
+        # Pop injected context params; fail fast if missing.
+        warmup_epochs = params.pop("warmup_epochs")
+        total_epochs = params.pop("total_epochs")
+        ratio_str = params.pop("milestones_ratio")
+
+        # Parse and calculate milestones
+        try:
+            ratios = json.loads(ratio_str)
+            if not isinstance(ratios, list) or not all(isinstance(r, (int, float)) for r in ratios):
+                raise ValueError("milestones_ratio must be a list of numbers")
+            milestones = sorted([int(total_epochs * r) for r in ratios if 0 < r < 1])
+        except (json.JSONDecodeError, TypeError) as e:
+            raise ValueError(f"Invalid milestones_ratio format: {ratio_str} - {e}")
+
+        # Shift if warmup present
+        if warmup_epochs > 0:
+            milestones = [m + warmup_epochs for m in milestones if m + warmup_epochs < total_epochs]
+
+        # Prepare final params for MultiStepLR. It will fail fast if 'gamma' is missing.
+        final_params = {"milestones": milestones, **params}
+        return MultiStepLR(optimizer=optimizer, **final_params)
+
     CUSTOM_REGISTRY: Dict[str, Callable] = {
         "cosine_annealing_lr": create_cosine_annealing_lr.__func__,
         "CosineAnnealingLR": create_cosine_annealing_lr.__func__,
+        "multi_step_lr": create_multi_step_lr.__func__,
+        "MultiStepLR": create_multi_step_lr.__func__,
+        "warmup": create_warmup.__func__,  # Register warmup creator
     }
+
+    def build(
+        self,
+        configs: List[Dict[str, Any]],
+        optimizer: optim.Optimizer,
+        total_epochs: int,  # Injected from cfg["run"]["epochs"]
+        steps_per_epoch: int,  # Injected from len(train_loader)
+    ) -> Optional[optim.lr_scheduler._LRScheduler]:
+        """
+        Builds the scheduler from a list of configurations, handling chaining of warmup and main scheduler.
+
+        This method uses a pre-processing step to inject context, then calls super().build to instantiate,
+        and finally post-processes the components to create a chained scheduler if needed.
+
+        Args:
+            configs: List of scheduler group configs from effective JSON.
+            optimizer: The optimizer instance.
+            total_epochs: Total training epochs from config.
+            steps_per_epoch: Number of batches per epoch (len(train_loader)).
+
+        Returns:
+            A chained scheduler or main scheduler, or None if no configs.
+        """
+        if not configs:
+            return None
+
+        # Step 1: Pre-process configs - find warmup_epochs and inject context into other configs.
+        warmup_epochs = 0
+        for config in configs:
+            # Use direct access to fail fast if 'instances' is missing.
+            instances = config["instances"]
+            if "warmup" in instances:
+                # Fail fast if 'warmup_epochs' is missing from the warmup instance.
+                warmup_epochs = instances["warmup"]["warmup_epochs"]
+                # Inject steps_per_epoch only into the warmup config.
+                if warmup_epochs > 0:
+                    instances["warmup"]["steps_per_epoch"] = steps_per_epoch
+                break  # Assume only one warmup config
+
+        # Inject context into multi_step_lr before instantiation.
+        for config in configs:
+            instances = config["instances"]
+            if "multi_step_lr" in instances:
+                multi_step_params = instances["multi_step_lr"]
+                multi_step_params["warmup_epochs"] = warmup_epochs
+                multi_step_params["total_epochs"] = total_epochs
+
+        # Step 2: Call super().build to process modes and instantiate components.
+        # steps_per_epoch is now passed via the config dict, not as a kwarg.
+        components = super().build(configs, optimizer=optimizer)
+
+        # Step 3: Post-process components to identify warmup and main, then chain if needed.
+        if components is None:
+            return None
+
+        # super().build returns a single item or a list. Normalize to list.
+        if not isinstance(components, list):
+            components = [components]
+
+        # Filter out None values, e.g., from a warmup config with warmup_epochs=0.
+        components = [c for c in components if c is not None]
+
+        if not components:
+            return None
+        if len(components) > 2:
+            raise ValueError("Scheduler components must be at most 2: one main and one optional warmup.")
+
+        warmup_scheduler = None
+        main_scheduler = None
+
+        for component in components:
+            if isinstance(component, torch.optim.lr_scheduler.LinearLR):
+                warmup_scheduler = component
+            else:
+                main_scheduler = component
+
+        if main_scheduler is None:
+            return warmup_scheduler  # Only warmup was configured.
+
+        if warmup_scheduler:
+            # Chain the two schedulers together.
+            warmup_steps = warmup_epochs * steps_per_epoch
+            return torch.optim.lr_scheduler.SequentialLR(
+                optimizer, schedulers=[warmup_scheduler, main_scheduler], milestones=[warmup_steps]
+            )
+
+        return main_scheduler  # No warmup configured, return only the main scheduler.
 
 
 class LoaderFactory(BasePipelineFactory):

@@ -21,9 +21,9 @@ lr_scheduler_techniques:
     type: "categorical"
     choices:
       basic: ["reduce_lr_on_plateau"]
-      robust: ["reduce_lr_on_plateau", "step_lr"]
-      comprehensive: ["cosine_annealing_lr", "step_lr", "reduce_lr_on_plateau"]
-      custom: ["cosine_annealing_lr", "step_lr", "reduce_lr_on_plateau"]
+      robust: ["reduce_lr_on_plateau", "multi_step_lr", "exponential_lr"]
+      comprehensive: ["cosine_annealing_lr", "multi_step_lr", "reduce_lr_on_plateau", "exponential_lr", "cosine_annealing_warm_restarts"]
+      custom: ["cosine_annealing_lr", "multi_step_lr", "reduce_lr_on_plateau", "exponential_lr", "cosine_annealing_warm_restarts"]
     dependency_order: ["strategy_level"]
 
   cosine_annealing_lr:
@@ -34,34 +34,41 @@ lr_scheduler_techniques:
       class: "param"
       param_name: "cosine_T_max"
       type: "int"
-      low: 5
-      high: 100
+      low: 1
+      high: 200
+      log: true
 
     eta_min_ratio:
       class: "param"
       param_name: "cosine_eta_min_ratio"
       type: "float"
-      low: 0.001
-      high: 0.1
+      low: 1e-4
+      high: 0.5
       log: true
 
-  step_lr:
-    class: "instance"
-    condition: "$lr_scheduler_strategy in ['step_lr']"
-
-    step_size:
+    last_epoch:
       class: "param"
-      param_name: "step_size"
+      param_name: "cosine_last_epoch"
       type: "int"
-      low: 20
-      high: 40
+      low: -1
+      high: 0
+
+  multi_step_lr:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['multi_step_lr']"
+
+    milestones_ratio:
+      class: "param"
+      param_name: "multi_step_milestones_ratio"
+      type: "categorical"
+      choices: ["[0.3]", "[0.2,0.5]", "[0.1,0.4,0.7]", "[0.1,0.3,0.6,0.8]"]
 
     gamma:
       class: "param"
-      param_name: "step_gamma"
+      param_name: "multi_step_gamma"
       type: "float"
-      low: 0.3
-      high: 0.7
+      low: 0.01
+      high: 0.9
 
   reduce_lr_on_plateau:
     class: "instance"
@@ -72,50 +79,92 @@ lr_scheduler_techniques:
       param_name: "plateau_patience"
       type: "int"
       low: 5
-      high: 20
+      high: 30
 
     factor:
       class: "param"
       param_name: "plateau_factor"
       type: "float"
-      low: 0.1
-      high: 0.8
+      low: 0.01
+      high: 0.9
 
     threshold:
       class: "param"
       param_name: "plateau_threshold"
       type: "float"
       low: 1e-5
-      high: 1e-2
+      high: 1e-1
       log: true
-
-    threshold_mode:
-      class: "param"
-      param_name: "plateau_threshold_mode"
-      type: "categorical"
-      choices: ["rel", "abs"]
-
-    cooldown:
-      class: "param"
-      param_name: "plateau_cooldown"
-      type: "int"
-      low: 0
-      high: 10
 
     min_lr:
       class: "param"
       param_name: "plateau_min_lr"
       type: "float"
       low: 1e-8
-      high: 1e-4
+      high: 1e-2
       log: true
 
-    eps:
+    mode:
       class: "param"
-      param_name: "plateau_eps"
+      param_name: "plateau_mode"
+      type: "categorical"
+      choices: ["min", "max"]
+
+  cosine_annealing_warm_restarts:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['cosine_annealing_warm_restarts']"
+
+    T_0:
+      class: "param"
+      param_name: "warm_restarts_T_0"
+      type: "int"
+      low: 10
+      high: 50
+
+    T_mult:
+      class: "param"
+      param_name: "warm_restarts_T_mult"
       type: "float"
-      low: 1e-9
-      high: 1e-6
+      low: 1.0
+      high: 2.0
+
+    eta_min_ratio:
+      class: "param"
+      param_name: "warm_restarts_eta_min_ratio"
+      type: "float"
+      low: 0.001
+      high: 0.1
       log: true
+
+  exponential_lr:
+    class: "instance"
+    condition: "$lr_scheduler_strategy in ['exponential_lr']"
+
+    gamma:
+      class: "param"
+      param_name: "exponential_gamma"
+      type: "float"
+      low: 0.95
+      high: 0.99
+
+warmup_technique:
+  class: "technique"
+
+  warmup:
+    class: "instance"
+
+    warmup_epochs:
+      class: "param"
+      param_name: "warmup_epochs"
+      type: "int"
+      low: 0
+      high: 10
+
+    warmup_start_factor:
+      class: "param"
+      param_name: "warmup_start_factor"
+      type: "float"
+      low: 0.01
+      high: 0.1
 
 
