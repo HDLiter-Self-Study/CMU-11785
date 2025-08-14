@@ -3,19 +3,23 @@ This module defines the main PipelineBuilder, which orchestrates the creation
 of the entire training pipeline from a configuration dictionary.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 from torchvision.transforms import v2
+from torch.utils.data import Dataset
 
 from .factories import (
     AugmentationFactory,
-    HeadFactory,
+    DataSamplingFactory,
     LabelMixingFactory,
     OptimizerFactory,
     SchedulerFactory,
+    LossesFactory,
+    HeadFactory,
+    EvaluatorFactory,
 )
 
 
@@ -36,6 +40,7 @@ class PipelineBuilder:
         "optimizer": OptimizerFactory,
         "scheduler": SchedulerFactory,
         "heads": HeadFactory,
+        "evaluators": EvaluatorFactory,
     }
 
     def __init__(self, config: Dict[str, Any], model: Optional[nn.Module] = None):
@@ -58,6 +63,8 @@ class PipelineBuilder:
         self.optimizer: Optional[Optimizer] = None
         self.scheduler: Optional[_LRScheduler] = None
         self.heads: Optional[nn.ModuleDict] = None
+        self.losses: Any = None
+        self.evaluators: Optional[Dict[str, Callable]] = None
 
     def build(self) -> "PipelineBuilder":
         """
@@ -87,6 +94,12 @@ class PipelineBuilder:
 
         if "heads" in self.pipeline_config:
             self.heads = self._build_heads()
+
+        if "losses" in self.pipeline_config:
+            self.losses = self._build_losses()
+
+        if "evaluators" in self.pipeline_config:
+            self.evaluators = self._build_evaluators()
 
         return self
 
@@ -145,3 +158,16 @@ class PipelineBuilder:
             for cfg in head_configs
         }
         return nn.ModuleDict(heads)
+
+    def _build_losses(self) -> Any:
+        """Builds the loss function(s) from the configuration."""
+        factory = LossesFactory()
+        losses_config = self.pipeline_config.get("losses", [])
+        return factory.build(losses_config)
+
+    def _build_evaluators(self) -> Dict[str, Callable]:
+        """Builds a dictionary of evaluators."""
+        factory = self._FACTORY_MAPPING["evaluators"]()
+        evaluator_configs = self.pipeline_config.get("evaluators", [])
+        # The build method can directly return a dictionary of named instances.
+        return factory.build(evaluator_configs)

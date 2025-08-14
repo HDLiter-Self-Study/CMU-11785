@@ -10,9 +10,11 @@ or torch) or custom project modules.
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
+from collections import Counter
 
 import torch
 from torch import optim
+from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
 from .base_factory import BasePipelineFactory
@@ -446,8 +448,7 @@ class HeadFactory(BasePipelineFactory):
     """
 
     SEARCH_MODULES = [
-        "src.models.heads",  # Assuming custom heads are located here
-        "src.models.common_blocks",
+        "src.heads",
     ]
 
 
@@ -486,3 +487,72 @@ class DataSamplingFactory(BasePipelineFactory):
     """
 
     SEARCH_MODULES = ["src.data.sampling"]
+
+
+class LossesFactory(BasePipelineFactory):
+    """Factory for creating loss functions."""
+
+    SEARCH_MODULES = [
+        "torch.nn",
+        "src.losses",  # Add our custom losses module
+    ]
+    STATS_FILE = Path("configs/data/dataset_stats.json")
+
+    @staticmethod
+    def create_cross_entropy_loss(**kwargs: Any) -> torch.nn.CrossEntropyLoss:
+        """
+        Custom creator for CrossEntropyLoss.
+        - If 'class_weights' is true, loads weights from the stats file.
+        - Fails fast if the stats file or 'class_weights' key is missing.
+        """
+        params = dict(kwargs or {})
+        use_class_weights = params.pop("class_weights", False)
+
+        if use_class_weights:
+            stats_file = LossesFactory.STATS_FILE
+            if not stats_file.is_file():
+                raise FileNotFoundError(
+                    f"Dataset statistics file not found at: {stats_file.resolve()}\n"
+                    f"Run 'scripts/calculate_dataset_stats.py' to generate it before using class_weights."
+                )
+
+            stats = json.loads(stats_file.read_text())
+            if "class_weights" not in stats:
+                raise KeyError(
+                    f"'class_weights' not found in {stats_file.resolve()}. "
+                    f"Please ensure 'calculate_dataset_stats.py' was run correctly."
+                )
+
+            # Convert to tensor and inject into params
+            weight_tensor = torch.tensor(stats["class_weights"], dtype=torch.float32)
+            params["weight"] = weight_tensor
+
+        return torch.nn.CrossEntropyLoss(**params)
+
+    CUSTOM_REGISTRY: Dict[str, Callable] = {
+        "cross_entropy_loss": create_cross_entropy_loss.__func__,
+        "CrossEntropyLoss": create_cross_entropy_loss.__func__,
+    }
+
+
+class EvaluatorFactory(BasePipelineFactory):
+    """
+    Factory for creating evaluators.
+
+    Evaluators are functions or simple modules that convert raw model outputs
+    (like logits or embeddings) into final predictions or similarity scores
+    for metric calculation.
+    """
+
+    SEARCH_MODULES = [
+        "src.evaluators",
+    ]
+
+    @staticmethod
+    def create_argmax(**kwargs: Any) -> Callable[[torch.Tensor], torch.Tensor]:
+        """Returns a lambda function that performs argmax on dimension 1."""
+        return lambda x: torch.argmax(x, dim=1)
+
+    CUSTOM_REGISTRY: Dict[str, Callable] = {
+        "argmax": create_argmax.__func__,
+    }
