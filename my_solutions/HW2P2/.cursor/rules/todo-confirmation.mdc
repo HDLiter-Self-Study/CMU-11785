@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+description: Require user confirmation before generating or committing a TODO list
+---
+### TODO list confirmation
+
+- Do not unilaterally generate or commit a TODO list. Always present it as a proposal and request the user's confirmation first.
+- When proposing a TODO list:
+  - Structure items clearly with short titles and one-line rationale.
+  - Include estimated scope/impact and any risks or prerequisites per item.
+  - Group by priority or dependency when relevant.
+- Do not persist TODOs in code comments, tasks, or external trackers without explicit approval.
+- Keep TODO items actionable (clear owner and tentative timeline) once approved; otherwise, avoid leaving TODO markers in code. See `docstrings-style.mdc`.
+- Follow `wait-for-review.mdc` (pause after proposal), `complex-edits-confirm.mdc` (plan before complex work), and `edit-explanation.mdc` (include concise rationale with approved changes).
