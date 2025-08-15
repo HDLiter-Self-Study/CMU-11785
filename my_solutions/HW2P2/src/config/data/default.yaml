@@ -9,6 +9,10 @@ paths:
   val_pairs: null      # optional, for verification pairing lists
   images_dir: null     # optional, common image root if pairs are used
 
+image_settings:
+  image_size: 112
+  in_channels: 3
+
 # Loader runtime settings (not searched). Can be overridden in task_configs.<task>.yaml
 loader_settings:
   num_workers: 4
