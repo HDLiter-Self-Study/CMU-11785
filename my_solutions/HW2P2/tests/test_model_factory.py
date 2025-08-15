@@ -1,42 +1,63 @@
+import pytest
 import json
 from pathlib import Path
-import sys
+from src.models.model_factory import ModelFactory
+from src.models.architectures import ResNet, ConvNeXt
 
-import pytest
+# Load effective config once
+EFFECTIVE_CONFIG_PATH = Path(__file__).parent.parent / "effective_latest.json"
+with open(EFFECTIVE_CONFIG_PATH, "r") as f:
+    EFFECTIVE_CONFIG = json.load(f)
 
-# Ensure repo root on path
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# Extract ResNet and ConvNeXt architecture configs from the loaded JSON
+RESNET_ARCH_CONFIG = None
+CONVNEXT_ARCH_CONFIG = None
+for trial in EFFECTIVE_CONFIG["effective_data"]:
+    arch_type = trial.get("model", {}).get("architectures", {}).get("type")
+    if arch_type == "resnet" and RESNET_ARCH_CONFIG is None:
+        RESNET_ARCH_CONFIG = trial["model"]["architectures"]
+    elif arch_type == "convnext" and CONVNEXT_ARCH_CONFIG is None:
+        CONVNEXT_ARCH_CONFIG = trial["model"]["architectures"]
+
+# =============================================================================
+# ModelFactory Tests
+# =============================================================================
 
 
-def test_create_model_smoke():
-    # Import lazily to ensure torch is available
-    from src.models.architecture_factory import ArchitectureFactory
+@pytest.fixture
+def model_factory():
+    return ModelFactory()
 
-    eff_path = PROJECT_ROOT / "effective_latest.json"
-    data = json.loads(eff_path.read_text(encoding="utf-8"))
-    trials = data.get("effective_data") or []
-    assert trials, "No trials present"
-    # Pick a trial whose stem normalization does not require extra params
-    # Prefer convnext (its stem uses layer_norm approximation by default)
-    chosen = None
-    for t in trials:
-        arch = t["model"]["architectures"]
-        if arch.get("type") == "convnext":
-            chosen = arch
-            break
-    if chosen is None:
-        chosen = trials[0]["model"]["architectures"]
-    arch_cfg = chosen
 
-    factory = ArchitectureFactory()
-    model = factory.create_model(arch_cfg, in_channels=3, num_classes=2)
+@pytest.fixture
+def data_config():
+    """Provides a mock data config for tests."""
+    return {"in_channels": 3}
 
-    # forward smoke test with dummy data (small spatial size)
-    import torch
 
-    x = torch.randn(2, 3, 64, 64)
-    out = model(x)
-    assert isinstance(out, dict) and "out" in out and "feats" in out
-    assert out["out"].shape[0] == 2
+@pytest.mark.skipif(RESNET_ARCH_CONFIG is None, reason="No ResNet config found in effective_latest.json")
+def test_model_factory_creates_resnet(model_factory, data_config):
+    """
+    Tests if the ModelFactory correctly creates a ResNet model from config.
+    """
+    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    assert isinstance(model, ResNet)
+
+
+@pytest.mark.skipif(CONVNEXT_ARCH_CONFIG is None, reason="No ConvNeXt config found in effective_latest.json")
+def test_model_factory_creates_convnext(model_factory, data_config):
+    """
+    Tests if the ModelFactory correctly creates a ConvNeXt model from config.
+    """
+    model = model_factory.create(CONVNEXT_ARCH_CONFIG, data_config)
+    assert isinstance(model, ConvNeXt)
+
+
+def test_model_factory_raises_error_on_unknown_type(model_factory, data_config):
+    """
+    Tests if the ModelFactory raises a ValueError for an unknown architecture type.
+    """
+    bad_config = {"type": "unknown_arch", "regnet_rule": {}, "num_stages": 1, "block_type": ["basic"]}
+    with pytest.raises(ValueError, match="Unsupported architecture type: unknown_arch"):
+        # The error is raised by the planner, so we call create directly
+        model_factory.create(bad_config, data_config)

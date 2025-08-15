@@ -32,9 +32,19 @@ def test_stage_plan_field_correctness():
         "type": "resnet",
         "num_stages": 4,
         "regnet_rule": {"width_slope": 2.0, "initial_width": 64, "depth_slope": 1, "depth_bias": 1},
-        "block_type": ["basic", "basic", "bottleneck", "bottleneck"],
-        "activation": ["relu", "relu", "gelu", "gelu"],
-        "normalization": ["batch_norm", "batch_norm", "layer_norm", "layer_norm"],
+        "block_type": [
+            {"block_type": "basic"},
+            {"block_type": "basic"},
+            {"block_type": "bottleneck"},
+            {"block_type": "bottleneck"},
+        ],
+        "activation": [{"activation": "relu"}, {"activation": "relu"}, {"activation": "gelu"}, {"activation": "gelu"}],
+        "normalization": [
+            {"normalization": "batch_norm"},
+            {"normalization": "batch_norm"},
+            {"normalization": "layer_norm"},
+            {"normalization": "layer_norm"},
+        ],
     }
 
     plan = StagePlanner.plan(mock_arch)
@@ -43,24 +53,24 @@ def test_stage_plan_field_correctness():
     assert isinstance(num_stages, int) and num_stages == 4
 
     # Core lists must be aligned with num_stages
-    for key in ["depths", "out_channels", "downsamplings", "block_types", "per_stage_block_params"]:
+    for key in ["stages", "out_channels", "downsamplings", "block_types", "per_stage_block_params"]:
         assert hasattr(plan, key), f"StagePlan missing field: {key}"
         attr = getattr(plan, key)
         assert isinstance(attr, list), f"plan.{key} is not a list"
         assert len(attr) == num_stages, f"plan.{key} length mismatch"
 
     # Check content types
-    assert all(isinstance(d, int) for d in plan.depths)
+    assert all(isinstance(d, int) for d in plan.stages)
     assert all(isinstance(c, int) and c % 8 == 0 for c in plan.out_channels)
-    assert all(isinstance(d, bool) for d in plan.downsamplings)
+    assert all(isinstance(d, int) and d >= 1 for d in plan.downsamplings)
     # The block_types list can be empty if not provided, but if provided, must contain strings.
     assert all(isinstance(bt, str) for bt in plan.block_types)
     assert all(isinstance(p, dict) for p in plan.per_stage_block_params)
 
-    # Check downsampling pattern (first is always False)
-    assert not plan.downsamplings[0]
+    # Check downsampling pattern (first is always 1, others are >=2)
+    assert plan.downsamplings[0] == 1
     if num_stages > 1:
-        assert all(plan.downsamplings[1:])
+        assert all(d >= 2 for d in plan.downsamplings[1:])
 
     # Check that per_stage_block_params contains expected keys
     # This now reliably checks against our mock data.
@@ -84,9 +94,13 @@ def test_stage_planner_with_manual_dict():
             "min_stage_depth": 1,
             "max_stage_depth": 5,
         },
-        "block_type": ["basic", "basic", "bottleneck"],
-        "activation": ["relu", "gelu", "relu"],
-        "normalization": ["batch_norm", "batch_norm", "batch_norm"],
+        "block_type": [{"block_type": "basic"}, {"block_type": "basic"}, {"block_type": "bottleneck"}],
+        "activation": [{"activation": "relu"}, {"activation": "gelu"}, {"activation": "relu"}],
+        "normalization": [
+            {"normalization": "batch_norm"},
+            {"normalization": "batch_norm"},
+            {"normalization": "batch_norm"},
+        ],
     }
 
     plan = StagePlanner.plan(manual_arch)
@@ -118,7 +132,7 @@ def test_strict_validation_fails_on_wrong_length():
         "type": "resnet",
         "num_stages": 3,
         "regnet_rule": {"width_slope": 2, "initial_width": 32},
-        "block_type": ["basic", "basic"],  # Length is 2, should be 3
+        "block_type": [{"block_type": "basic"}, {"block_type": "basic"}],  # Length is 2, should be 3
     }
     with pytest.raises(ValueError, match="'block_type' list length 2 != num_stages 3"):
         StagePlanner.plan(bad_arch)
