@@ -16,9 +16,34 @@ import torch
 from torch import optim
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
+from torch.nn import CrossEntropyLoss
 
 from .base_factory import BasePipelineFactory
 from ..data.label_mixing import FMix
+
+# =============================================================================
+# Component Factories
+# =============================================================================
+
+
+class HeadsFactory(BasePipelineFactory):
+    """
+    Factory for creating model heads. A model can only have a single head.
+    """
+
+    SEARCH_MODULES = ["src.heads"]
+
+    def build(self, configs: List[Dict[str, Any]], **kwargs) -> Optional[torch.nn.Module]:
+        if not configs:
+            return None
+
+        # A model should only have one head. This is the primary validation.
+        if len(configs) > 1:
+            raise ValueError(f"A model can only have one head, but {len(configs)} configurations were provided.")
+
+        # Since there's only one config, let the base factory build it.
+        # The base `build` method will return a single instance, not a list.
+        return super().build(configs, **kwargs)
 
 
 class AugmentationFactory(BasePipelineFactory):
@@ -439,67 +464,17 @@ class LoaderFactory(BasePipelineFactory):
         return train_loader, eval_loader
 
 
-class HeadFactory(BasePipelineFactory):
-    """
-    Factory for creating model heads.
-
-    Model heads are custom `nn.Module` subclasses that perform the final
-    classification or regression task.
-    """
-
-    SEARCH_MODULES = [
-        "src.heads",
-    ]
-
-
-class LabelMixingFactory(BasePipelineFactory):
-    """
-    Factory for creating label mixing strategies (MixUp, CutMix, FMix, etc.).
-
-    This factory handles the creation of label mixing transforms that modify both
-    input images and their corresponding labels during training. It requires
-    `num_classes` only when labels are provided as class indices. If labels are
-    already one-hot/soft, `num_classes` is not required. Mode handling ("single"
-    and "random_choice") is delegated to BasePipelineFactory.
-    """
-
-    SEARCH_MODULES = [
-        "torchvision.transforms.v2",
-    ]
-
-    CUSTOM_REGISTRY = {
-        "fmix": FMix,
-    }
-
-    # Note:
-    # - Build is inherited from BasePipelineFactory. Provide `num_classes` via
-    #   injected kwargs when available. Underlying components will fast-fail at
-    #   runtime if class-index labels are used without `num_classes`.
-
-
-class DataSamplingFactory(BasePipelineFactory):
-    """
-    Factory for creating data sampling wrappers, such as repeated augmentation.
-
-    This factory typically wraps an existing dataset returned by the datasets
-    factory/builder and augments its iteration behavior without changing the
-    transform pipeline.
-    """
-
-    SEARCH_MODULES = ["src.data.sampling"]
-
-
 class LossesFactory(BasePipelineFactory):
-    """Factory for creating loss functions."""
+    """
+    Factory for creating loss functions.
+    It provides special handling for CrossEntropyLoss to support class weighting.
+    """
 
-    SEARCH_MODULES = [
-        "torch.nn",
-        "src.losses",  # Add our custom losses module
-    ]
+    SEARCH_MODULES = ["torch.nn", "src.losses"]
     STATS_FILE = Path("configs/data/dataset_stats.json")
 
     @staticmethod
-    def create_cross_entropy_loss(**kwargs: Any) -> torch.nn.CrossEntropyLoss:
+    def create_cross_entropy_loss(**kwargs: Any) -> CrossEntropyLoss:
         """
         Custom creator for CrossEntropyLoss.
         - If 'class_weights' is true, loads weights from the stats file.
@@ -527,7 +502,7 @@ class LossesFactory(BasePipelineFactory):
             weight_tensor = torch.tensor(stats["class_weights"], dtype=torch.float32)
             params["weight"] = weight_tensor
 
-        return torch.nn.CrossEntropyLoss(**params)
+        return CrossEntropyLoss(**params)
 
     CUSTOM_REGISTRY: Dict[str, Callable] = {
         "cross_entropy_loss": create_cross_entropy_loss.__func__,
@@ -535,18 +510,38 @@ class LossesFactory(BasePipelineFactory):
     }
 
 
-class EvaluatorFactory(BasePipelineFactory):
+class LabelMixingFactory(BasePipelineFactory):
     """
-    Factory for creating evaluators.
+    Factory for creating label mixing strategies (MixUp, CutMix, FMix, etc.).
 
-    Evaluators are functions or simple modules that convert raw model outputs
-    (like logits or embeddings) into final predictions or similarity scores
-    for metric calculation.
+    This factory handles the creation of label mixing transforms that modify both
+    input images and their corresponding labels during training. It requires
+    `num_classes` only when labels are provided as class indices. If labels are
+    already one-hot/soft, `num_classes` is not required. Mode handling ("single"
+    and "random_choice") is delegated to BasePipelineFactory.
     """
 
     SEARCH_MODULES = [
-        "src.evaluators",
+        "torchvision.transforms.v2",
     ]
+
+    CUSTOM_REGISTRY = {
+        "fmix": FMix,
+    }
+
+    # Note:
+    # - Build is inherited from BasePipelineFactory. Provide `num_classes` via
+    #   injected kwargs when available. Underlying components will fast-fail at
+    #   runtime if class-index labels are used without `num_classes`.
+
+
+class EvaluatorsFactory(BasePipelineFactory):
+    """
+    Factory for creating evaluators.
+    It provides a special 'argmax' evaluator for classification tasks.
+    """
+
+    SEARCH_MODULES = ["src.evaluators"]
 
     @staticmethod
     def create_argmax(**kwargs: Any) -> Callable[[torch.Tensor], torch.Tensor]:
@@ -556,3 +551,15 @@ class EvaluatorFactory(BasePipelineFactory):
     CUSTOM_REGISTRY: Dict[str, Callable] = {
         "argmax": create_argmax.__func__,
     }
+
+
+class DataSamplingFactory(BasePipelineFactory):
+    """
+    Factory for creating data sampling wrappers, such as repeated augmentation.
+
+    This factory typically wraps an existing dataset returned by the datasets
+    factory/builder and augments its iteration behavior without changing the
+    transform pipeline.
+    """
+
+    SEARCH_MODULES = ["src.data.sampling"]
