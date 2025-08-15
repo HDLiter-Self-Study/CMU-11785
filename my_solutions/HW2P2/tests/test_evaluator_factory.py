@@ -1,13 +1,13 @@
 import unittest
 import torch
-from src.pipelines.factories import EvaluatorFactory
+from src.pipelines.factories import EvaluatorsFactory
 from src.evaluators import CosineSimilarity
 
 
 class TestEvaluatorFactory(unittest.TestCase):
     def setUp(self):
         """Set up a factory instance for each test."""
-        self.factory = EvaluatorFactory()
+        self.factory = EvaluatorsFactory()
 
     def test_create_argmax_evaluator(self):
         """Test creating the custom 'argmax' evaluator."""
