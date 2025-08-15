@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Type, Callable
-from ..common_blocks.head import ClassificationHead
 
 
 class BaseArchitecture(nn.Module, ABC):

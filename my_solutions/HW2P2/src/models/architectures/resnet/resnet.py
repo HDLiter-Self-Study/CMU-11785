@@ -6,7 +6,6 @@ import torch
 import torch.nn as nn
 from typing import Dict, Any, List
 from .blocks import BasicBlock, BottleneckBlock
-from ...common_blocks.head import ClassificationHead
 from ...common_blocks.stem import ResNetStem
 from ..base import BaseArchitecture
 
