@@ -28,8 +28,15 @@ classification_paradigm_evaluators:
   argmax:
     class: "instance"
     condition: "$classification_evaluator_type == 'argmax'"
-    # Argmax has no configurable parameters.
-    # This serves as a placeholder to formalize the evaluation step.
+
+    dim:
+      class: "param"
+      param_name: "argmax_dim"
+      type: "categorical"
+      choices: [1]
+      description: "Dimension to apply argmax on."
+      # Argmax dimension is fixed to 1 for classification tasks.
+      # This serves as a placeholder to formalize the generation of effective json.
     
 # =============================================================================
 # EVALUATORS FOR METRIC LEARNING PARADIGM

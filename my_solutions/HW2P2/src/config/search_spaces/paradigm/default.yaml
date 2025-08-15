@@ -1,12 +1,27 @@
-# @package _global_
+# @package search_spaces.paradigm
 # Defines the training paradigm, which dictates the overall model structure
 # and loss function type (e.g., classification vs. metric learning).
+class: "strategy"
 
-paradigm:
-  class: "param"
-  param_name: "paradigm"
-  type: "categorical"
-  choices: ["classification", "metric_learning"]
-  export_to_global: true  # Make it available globally for easy conditioning
-  arch_irrelevant: true     # Does not depend on architecture type
-  description: "Selects the training paradigm (e.g., classification with a head, or metric learning without)."
+
+# Policy: unified grouped output validation
+policy:
+  allowed_multi_modes: []
+  require_selection_when_multi: true
+  
+  required: false
+
+paradigm_technique:
+  class: "technique"
+
+  paradigm:
+    class: "instance"
+
+    paradigm:
+      class: "param"
+      param_name: "paradigm"
+      type: "categorical"
+      choices: ["classification", "metric_learning"]
+      export_to_global: true  # Make it available globally for easy conditioning
+      arch_irrelevant: true     # Does not depend on architecture type
+      description: "Selects the training paradigm (e.g., classification with a head, or metric learning without)."

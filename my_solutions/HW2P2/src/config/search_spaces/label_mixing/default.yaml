@@ -59,6 +59,10 @@ active_mixing_techniques:
       comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
       custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
     description: "Specific label mixing technique"
+    index_choices: true 
+    # We introduce dynamic choices value space by using active_mixing_techniques/inactive_mixing_technique
+    # to ensure that the 'label_mixing_technique' parameter is always defined for downstream.
+    # So we need to use index_choices to avoid bugs.
 
   # Mixup technique
   mixup:
@@ -126,6 +130,7 @@ inactive_mixing_technique:
     type: "categorical"
     choices: ["none"]
     description: "Label mixing is disabled for this configuration."
+    index_choices: true
 
 
 
