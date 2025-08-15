@@ -563,3 +563,19 @@ class DataSamplingFactory(BasePipelineFactory):
     """
 
     SEARCH_MODULES = ["src.data.sampling"]
+
+
+class EmaFactory(BasePipelineFactory):
+    """
+    Factory for creating Exponential Moving Average (EMA) callbacks.
+    """
+
+    SEARCH_MODULES = ["src.utils.ema"]
+
+
+class GradClipFactory(BasePipelineFactory):
+    """
+    Factory for creating gradient clipping functions.
+    """
+
+    SEARCH_MODULES = ["src.utils.grad_clip"]
