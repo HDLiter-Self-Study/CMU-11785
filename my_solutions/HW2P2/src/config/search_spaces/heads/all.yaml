@@ -11,86 +11,142 @@ strategy_level: "robust"
 policy:
   allowed_multi_modes: []
   require_selection_when_multi: true
-  
 
-# Classification heads (active only for classification tasks)
+# =============================================================================
+# CLASSIFICATION HEAD
+# =============================================================================
 classification_heads:
   class: "technique"
   condition: "$task == 'classification'"
 
-  selection:
-    class: "param"
-    param_name: "classification_head_type"
-    type: "categorical"
-    dependency_order: ["strategy_level"]
-    choices:
-      basic: ["standard"]
-      robust: ["standard", "dropout_head"]
-      comprehensive: ["standard", "dropout_head"]
-      custom: ["standard", "dropout_head"]
-    description: "Classification head architecture selection"
-
-  standard:
+  # With a unified ClassificationHead, there is only one instance.
+  # All configurable aspects are defined as searchable parameters below.
+  classification_head:
     class: "instance"
-    condition: "$classification_head_type == 'standard'"
+    
+    # -------------------------------------------------------------------------
+    # --- Part 1: Feature Processor ---
+    # -------------------------------------------------------------------------
     pooling_type:
       class: "param"
-      param_name: "cls_standard_pooling_type"
+      param_name: "head_pooling_type"
       type: "categorical"
-      choices: ["avg", "max", "adaptive_avg", "adaptive_max","none"]
-    # Single-layer bottleneck for ClassificationHead
-    head_hidden_dims:
+      choices: ["adaptive_avg", "adaptive_max"]
+      description: "Type of adaptive pooling to apply to backbone features."
+
+    hidden_dims:
       class: "param"
       param_name: "head_hidden_dims"
       type: "categorical"
-      # null means direct Linear(C_last -> num_classes)
-      choices: [null, 256, 384, 512]
-      description: "Hidden dimension for ClassificationHead bottleneck (None for direct)"
-    # Optional search knobs for a future enhanced head; kept but decoupled from hidden dims
-    activation:
-      class: "param"
-      param_name: "cls_standard_activation"
-      type: "categorical"
-      choices: ["relu", "gelu", "swish", "leaky_relu"]
-    use_batch_norm:
-      class: "param"
-      param_name: "cls_standard_use_batch_norm"
-      type: "categorical"
-      choices: [true, false]
+      choices:
+        - "null"        # Direct connection: in_features -> num_classes
+        - "[256]"
+        - "[512]"
+        - "[512, 256]"
+        - "[1024, 512]"
+      description: "List of hidden layer dimensions for the MLP head. Null means no hidden layers."
 
-  dropout_head:
-    class: "instance"
-    condition: "$classification_head_type == 'dropout_head'"
-    pooling_type:
-      class: "param"
-      param_name: "cls_dropout_pooling_type"
-      type: "categorical"
-      choices: ["avg", "max", "adaptive_avg", "adaptive_max","none"]
-    hidden_dims:
-      class: "param"
-      param_name: "cls_dropout_hidden_dims"
-      type: "categorical"
-      choices: [[512], [1024], [512, 256], [1024, 512], [2048, 1024]]
     activation:
       class: "param"
-      param_name: "cls_dropout_activation"
+      param_name: "head_activation"
       type: "categorical"
-      choices: ["relu", "gelu", "swish", "leaky_relu"]
+      choices: ["relu", "gelu", "swish"]
+      condition: "$head_hidden_dims != 'null'"
+      description: "Activation function for hidden layers."
+
     use_batch_norm:
       class: "param"
-      param_name: "cls_dropout_use_batch_norm"
+      param_name: "head_use_batch_norm"
       type: "categorical"
       choices: [true, false]
+      condition: "$head_hidden_dims != 'null'"
+      description: "Whether to use BatchNorm in hidden layers."
+
     dropout_rate:
       class: "param"
-      param_name: "cls_dropout_dropout_rate"
+      param_name: "head_dropout_rate"
       type: "float"
-      low: 0.1
-      high: 0.8
-    dropout_schedule:
+      low: 0.0
+      high: 0.5
+      condition: "$head_hidden_dims != 'null'"
+      description: "Dropout rate for hidden layers."
+
+    # -------------------------------------------------------------------------
+    # --- Part 2: Classifier Component Selection ---
+    # -------------------------------------------------------------------------
+    classifier_type:
       class: "param"
-      param_name: "cls_dropout_dropout_schedule"
+      param_name: "head_classifier_type"
       type: "categorical"
-      choices: ["constant", "linear_decay", "cosine_decay"]
+      choices: ["linear", "arc_face", "cos_face", "sphere_face"]
+      description: "The final classifier layer type."
+
+    # -------------------------------------------------------------------------
+    # --- Part 3: Classifier-Specific Parameters ---
+    # -------------------------------------------------------------------------
+    # Parameters for ArcFace, sampled only when classifier_type is 'arcface'.
+    arcface_scale:
+      class: "param"
+      param_name: "head_arcface_scale"
+      type: "float"
+      low: 30.0
+      high: 64.0
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'arcface'"
+      description: "Scale parameter (s) for ArcFace."
+
+    arcface_margin:
+      class: "param"
+      param_name: "head_arcface_margin"
+      type: "float"
+      low: 0.3
+      high: 0.7
+      step: 0.05
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'arcface'"
+      description: "Margin parameter (m) for ArcFace."
+      
+    # Parameters for CosFace
+    cosface_scale:
+      class: "param"
+      param_name: "head_cosface_scale"
+      type: "float"
+      low: 30.0
+      high: 64.0
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'cosface'"
+      description: "Scale parameter (s) for CosFace."
+
+    cosface_margin:
+      class: "param"
+      param_name: "head_cosface_margin"
+      type: "float"
+      low: 0.2
+      high: 0.5
+      step: 0.05
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'cosface'"
+      description: "Margin parameter (m) for CosFace."
+
+    # Parameters for SphereFace
+    sphereface_scale:
+      class: "param"
+      param_name: "head_sphereface_scale"
+      type: "float"
+      low: 30.0
+      high: 64.0
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'sphereface'"
+      description: "Scale parameter (s) for SphereFace."
+
+    sphereface_margin:
+      class: "param"
+      param_name: "head_sphereface_margin"
+      type: "int"
+      low: 2
+      high: 5
+      depends_on: ["head_classifier_type"]
+      condition: "$head_classifier_type == 'sphereface'"
+      description: "Margin parameter (m) for SphereFace. Must be an integer."
 
 
