@@ -1,0 +1,24 @@
+---
+alwaysApply: true
+description: During Q&A, answer questions without editing code or taking unrelated actions; code changes require explicit instruction
+---
+### Q&A behavior: answer without editing code
+
+- When the user asks a question, answer the question directly. Do not modify code as part of the answer, even if issues are discovered while answering.
+- Do not execute unrelated tasks or actions after answering. Keep responses scoped strictly to the question.
+
+### Code changes require explicit instruction
+
+- Do not modify code unless the user explicitly requests an edit or change.
+- If a potential problem is identified while answering, present a brief analysis and request confirmation before any edit (see `confirm-on-concerns.mdc`).
+
+### Conversation scope
+
+- Do not proactively modify code not mentioned in the conversation, even if it appears in a pending TODO list.
+- Follow `todo-confirmation.mdc` before proposing or committing any TODO list.
+
+### Related rules
+
+- `wait-for-review.mdc` — do not self-start new tasks after completing current work.
+- `stop-after-each-unit.mdc` — pause after each discrete unit for review.
+- `edit-explanation.mdc` — include concise rationale when edits are explicitly requested and made.

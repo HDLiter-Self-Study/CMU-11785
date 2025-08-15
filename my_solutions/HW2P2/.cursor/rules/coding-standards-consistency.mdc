@@ -1,0 +1,24 @@
+---
+alwaysApply: true
+description: Respect existing coding standards; reuse base classes and existing methods; stay consistent with similar modules
+---
+### Coding standards and consistency
+
+- Follow the repository's existing coding conventions and style (formatting, typing, lint rules) without introducing ad-hoc variations.
+- Prefer reuse over reinvention: leverage base classes, shared utilities, and established helper functions.
+- Maintain consistency with implementations in similar modules:
+  - Mirror public interfaces, naming, error handling, and edge-case behavior where applicable.
+  - Keep configuration patterns, dependency injection, and module boundaries aligned.
+  - Avoid duplicating logic; extract shared pieces into common modules when needed.
+
+### Deviation protocol
+
+- If deviation from existing patterns is beneficial, first propose a brief design note and wait for approval (see `complex-edits-confirm.mdc`).
+- Provide a concise edit explanation and tests validating the new pattern (see `edit-explanation.mdc`).
+
+### Related rules
+
+- `code-elegance.mdc` — write clear, maintainable code and proactively refactor duplication.
+- `no-fallback-hardcode.mdc` — avoid superficial fallbacks and hardcoding.
+- `fail-fast-coding.mdc` — prefer explicit errors over silent tolerance.
+- `docstrings-style.mdc` — English, timeless docs aimed at new developers.
