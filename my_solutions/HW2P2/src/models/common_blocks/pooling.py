@@ -53,3 +53,39 @@ class StackedPooling(nn.Module):
         for layer in self.pooling_layers:
             pooled_outputs.append(layer(x).squeeze(-1).squeeze(-1))  # Squeeze to (B, C) shape
         return torch.stack(pooled_outputs, dim=-1)  # Shape: (B, C, num_layers)
+
+
+class PoolingFactory:
+    """A factory to create pooling layers from string names."""
+
+    @staticmethod
+    def create(name: str, output_size: int = 1, kernel_size: int = 1) -> nn.Module:
+        """
+        Creates a pooling layer instance from its name.
+
+        Args:
+            name: The name of the pooling layer. Supported values are
+                  'avg', 'max', 'adaptive_avg', 'adaptive_max'.
+            output_size: The target output size for adaptive pooling layers.
+            kernel_size: The kernel size for non-adaptive pooling layers.
+
+        Returns:
+            An instance of the pooling layer.
+
+        Raises:
+            ValueError: If the pooling layer name is not supported.
+        """
+        if name is None:
+            raise ValueError("Pooling type cannot be None.")
+
+        name = name.lower()
+        if name == "avg":
+            return nn.AvgPool2d(kernel_size=kernel_size)
+        elif name == "max":
+            return nn.MaxPool2d(kernel_size=kernel_size)
+        elif name == "adaptive_avg":
+            return nn.AdaptiveAvgPool2d(output_size)
+        elif name == "adaptive_max":
+            return nn.AdaptiveMaxPool2d(output_size)
+        else:
+            raise ValueError(f"Unsupported pooling layer type: {name}")
