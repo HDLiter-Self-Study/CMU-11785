@@ -38,6 +38,8 @@ policy:
 # Label mixing techniques (influenced by primary strategy)
 mixing_techniques:
   class: "technique"
+  condition: "$task in ['classification']"
+  # no label mixing for verification tasks
   
   selection:
     class: "param"
@@ -46,7 +48,7 @@ mixing_techniques:
     dependency_order: ["strategy_level"]
     choices:
       basic: ["none", "mixup"]
-      robust: ["none", "mixup", "cutmix"]
+      robust: ["none", "mixup", "cutmix"] 
       comprehensive: ["none", "mixup", "cutmix", "fmix", "random_choice"]
       custom: ["none", "mixup", "cutmix", "fmix", "random_choice"]
     description: "Specific label mixing technique"
