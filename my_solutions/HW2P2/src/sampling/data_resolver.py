@@ -85,6 +85,28 @@ def _resolve_paths(cfg: Dict[str, Any]) -> Dict[str, Optional[str]]:
     return out
 
 
+def _resolve_image_settings(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Resolve image settings with override semantics.
+
+    - Base from cfg.data.image_settings
+    - Override from task_configs.data.image_settings
+    """
+    # Base image settings from data.image_settings
+    base_settings = _get(cfg, "data.image_settings", {}) or {}
+    if not isinstance(base_settings, dict):
+        base_settings = {}
+
+    # Override from task_configs.data.image_settings
+    override_settings = _get(cfg, "task_configs.data.image_settings", {}) or {}
+    if not isinstance(override_settings, dict):
+        override_settings = {}
+
+    # Merge with override semantics
+    settings = {**base_settings, **override_settings}
+
+    return settings
+
+
 def _resolve_loader(cfg: Dict[str, Any], sampled: Dict[str, Any], policies: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Resolve loader via default path, then inject loader_settings into instance params.
 
@@ -271,6 +293,7 @@ def resolve_effective_data_config(cfg: Dict[str, Any], sampled_hierarchical: Dic
         "checkpoints": checkpoints,
         "wandb": wandb,
         "paths": _resolve_paths(cfg),
+        "image_settings": _resolve_image_settings(cfg),
         "model": {"architectures": architectures_eff},
         # Pipelines (isolated unified list semantics)
         "pipelines": pipelines,
