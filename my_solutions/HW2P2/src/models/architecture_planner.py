@@ -89,24 +89,15 @@ class StagePlanner:
         if not isinstance(regnet_rule, dict):
             raise ValueError("regnet_rule must be provided as a dict")
 
-        # Defensively expand per-stage attributes. If an attribute is not a list,
-        # it is treated as a global value and expanded to a list of num_stages.
+        # Stricly validate per-stage attributes. If they exist, they must be lists
+        # of the correct length. No automatic expansion is performed.
         for name in ["activation", "normalization", "block_type"]:
             attr = arch.get(name)
-            if not isinstance(attr, list):
-                arch[name] = [attr] * num_stages
-
-        # After potential expansion, validate list lengths
-        for name in ["activation", "normalization", "block_type"]:
-            a_list = arch.get(name)
-            if a_list is not None:
-                if not isinstance(a_list, list):
-                    raise TypeError(f"'{name}' is expected to be a list, but got {type(a_list)}")
-                # After expansion, single-item lists should also be validated
-                if len(a_list) != num_stages and len(a_list) == 1:
-                    arch[name] = a_list * num_stages
-                elif len(a_list) != num_stages:
-                    raise ValueError(f"'{name}' list length {len(a_list)} != num_stages {num_stages}")
+            if attr is not None:
+                if not isinstance(attr, list):
+                    raise TypeError(f"'{name}' is expected to be a list, but got {type(attr)}")
+                if len(attr) != num_stages:
+                    raise ValueError(f"'{name}' list length {len(attr)} != num_stages {num_stages}")
 
         stage_depths, stage_widths = StagePlanner._plan_shapes(arch, num_stages)
         downsamplings = StagePlanner._plan_downsamplings(arch, num_stages)
@@ -182,7 +173,7 @@ class StagePlanner:
             depths=stage_depths,
             out_channels=stage_widths,
             downsamplings=[bool(d) for d in downsamplings],
-            block_types=arch.get("block_type", []),
+            block_types=arch.get("block_type") or [],
             per_stage_block_params=per_stage_params,
             meta=meta,
         )
