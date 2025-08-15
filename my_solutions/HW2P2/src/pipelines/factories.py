@@ -546,7 +546,7 @@ class EvaluatorsFactory(BasePipelineFactory):
     @staticmethod
     def create_argmax(**kwargs: Any) -> Callable[[torch.Tensor], torch.Tensor]:
         """Returns a lambda function that performs argmax on dimension 1."""
-        return lambda x: torch.argmax(x, dim=1)
+        return lambda x: torch.argmax(x, **kwargs)
 
     CUSTOM_REGISTRY: Dict[str, Callable] = {
         "argmax": create_argmax.__func__,
