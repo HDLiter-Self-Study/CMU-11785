@@ -5,8 +5,14 @@
 # - targets: list of dot-paths to assign the value to
 # - coerce_scalar_to_list: when true and type is list[...], wrap scalar into a one-element list
 
+paradigm:
+  description: "Set the training paradigm (e.g., classification, metric_learning)"
+  type: "str"
+  targets: ["paradigm.choices"]
+
 epochs:
-  type: int
+  description: "Number of training epochs"
+  type: "int"
   targets:
     - task_configs.training.epochs
 

@@ -1,0 +1,12 @@
+# @package _global_
+# Defines the training paradigm, which dictates the overall model structure
+# and loss function type (e.g., classification vs. metric learning).
+
+paradigm:
+  class: "param"
+  param_name: "paradigm"
+  type: "categorical"
+  choices: ["classification", "metric_learning"]
+  export_to_global: true  # Make it available globally for easy conditioning
+  arch_irrelevant: true     # Does not depend on architecture type
+  description: "Selects the training paradigm (e.g., classification with a head, or metric learning without)."

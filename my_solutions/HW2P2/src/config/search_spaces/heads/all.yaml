@@ -4,7 +4,8 @@
 # Unified heads strategy with task-conditional techniques.
 
 class: "strategy"
-depends_on: ["architectures"]
+# Ensure heads are processed after architectures to get correct in_features
+depends_on: ["architectures", "paradigm"]
 strategy_level: "robust"
 
 # Policy: unified grouped output validation
@@ -17,7 +18,7 @@ policy:
 # =============================================================================
 classification_heads:
   class: "technique"
-  condition: "$task == 'classification'"
+  condition: "$paradigm == 'classification'"
 
   # With a unified ClassificationHead, there is only one instance.
   # All configurable aspects are defined as searchable parameters below.

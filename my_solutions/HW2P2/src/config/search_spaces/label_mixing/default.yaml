@@ -24,7 +24,7 @@
 
 class: "strategy"
 # Same-level dependency: ensure label_mixing runs after architectures for naming.
-depends_on: ["architectures"]
+depends_on: ["architectures","paradigm","heads"]
 
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
@@ -34,12 +34,19 @@ policy:
   allowed_multi_modes: ["random_choice"]
   require_selection_when_multi: true
   
+# =============================================================================
+# COMPLEMENTARY LABEL MIXING TECHNIQUES
+# =================================_search_spaces============================================
+# To ensure the 'label_mixing_technique' parameter is always defined for downstream
+# conditional logic (e.g., in losses), we use two mutually exclusive 'technique'
+# blocks. Based on the paradigm and head type, exactly one of these blocks
+# will be active, guaranteeing a valid value for 'label_mixing_technique'
+# in every trial without causing NameErrors in condition evaluations.
 
-# Label mixing techniques (influenced by primary strategy)
-mixing_techniques:
+# Active Label Mixing: Enabled only for compatible configurations.
+active_mixing_techniques:
   class: "technique"
-  condition: "$task in ['classification']"
-  # no label mixing for verification tasks
+  condition: "$paradigm == 'classification' and head_classifier_type == 'linear'"
   
   selection:
     class: "param"
@@ -107,6 +114,18 @@ mixing_techniques:
       low: 0.0
       high: 0.3
       description: "Softening parameter for FMix mask edges"
+
+# Inactive (Fallback) Label Mixing: Activated for all other configurations.
+inactive_mixing_technique:
+  class: "technique"
+  condition: "$not (paradigm == 'classification' and head_classifier_type == 'linear')"
+  
+  selection:
+    class: "param"
+    param_name: "label_mixing_technique" # Must be the same param_name as above
+    type: "categorical"
+    choices: ["none"]
+    description: "Label mixing is disabled for this configuration."
 
 
 

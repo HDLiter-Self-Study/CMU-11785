@@ -17,7 +17,7 @@
 class: "strategy"
 # Same-level dependency: ensure losses runs after architectures for naming 
 # and after label_mixing to avoid using label_mixing in focal loss
-depends_on: ["architectures", "label_mixing"]
+depends_on: ["architectures", "label_mixing", "paradigm"]
 
 # Meta-configuration: manually set by researcher (not searched)
 strategy_level: "robust"  # ["basic", "robust", "comprehensive", "custom"]
@@ -29,11 +29,11 @@ policy:
   
 
 # =============================================================================
-# CLASSIFICATION LOSS FUNCTIONS
+# LOSSES FOR CLASSIFICATION PARADIGM
 # =============================================================================
-classification_losses:
+classification_paradigm_losses:
   class: "technique"
-  condition: "$task == 'classification'"
+  condition: "$paradigm == 'classification'"
   
   # Loss function selection
   selection:
@@ -91,33 +91,33 @@ classification_losses:
       description: "Focal loss gamma parameter (focusing parameter)"
 
 # =============================================================================
-# VERIFICATION LOSS FUNCTIONS
+# LOSSES FOR METRIC LEARNING PARADIGM
 # =============================================================================
-verification_losses:
+metric_learning_paradigm_losses:
   class: "technique"
-  condition: "$task in ['verification', 'verification_finetune']"
+  condition: "$paradigm == 'metric_learning'"
   
   # Loss function selection
   selection:
     class: "param"
-    param_name: "verification_loss_type"
+    param_name: "metric_loss_type"
     type: "categorical"
     dependency_order: ["strategy_level"]
     choices:
       basic: ["contrastive_loss"]
-      robust: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
-      comprehensive: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
-      custom: ["contrastive_loss", "triplet_margin_with_distance_loss", "bce_with_logits_loss"]
-    description: "Verification loss function selection"
+      robust: ["contrastive_loss", "triplet_margin_with_distance_loss"]
+      comprehensive: ["contrastive_loss", "triplet_margin_with_distance_loss"]
+      custom: ["contrastive_loss", "triplet_margin_with_distance_loss"]
+    description: "Metric learning loss function selection"
   
   # Contrastive loss implementation
   contrastive_loss:
     class: "instance"
-    condition: "$verification_loss_type == 'contrastive_loss'"
+    condition: "$metric_loss_type == 'contrastive_loss'"
     
     margin:
       class: "param"
-      param_name: "ver_contrastive_margin"
+      param_name: "metric_contrastive_margin"
       type: "float"
       low: 0.5
       high: 2.0
@@ -125,7 +125,7 @@ verification_losses:
       
     pos_weight:
       class: "param"
-      param_name: "ver_contrastive_pos_weight"
+      param_name: "metric_contrastive_pos_weight"
       type: "float"
       low: 0.5
       high: 2.0
@@ -133,7 +133,7 @@ verification_losses:
 
     neg_weight:
       class: "param"
-      param_name: "ver_contrastive_neg_weight"
+      param_name: "metric_contrastive_neg_weight"
       type: "float"
       low: 0.5
       high: 2.0
@@ -141,7 +141,7 @@ verification_losses:
 
     avg_by:
       class: "param"
-      param_name: "ver_contrastive_avg_by"
+      param_name: "metric_contrastive_avg_by"
       type: "categorical"
       choices: ["global", "posneg"]
       description: "Averaging strategy to handle class imbalance."
@@ -149,11 +149,11 @@ verification_losses:
   # Triplet loss implementation
   triplet_margin_with_distance_loss:
     class: "instance"
-    condition: "$verification_loss_type == 'triplet_margin_with_distance_loss'"
+    condition: "$metric_loss_type == 'triplet_margin_with_distance_loss'"
     
     margin:
       class: "param"
-      param_name: "ver_triplet_margin"
+      param_name: "metric_triplet_margin"
       type: "float"
       low: 0.1
       high: 1.0
@@ -161,36 +161,23 @@ verification_losses:
       
     distance_metric:
       class: "param"
-      param_name: "ver_triplet_distance"
+      param_name: "metric_triplet_distance"
       type: "categorical"
       choices: ["euclidean", "cosine", "manhattan", "dot"]
       description: "Distance metric for triplet loss"
 
     normalize_embeddings:
       class: "param"
-      param_name: "ver_triplet_normalize"
+      param_name: "metric_triplet_normalize"
       type: "categorical"
       choices: [true, false]
       description: "Whether to L2-normalize embeddings before distance calculation."
 
     squared_distance:
       class: "param"
-      param_name: "ver_triplet_squared"
+      param_name: "metric_triplet_squared"
       type: "categorical"
       choices: [true, false]
       description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
-      condition: "$ver_triplet_distance == 'euclidean'"
-      depends_on: ["ver_triplet_distance"]
-  
-  # Binary cross-entropy loss implementation
-  bce_with_logits_loss:
-    class: "instance"
-    condition: "$verification_loss_type == 'bce_with_logits_loss'"
-    
-    pos_weight:
-      class: "param"
-      param_name: "ver_bce_pos_weight"
-      type: "float"
-      low: 0.5
-      high: 2.0
-      description: "Weight for positive class"
+      condition: "$metric_triplet_distance == 'euclidean'"
+      depends_on: ["metric_triplet_distance"]
