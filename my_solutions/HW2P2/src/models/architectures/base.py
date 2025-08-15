@@ -186,6 +186,7 @@ class BaseArchitecture(nn.Module, ABC):
         by subclasses for architecture-specific logic.
         """
         blocks = []
+        downsample_blocks = []  # Initialize to handle scope properly
 
         for j in range(num_blocks):
             in_ch = out_channels if j > 0 else prev_channels
@@ -204,15 +205,37 @@ class BaseArchitecture(nn.Module, ABC):
                     stride = 1  # Reset stride since downsampling is handled separately
 
             # Create the main block
-            block = block_class(
-                in_channels=in_ch,
-                out_channels=out_channels,
-                stride=stride,
-                **block_params,
-            )
+            # Architecture-specific parameter passing:
+            # - If architecture uses separate downsampling layers, don't pass stride to blocks
+            # - If architecture handles downsampling within blocks, pass stride
+            if self.uses_separate_downsampling():
+                # ConvNeXt-style: downsampling handled by separate layers, blocks use default stride
+                block = block_class(
+                    in_channels=in_ch,
+                    out_channels=out_channels,
+                    **block_params,
+                )
+            else:
+                # ResNet-style: downsampling handled within blocks via stride
+                block = block_class(
+                    in_channels=in_ch,
+                    out_channels=out_channels,
+                    stride=stride,
+                    **block_params,
+                )
             blocks.append(block)
 
         return blocks
+
+    def uses_separate_downsampling(self) -> bool:
+        """
+        Return True if this architecture uses separate downsampling layers,
+        False if downsampling is handled within blocks via stride.
+
+        Returns:
+            bool: True for ConvNeXt-style, False for ResNet-style
+        """
+        return False  # Default: ResNet-style (downsampling via stride)
 
     def _handle_downsampling(
         self, in_channels: int, out_channels: int, downsample: int, block_params: Dict[str, Any]

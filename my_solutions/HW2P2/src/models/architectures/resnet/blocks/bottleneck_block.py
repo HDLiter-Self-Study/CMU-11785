@@ -14,7 +14,7 @@ class BottleneckBlock(BaseResNetBlock):
     def __init__(
         self,
         in_channels: int,
-        neck_channels: int,
+        out_channels: int,
         stride: int = 1,
         expansion: int = 4,
         pre_activation: bool = False,
@@ -31,8 +31,9 @@ class BottleneckBlock(BaseResNetBlock):
         stochastic_depth_prob: float = 0.0,
         **conv_kwargs,
     ):
-        self.neck_channels = neck_channels
         self.expansion = expansion
+        self.neck_channels = int(max(1, out_channels // expansion))
+        self.out_channels = out_channels
         super().__init__(
             in_channels=in_channels,
             stride=stride,
@@ -53,7 +54,6 @@ class BottleneckBlock(BaseResNetBlock):
 
     def _build_layers(self, in_channels: int) -> tuple[nn.Module, int]:
         """Build BottleneckBlock layers: 1x1 conv -> 3x3 conv -> 1x1 conv"""
-        out_channels = self.expansion * self.neck_channels
 
         layers = nn.Sequential(
             # 1x1 conv (reduce)
@@ -89,7 +89,7 @@ class BottleneckBlock(BaseResNetBlock):
             # 1x1 conv (expand, no activation if post-activation, no dropout)
             self.conv_block_cls(
                 in_channels=self.neck_channels,
-                out_channels=out_channels,
+                out_channels=self.out_channels,
                 kernel_size=1,
                 stride=1,
                 padding=0,
@@ -101,4 +101,4 @@ class BottleneckBlock(BaseResNetBlock):
                 **self.conv_kwargs,
             ),
         )
-        return layers, out_channels
+        return layers, self.out_channels

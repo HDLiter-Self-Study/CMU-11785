@@ -24,6 +24,10 @@ class ConvNeXt(BaseArchitecture):
         }
     )
 
+    def uses_separate_downsampling(self) -> bool:
+        """ConvNeXt uses separate downsampling layers between stages"""
+        return True
+
     def _create_stem(self, in_channels: int, out_channels: int, stem_params: Dict[str, Any] = None) -> nn.Module:
         """
         Create the stem convolution layer
