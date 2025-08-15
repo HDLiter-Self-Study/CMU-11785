@@ -1,88 +1,49 @@
-"""
-Architecture Factory for dynamic model creation from Effective JSON specs.
-
-This module ties together:
-- StagePlanner (derives stage widths/depths/downsamplings and expanded fields)
-- ArchitectureBuilder (merges per-stage params/extras)
-- Concrete model classes (ResNet, ConvNeXt) based on BaseArchitecture
-"""
-
-import torch
+from __future__ import annotations
+from typing import Any, Dict
 import torch.nn as nn
-from typing import Dict, Any, List
-from .architectures import ResNet, ConvNeXt
+
 from .architecture_planner import StagePlanner
 from .architecture_builder import build_spec_from_planned
+from .architectures import ResNet, ConvNeXt
 
 
-def _get_stem_channels(arch_type: str, stem: Dict[str, Any]) -> int:
-    """Require explicit stem.out_channels; disallow silent defaults.
+class ModelFactory:
 
-    Args:
-        arch_type: Architecture type name.
-        stem: Stem configuration dictionary.
+    ARCHITECTURE_MAP = {
+        "resnet": ResNet,
+        "convnext": ConvNeXt,
+    }
 
-    Returns:
-        The integer out_channels for the stem.
+    def create(self, arch_config: Dict[str, Any], data_config: Dict[str, Any]) -> nn.Module:
+        """
+        Creates a model backbone instance from configuration dictionaries.
 
-    Raises:
-        ValueError: If stem.out_channels is missing or not an int.
-    """
-    if isinstance(stem, dict) and isinstance(stem.get("out_channels"), int):
-        return stem["out_channels"]
-    raise ValueError(f"stem.out_channels must be provided explicitly for architecture '{arch_type}'")
+        This method orchestrates the full pipeline from raw architecture config
+        to a final nn.Module instance.
 
+        Args:
+            arch_config: The architecture configuration dictionary.
+            data_config: The data configuration dictionary, used to extract
+                         parameters like `in_channels`.
 
-def create_model_from_architecture(arch_cfg: Dict[str, Any], in_channels: int = 3, num_classes: int = 2) -> nn.Module:
-    planned = StagePlanner.plan(arch_cfg)
-    spec = build_spec_from_planned(planned)
+        Returns:
+            An instantiated model backbone (nn.Module).
+        """
+        # 1. Plan the architecture
+        planned_stages = StagePlanner.plan(arch_config)
 
-    arch_type: str = spec["type"]
-    stages: List[int] = spec["stages"]
-    out_channels: List[int] = spec["out_channels"]
-    downsamplings: List[int] = spec["downsamplings"]
-    block_types: List[str] = spec["block_types"]
-    per_stage_params: List[Dict[str, Any]] = spec["per_stage_params"]
-    stem: Dict[str, Any] = spec.get("stem", {}) or {}
+        # 2. Build the final constructor spec from the plan
+        build_spec = build_spec_from_planned(planned_stages.__dict__)
 
-    block_params = per_stage_params
-    stem_channels = _get_stem_channels(arch_type, stem)
-    stem_params = dict(stem)
-    # Map unified key to constructor key
-    if "normalization" in stem_params and "norm" not in stem_params:
-        stem_params["norm"] = stem_params.pop("normalization")
-    stem_params.pop("out_channels", None)
+        # 3. Inject data-dependent parameters and instantiate the model
+        build_spec["in_channels"] = data_config["in_channels"]
 
-    if arch_type == "resnet":
-        return ResNet(
-            in_channels=in_channels,
-            stages=stages,
-            out_channels=out_channels,
-            downsamplings=downsamplings,
-            block_types=block_types,
-            block_params=block_params,
-            head_type="classification",
-            head_params={"num_classes": num_classes},
-            stem_channels=stem_channels,
-            stem_params=stem_params,
-        )
-    elif arch_type == "convnext":
-        return ConvNeXt(
-            in_channels=in_channels,
-            stages=stages,
-            out_channels=out_channels,
-            downsamplings=downsamplings,
-            block_types=block_types,
-            block_params=block_params,
-            head_type="classification",
-            head_params={"num_classes": num_classes},
-            stem_channels=stem_channels,
-            stem_params=stem_params,
-        )
-    else:
-        raise ValueError(f"Unknown architecture type: {arch_type}")
+        arch_type = build_spec.pop("type", None)
+        if arch_type not in self.ARCHITECTURE_MAP:
+            raise ValueError(
+                f"Unknown architecture type: '{arch_type}'. " f"Available types: {list(self.ARCHITECTURE_MAP.keys())}"
+            )
 
+        ArchitectureClass = self.ARCHITECTURE_MAP[arch_type]
 
-class ArchitectureFactory:
-    def create_model(self, arch_cfg: Dict[str, Any], in_channels: int = 3, num_classes: int = 2) -> nn.Module:
-        return create_model_from_architecture(arch_cfg, in_channels=in_channels, num_classes=num_classes)
+        return ArchitectureClass(**build_spec)

@@ -9,23 +9,22 @@ Inputs
   - num_stages: int
   - regnet_rule: { width_slope, initial_width, depth_slope, depth_bias, min_stage_depth, max_stage_depth }
   - width_multiplier: float|int (optional)
-  - block_type: str | List[str]
-  - activation: str | List[str]
-  - normalization: str | List[str]
+  - block_type: List[Dict[str, str]] (e.g., [{"block_type": "basic"}, {"block_type": "bottleneck"}])
+  - activation: List[Dict[str, Any]] (e.g., [{"activation": "relu"}, {"activation": "gelu", "activation_params": {...}}])
+  - normalization: List[Dict[str, Any]] (e.g., [{"normalization": "batch_norm"}, {"normalization": "group_norm", "num_groups": 4}])
   - stem: dict (optional)
   - blocks: dict (optional)
   - extras at top-level (projection_type, stochastic_depth_prob, conv_drop_prob, etc.)
 
 Outputs
 -------
-Dict with keys:
-- stages: List[int]
-- out_channels: List[int]
-- downsamplings: List[int]
-- block_type: List[str]
-- activation: List[str]
-- normalization: List[str]
+StagePlan dataclass with keys:
 - num_stages: int
+- stages: List[int] (depths per stage)
+- out_channels: List[int] (output channels per stage)
+- downsamplings: List[int] (downsampling factors per stage: [1, 2, 2, ...])
+- block_types: List[str] (extracted block type names: ["basic", "bottleneck", ...])
+- per_stage_block_params: List[Dict[str, Any]] (merged activation/normalization params per stage)
 - meta: Dict[str, Any] (pass-through items like stem/blocks/extras for the builder)
 
 Design Notes
@@ -46,9 +45,9 @@ class StagePlan:
     """Dataclass to hold the planned architecture specification."""
 
     num_stages: int
-    depths: List[int]
+    stages: List[int]
     out_channels: List[int]
-    downsamplings: List[bool]
+    downsamplings: List[int]
     block_types: List[str]
     per_stage_block_params: List[Dict[str, Any]] = field(default_factory=list)
     meta: Dict[str, Any] = field(default_factory=dict)
@@ -129,20 +128,20 @@ class StagePlanner:
         for i in range(num_stages):
             params = {}
             if arch.get("activation") and i < len(arch["activation"]):
-                # An activation entry can be a string or a dict
+                # Activation entry must be a dict in new format
                 act_entry = arch["activation"][i]
                 if isinstance(act_entry, dict):
                     params.update(act_entry)
-                elif isinstance(act_entry, str):
-                    params["activation"] = act_entry
+                else:
+                    raise ValueError(f"activation items must be dict, got: {type(act_entry)}")
 
             if arch.get("normalization") and i < len(arch["normalization"]):
-                # A normalization entry can be a string or a dict
+                # Normalization entry must be a dict in new format
                 norm_entry = arch["normalization"][i]
                 if isinstance(norm_entry, dict):
                     params.update(norm_entry)
-                elif isinstance(norm_entry, str):
-                    params["normalization"] = norm_entry
+                else:
+                    raise ValueError(f"normalization items must be dict, got: {type(norm_entry)}")
 
             per_stage_params.append(params)
 
@@ -168,12 +167,25 @@ class StagePlanner:
         if extras:
             meta["extras"] = extras
 
+        # Extract block_type list from List[Dict] format
+        block_type_raw = arch.get("block_type") or []
+        block_types_list = []
+        if block_type_raw:
+            for item in block_type_raw:
+                if isinstance(item, dict):
+                    # Force use of "block_type" key for fast fail
+                    if "block_type" not in item:
+                        raise ValueError(f"block_type dict must contain 'block_type' key, got: {item}")
+                    block_types_list.append(item["block_type"])
+                else:
+                    raise ValueError(f"block_type items must be dict, got: {type(item)}")
+
         return StagePlan(
             num_stages=num_stages,
-            depths=stage_depths,
+            stages=stage_depths,
             out_channels=stage_widths,
-            downsamplings=[bool(d) for d in downsamplings],
-            block_types=arch.get("block_type") or [],
+            downsamplings=downsamplings,
+            block_types=block_types_list,
             per_stage_block_params=per_stage_params,
             meta=meta,
         )
@@ -214,6 +226,7 @@ class StagePlanner:
         return stage_depths, stage_widths
 
     @staticmethod
-    def _plan_downsamplings(spec: Dict[str, Any], num_stages: int) -> List[bool]:
-        downsamplings = [False] + [True] * (num_stages - 1)  # First stage never downsamples
+    def _plan_downsamplings(spec: Dict[str, Any], num_stages: int) -> List[int]:
+        # First stage has no downsampling (factor=1), other stages downsample by 2x
+        downsamplings = [1] + [2] * (num_stages - 1)
         return downsamplings

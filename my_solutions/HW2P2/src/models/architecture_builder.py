@@ -16,7 +16,7 @@ Plain dict spec with keys:
 - type: architecture type (e.g., "resnet", "convnext")
 - num_stages, stages, out_channels, downsamplings
 - block_types: per-stage block type list
-- per_stage_params: list[dict] of per-stage parameter dicts
+- block_params: list[dict] of per-stage parameter dicts
 - stem: dict
 - extras: dict (optional)
 
@@ -41,7 +41,7 @@ def build_spec_from_planned(planned: Dict[str, Any]) -> Dict[str, Any]:
     stages = planned.get("stages")
     out_channels = planned.get("out_channels")
     downsamplings = planned.get("downsamplings")
-    block_types = planned.get("block_type")
+    block_types = planned.get("block_types")
     activations = planned.get("activation") or []
     normalizations = planned.get("normalization") or []
     meta = planned.get("meta") or {}
@@ -51,7 +51,7 @@ def build_spec_from_planned(planned: Dict[str, Any]) -> Dict[str, Any]:
         "stages": stages,
         "out_channels": out_channels,
         "downsamplings": downsamplings,
-        "block_type": block_types,
+        "block_types": block_types,
     }.items():
         if not isinstance(arr, list) or len(arr) != num_stages:
             raise ValueError(f"{key} must be a list of length num_stages")
@@ -78,7 +78,7 @@ def build_spec_from_planned(planned: Dict[str, Any]) -> Dict[str, Any]:
     filtered_extras = {k: v for k, v in extras.items() if k in allowed_extra_keys}
 
     # Build per-stage params
-    per_stage_params: List[Dict[str, Any]] = []
+    block_params: List[Dict[str, Any]] = []
     for i in range(num_stages):
         bt_entry = block_types[i]
         # Support string or dict entry for block type
@@ -109,18 +109,7 @@ def build_spec_from_planned(planned: Dict[str, Any]) -> Dict[str, Any]:
         if filtered_extras:
             stage_params.update(filtered_extras)
 
-        # Derive required ctor params for specific block types
-        if isinstance(bt, str) and bt == "bottleneck":
-            # expansion may come from block_defaults or extras; default to 4
-            expansion = stage_params.get("expansion", 4)
-            try:
-                expansion = int(expansion)
-            except Exception:
-                expansion = 4
-            neck = int(max(1, out_channels[i] // expansion))
-            stage_params["neck_channels"] = neck
-
-        per_stage_params.append(stage_params)
+        block_params.append(stage_params)
 
     return {
         "type": arch_type,
@@ -129,7 +118,7 @@ def build_spec_from_planned(planned: Dict[str, Any]) -> Dict[str, Any]:
         "out_channels": out_channels,
         "downsamplings": downsamplings,
         "block_types": [bt.get("block_type") if isinstance(bt, dict) else bt for bt in block_types],
-        "per_stage_params": per_stage_params,
+        "block_params": block_params,
         "stem": stem,
         "extras": filtered_extras if filtered_extras else {},
     }
