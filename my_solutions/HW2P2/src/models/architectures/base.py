@@ -18,8 +18,6 @@ class BaseArchitecture(nn.Module, ABC):
 
     # Registry for block types - can be extended by subclasses
     BLOCK_REGISTRY: Dict[str, Type[nn.Module]] = {}
-    # Optional registry for heads (kept for compatibility; heads are built in pipeline)
-    HEAD_REGISTRY: Dict[str, Type[nn.Module]] = {}
 
     def __init__(
         self,
@@ -109,11 +107,6 @@ class BaseArchitecture(nn.Module, ABC):
     def register_block(cls, name: str, block_class: Type[nn.Module]):
         """Register a new block type"""
         cls.BLOCK_REGISTRY[name] = block_class
-
-    @classmethod
-    def register_head(cls, name: str, head_class: Type[nn.Module]):
-        """Register a new head type"""
-        cls.HEAD_REGISTRY[name] = head_class
 
     def _create_backbone(
         self,
