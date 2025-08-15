@@ -22,20 +22,20 @@ model_averaging_techniques:
     type: "categorical"
     choices:
       basic: ["none"]
-      robust: ["none", "ema"]
-      comprehensive: ["none", "ema"]
-      custom: ["none", "ema"]
+      robust: ["none", "ema_model"]
+      comprehensive: ["none", "ema_model"]
+      custom: ["none", "ema_model"]
     dependency_order: ["strategy_level"]
 
-  ema:
+  ema_model:
     class: "instance"
-    condition: "$model_averaging_strategy in ['ema']"
+    condition: "$model_averaging_strategy in ['ema_model']"
 
-    start_epoch:
+    decay:
       class: "param"
-      param_name: "ema_start_epoch"
-      type: "int"
-      low: 0
-      high: 20
+      param_name: "ema_decay"
+      type: "float"
+      low: 0.99
+      high: 0.9999
 
 
