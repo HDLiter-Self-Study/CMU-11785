@@ -277,12 +277,25 @@ def resolve_effective_data_config(cfg: Dict[str, Any], sampled_hierarchical: Dic
     wandb_override = _get(cfg, "task_configs.wandb", {}) or {}
     wandb = _merge_wandb(wandb_base, wandb_override)
 
-    # Build pipelines dynamically from policies (excluding 'architectures')
+    # Build pipelines dynamically from policies (excluding 'architectures' and 'paradigm')
     pipelines: Dict[str, Any] = {}
+    training_paradigm = None
+
     for category in policies.keys():
         if category == "architectures":
             continue
-        pipelines[category] = _resolve_category(category, cfg, sampled_hierarchical, policies)
+        elif category == "paradigm":
+            # Extract paradigm as training configuration, not pipeline component
+            paradigm_resolved = _resolve_category(category, cfg, sampled_hierarchical, policies)
+            if paradigm_resolved and len(paradigm_resolved) > 0:
+                # Navigate the nested structure: paradigm[0]["instances"]["paradigm"]["paradigm"]
+                instances = paradigm_resolved[0].get("instances", {})
+                paradigm_config = instances.get("paradigm", {})
+                training_paradigm = paradigm_config.get("paradigm")
+            else:
+                raise ValueError("paradigm is required")
+        else:
+            pipelines[category] = _resolve_category(category, cfg, sampled_hierarchical, policies)
 
     eff: Dict[str, Any] = {
         "task": task,
@@ -295,7 +308,9 @@ def resolve_effective_data_config(cfg: Dict[str, Any], sampled_hierarchical: Dic
         "paths": _resolve_paths(cfg),
         "image_settings": _resolve_image_settings(cfg),
         "model": {"architectures": architectures_eff},
-        # Pipelines (isolated unified list semantics)
+        # Training paradigm extracted from pipelines (classification, metric_learning, etc.)
+        "training_paradigm": training_paradigm,
+        # Pipelines (isolated unified list semantics, paradigm excluded)
         "pipelines": pipelines,
         # Pairing strategy for online pairs (placeholder; can be filled from task_config)
         "pairing": {},
