@@ -3,7 +3,9 @@ This module defines the main PipelineBuilder, which orchestrates the creation
 of the entire training pipeline from a configuration dictionary.
 """
 
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Set
+import importlib
+from collections import defaultdict, deque
 
 from torch import nn
 from torch.optim import Optimizer
@@ -11,16 +13,7 @@ from torch.optim.lr_scheduler import _LRScheduler
 from torchvision.transforms import v2
 from torch.utils.data import Dataset
 
-from .factories import (
-    AugmentationFactory,
-    DataSamplingFactory,
-    LabelMixingFactory,
-    OptimizerFactory,
-    SchedulerFactory,
-    LossesFactory,
-    HeadFactory,
-    EvaluatorFactory,
-)
+from . import factories
 
 
 class PipelineBuilder:
@@ -34,14 +27,87 @@ class PipelineBuilder:
     The built components are stored as public attributes.
     """
 
-    _FACTORY_MAPPING = {
-        "augmentations": AugmentationFactory,
-        "label_mixing": LabelMixingFactory,
-        "optimizer": OptimizerFactory,
-        "scheduler": SchedulerFactory,
-        "heads": HeadFactory,
-        "evaluators": EvaluatorFactory,
+    # Define dependencies between components (dependent -> dependencies)
+    _DEPENDENCIES = {
+        "scheduler": ["optimizer"],  # scheduler depends on optimizer
+        # All other components are independent
     }
+
+    @classmethod
+    def _get_factory_class(cls, component_name: str):
+        """
+        Dynamically get factory class from component name.
+
+        Converts component_name (e.g., "grad_clip") to factory class name
+        (e.g., "GradClipFactory") and imports it from factories module.
+
+        Args:
+            component_name: The pipeline component name
+
+        Returns:
+            The factory class
+
+        Raises:
+            AttributeError: If factory class not found
+        """
+        # Convert "grad_clip" -> "GradClipFactory"
+        # 1. Remove underscores and capitalize each word
+        # 2. Add "Factory" suffix
+        class_name = "".join(word.capitalize() for word in component_name.split("_")) + "Factory"
+
+        try:
+            return getattr(factories, class_name)
+        except AttributeError:
+            raise AttributeError(f"Factory class '{class_name}' not found in factories module")
+
+    @classmethod
+    def _topological_sort(cls, components: Set[str]) -> List[str]:
+        """
+        Perform topological sort on components based on dependencies.
+
+        Args:
+            components: Set of component names to sort
+
+        Returns:
+            List of components in dependency order
+
+        Raises:
+            ValueError: If circular dependency detected
+        """
+        # Build graph
+        in_degree = defaultdict(int)
+        graph = defaultdict(list)
+
+        # Initialize in_degree for all components
+        for component in components:
+            in_degree[component] = 0
+
+        # Build dependency graph
+        for dependent, dependencies in cls._DEPENDENCIES.items():
+            if dependent in components:
+                for dependency in dependencies:
+                    if dependency in components:
+                        graph[dependency].append(dependent)
+                        in_degree[dependent] += 1
+
+        # Kahn's algorithm for topological sorting
+        queue = deque([component for component in components if in_degree[component] == 0])
+        result = []
+
+        while queue:
+            current = queue.popleft()
+            result.append(current)
+
+            for neighbor in graph[current]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    queue.append(neighbor)
+
+        # Check for circular dependencies
+        if len(result) != len(components):
+            raise ValueError("Circular dependency detected in pipeline components")
+
+        return result
 
     def __init__(self, config: Dict[str, Any], model: Optional[nn.Module] = None):
         """
@@ -56,80 +122,77 @@ class PipelineBuilder:
         self.config = config
         self.model = model
         self.pipeline_config = config.get("pipelines", {})
-
-        # Public attributes to store the built components
-        self.augmentations: Optional[nn.Module] = None
-        self.label_mixing: Optional[nn.Module] = None
-        self.optimizer: Optional[Optimizer] = None
-        self.scheduler: Optional[_LRScheduler] = None
-        self.heads: Optional[nn.ModuleDict] = None
-        self.losses: Any = None
-        self.evaluators: Optional[Dict[str, Callable]] = None
+        self._built_components = {}  # Store built components by name
 
     def build(self) -> "PipelineBuilder":
         """
         Builds all pipeline components based on the configuration.
 
-        This method processes each category in the `pipelines` config section,
+        This method dynamically processes each category in the `pipelines` config section,
         instantiates the corresponding factory, and creates the components.
-        It manages the creation order to resolve dependencies.
+        It uses topological sorting to automatically manage the creation order and resolve dependencies.
 
         Returns:
             The builder instance itself, with all components populated.
         """
-        # Optimizer must be built first as the scheduler depends on it.
-        if "optimizer" in self.pipeline_config:
-            self.optimizer = self._build_optimizer()
+        # Get components that are present in config
+        available_components = set(self.pipeline_config.keys())
 
-        # Scheduler depends on the optimizer.
-        if "scheduler" in self.pipeline_config and self.optimizer:
-            self.scheduler = self._build_scheduler(self.optimizer)
+        # Sort components based on dependencies using topological sort
+        build_order = self._topological_sort(available_components)
 
-        # Build other independent components.
-        if "augmentations" in self.pipeline_config:
-            self.augmentations = self._build_augmentations()
-
-        if "label_mixing" in self.pipeline_config:
-            self.label_mixing = self._build_label_mixing()
-
-        if "heads" in self.pipeline_config:
-            self.heads = self._build_heads()
-
-        if "losses" in self.pipeline_config:
-            self.losses = self._build_losses()
-
-        if "evaluators" in self.pipeline_config:
-            self.evaluators = self._build_evaluators()
+        # Build components in dependency order
+        for component_name in build_order:
+            component = self._build_component(component_name)
+            self._built_components[component_name] = component
+            setattr(self, component_name, component)  # Optional: for legacy direct access
 
         return self
 
-    def _build_optimizer(self) -> Optimizer:
-        """Builds the optimizer component."""
-        factory = self._FACTORY_MAPPING["optimizer"]()
-        # The optimizer config in the JSON is a list containing one item.
-        optimizer_config = self.pipeline_config["optimizer"][0]["instances"]
+    def _build_component(self, component_name: str) -> Any:
+        """
+        Builds a specific component dynamically based on its name.
 
+        Args:
+            component_name: The name of the component to build
+
+        Returns:
+            The built component instance
+        """
+        # Dynamically get factory class
+        factory_class = self._get_factory_class(component_name)
+        factory = factory_class()
+        config = self.pipeline_config[component_name]
+
+        # Dynamically find special implementation methods
+        impl_method = getattr(self, f"_build_{component_name}_impl", None)
+        if impl_method is not None:
+            return impl_method(factory, config)
+        else:
+            return self._default_build_impl(factory, config)
+
+    def _default_build_impl(self, factory: Any, config: Any) -> Any:
+        """
+        Default build implementation for most components.
+        """
+        return factory.build(config)
+
+    def _build_optimizer_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optimizer:
+        """Builds the optimizer component."""
+        # The optimizer config in the JSON is a list containing one item.
+        optimizer_config = config[0]["instances"]
         model_params = self.model.parameters() if self.model else []
         return factory.create(optimizer_config, params=model_params)
 
-    def _build_scheduler(self, optimizer: Optimizer) -> _LRScheduler:
+    def _build_scheduler_impl(self, factory: Any, config: List[Dict[str, Any]]) -> _LRScheduler:
         """Builds the learning rate scheduler, injecting the optimizer."""
-        factory = self._FACTORY_MAPPING["scheduler"]()
-        scheduler_config = self.pipeline_config["scheduler"][0]["instances"]
-        return factory.create(scheduler_config, optimizer=optimizer)
+        if not self.optimizer:
+            raise ValueError("Scheduler requires an optimizer to be built first")
+        scheduler_config = config[0]["instances"]
+        return factory.create(scheduler_config, optimizer=self.optimizer)
 
-    def _build_augmentations(self) -> v2.Compose:
-        """Builds a sequence of data augmentations."""
-        factory = self._FACTORY_MAPPING["augmentations"]()
-        # The factory's build method handles the entire pipeline creation.
-        aug_configs = [item["instances"] for item in self.pipeline_config.get("augmentation", [])]
-        return factory.build(aug_configs)
-
-    def _build_label_mixing(self) -> Optional[nn.Module]:
+    def _build_label_mixing_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optional[nn.Module]:
         """Builds label mixing strategies. Optionally injects num_classes if available."""
-        factory = self._FACTORY_MAPPING["label_mixing"]()
-        label_mixing_configs = self.pipeline_config.get("label_mixing", [])
-
         # Try to extract num_classes from config (optional injection)
         num_classes: Optional[int] = None
         if "model" in self.config:
@@ -143,31 +206,21 @@ class PipelineBuilder:
             num_classes = self.config["data"].get("num_classes")
 
         if num_classes is not None:
-            return factory.build(label_mixing_configs, num_classes=num_classes)
+            return factory.build(config, num_classes=num_classes)
         # If num_classes is not found, build without it. Components will fast-fail
         # at runtime if indices are used and num_classes is required.
-        return factory.build(label_mixing_configs)
+        return factory.build(config)
 
-    def _build_heads(self) -> nn.ModuleDict:
-        """Builds a dictionary of model heads."""
-        factory = self._FACTORY_MAPPING["heads"]()
-        head_configs = [item["instances"] for item in self.pipeline_config["heads"]]
-        heads = {
-            # Extract name from single-key dict: `{'MyHead': {...}}` -> `MyHead`
-            list(cfg.keys())[0]: factory.create(cfg)
-            for cfg in head_configs
-        }
-        return nn.ModuleDict(heads)
-
-    def _build_losses(self) -> Any:
-        """Builds the loss function(s) from the configuration."""
-        factory = LossesFactory()
-        losses_config = self.pipeline_config.get("losses", [])
-        return factory.build(losses_config)
-
-    def _build_evaluators(self) -> Dict[str, Callable]:
-        """Builds a dictionary of evaluators."""
-        factory = self._FACTORY_MAPPING["evaluators"]()
-        evaluator_configs = self.pipeline_config.get("evaluators", [])
-        # The build method can directly return a dictionary of named instances.
-        return factory.build(evaluator_configs)
+    def __getattr__(self, name: str) -> Any:
+        """
+        Dynamically access already built pipeline components.
+        Args:
+            name: Component name
+        Returns:
+            The built component object
+        Raises:
+            AttributeError: If the component does not exist
+        """
+        if name in self._built_components:
+            return self._built_components[name]
+        raise AttributeError(f"'PipelineBuilder' object has no attribute '{name}'")
