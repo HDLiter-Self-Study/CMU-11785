@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import Any, Dict
 import torch.nn as nn
 
-from .architecture_planner import StagePlanner
-from .architecture_builder import build_spec_from_planned
-from .architectures import ResNet, ConvNeXt
+from src.models.architecture_planner import StagePlanner
+from src.models.architecture_builder import build_spec_from_planned
+from src.models.architectures import ResNet, ConvNeXt
 
 
 class ModelFactory:

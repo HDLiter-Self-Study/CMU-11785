@@ -19,11 +19,11 @@ import optuna
 from omegaconf import DictConfig, OmegaConf, ListConfig
 
 from config.config_manager import get_config
-from .parameter_naming import ParameterNaming
-from .safe_evaluator import SafeEvaluator
-from .granularity_handler import GranularityHandler
-from .dependency_manager import DependencyManager
-from .enums import GranularityLevel, ConfigClass, parse_config_class
+from src.sampling.parameter_naming import ParameterNaming
+from src.sampling.safe_evaluator import SafeEvaluator
+from src.sampling.granularity_handler import GranularityHandler
+from src.sampling.dependency_manager import DependencyManager
+from src.sampling.enums import GranularityLevel, ConfigClass, parse_config_class
 
 
 class SearchSpaceSampler:

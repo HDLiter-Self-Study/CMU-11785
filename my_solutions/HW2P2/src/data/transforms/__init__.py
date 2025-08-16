@@ -2,13 +2,13 @@
 This package contains custom data transformations.
 """
 
-from .noises import (
+from src.data.transforms.noises import (
     ImpulseNoise,
     PoissonNoise,
     SpeckleNoise,
     NoiseAugmentationBase,
 )
-from .spatial import GridMask
+from src.data.transforms.spatial import GridMask
 
 __all__ = [
     "ImpulseNoise",

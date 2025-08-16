@@ -10,6 +10,7 @@ Parameter Calcula            "resnet": {
 import torch
 import torch.nn as nn
 from typing import Dict, Any
+from src.models.model_factory import ModelFactory
 
 
 class ParameterCalculator:
@@ -148,9 +149,7 @@ class ParameterCalculator:
 
 def test_parameter_estimation():
     """Test parameter estimation accuracy"""
-    from .architecture_factory import ArchitectureFactory
-
-    factory = ArchitectureFactory()
+    factory = ModelFactory()
     calculator = ParameterCalculator()
 
     # Test configurations

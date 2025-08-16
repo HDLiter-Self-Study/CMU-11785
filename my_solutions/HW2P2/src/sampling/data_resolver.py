@@ -22,8 +22,8 @@ strategies for optimizer/scheduler/ema/grad_clip/loader.
 from __future__ import annotations
 
 from typing import Any, Dict, Optional, List, Set
-from .group_utils import parse_groups_with_policy, CategoryPolicy
-from .mode_handlers import get_mode_handler
+from src.sampling.group_utils import parse_groups_with_policy, CategoryPolicy
+from src.sampling.mode_handlers import get_mode_handler
 
 
 def _get(d: Dict[str, Any], path: str, default: Any = None) -> Any:

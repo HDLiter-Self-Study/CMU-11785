@@ -15,18 +15,18 @@ import re
 import optuna
 from omegaconf import DictConfig
 
-from .parameter_naming import ParameterNaming
-from .enums import ConfigClass
+from src.sampling.parameter_naming import ParameterNaming
+from src.sampling.enums import ConfigClass
 import inspect
 import optuna
 from omegaconf import DictConfig, OmegaConf, ListConfig
 
 from config.config_manager import get_config
-from .parameter_naming import ParameterNaming
+from src.sampling.parameter_naming import ParameterNaming
 
 
 if TYPE_CHECKING:
-    from .sampler import SearchSpaceSampler
+    from src.sampling.sampler import SearchSpaceSampler
 
 
 class GranularityHandler:

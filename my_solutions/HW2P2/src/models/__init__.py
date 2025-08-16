@@ -2,10 +2,10 @@
 Models package init file
 """
 
-from .architecture_builder import build_spec_from_planned
-from .architecture_planner import StagePlanner
-from .model_factory import ModelFactory
-from .utils import get_activation, get_2d_normalization, get_1d_normalization
+from src.models.architecture_builder import build_spec_from_planned
+from src.models.architecture_planner import StagePlanner
+from src.models.model_factory import ModelFactory
+from src.models.utils import get_activation, get_2d_normalization, get_1d_normalization
 
 
 __all__ = [

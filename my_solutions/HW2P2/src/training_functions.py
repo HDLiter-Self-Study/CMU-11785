@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 # Handle both relative and absolute imports
 try:
-    from .utils import AverageMeter, accuracy, get_ver_metrics
+    from src.utils import AverageMeter, accuracy, get_ver_metrics
 except ImportError:
     from utils import AverageMeter, accuracy, get_ver_metrics
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Callable, List
 
-from .enums import SelectionMode
+from src.sampling.enums import SelectionMode
 
 
 def _build_components_for_sum(instances: Dict[str, Any]) -> List[Dict[str, Any]]:

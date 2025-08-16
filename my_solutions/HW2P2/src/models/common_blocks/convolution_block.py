@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchvision.ops import DropBlock2d
 from abc import ABC, abstractmethod
 
-from ..utils import get_activation, get_2d_normalization
+from src.models.utils import get_activation, get_2d_normalization
 
 
 class BaseConvolutionBlock(torch.nn.Module, ABC):

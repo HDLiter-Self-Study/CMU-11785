@@ -5,9 +5,9 @@ ResNet Architecture with configurable SE support
 import torch
 import torch.nn as nn
 from typing import Dict, Any, List
-from .blocks import BasicBlock, BottleneckBlock
-from ...common_blocks.stem import ResNetStem
-from ..base import BaseArchitecture
+from src.models.architectures.resnet.blocks import BasicBlock, BottleneckBlock
+from src.models.common_blocks.stem import ResNetStem
+from src.models.architectures.base import BaseArchitecture
 
 
 class ResNet(BaseArchitecture):

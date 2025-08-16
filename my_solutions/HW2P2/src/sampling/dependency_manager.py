@@ -17,7 +17,7 @@ import pprint
 
 from omegaconf import DictConfig, OmegaConf
 
-from .enums import ConfigClass, parse_config_class
+from src.sampling.enums import ConfigClass, parse_config_class
 
 
 @dataclasses.dataclass

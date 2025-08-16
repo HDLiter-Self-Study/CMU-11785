@@ -2,6 +2,6 @@
 ConvNeXt architecture and related components
 """
 
-from .convnext import ConvNeXt
+from src.models.architectures.convnext.convnext import ConvNeXt
 
 __all__ = ["ConvNeXt"]

@@ -12,8 +12,8 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 
-from ..common_blocks.pooling import VarAdaptivePool2d, SkewAdaptivePool2d, StackedPooling
-from ..utils import get_activation
+from src.models.common_blocks.pooling import VarAdaptivePool2d, SkewAdaptivePool2d, StackedPooling
+from src.models.utils import get_activation
 
 
 class SEModule(nn.Module):

@@ -7,8 +7,8 @@ import inspect
 import importlib
 
 
-from ..models.common_blocks.pooling import PoolingFactory
-from ..models.common_blocks.convolution_block import get_activation
+from src.models.common_blocks.pooling import PoolingFactory
+from src.models.common_blocks.convolution_block import get_activation
 
 
 def _snake_to_camel(snake_str: str) -> str:

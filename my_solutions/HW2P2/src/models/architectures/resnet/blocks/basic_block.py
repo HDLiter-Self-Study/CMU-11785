@@ -5,7 +5,7 @@ Basic ResNet Block with optional SE module
 import torch
 import torch.nn as nn
 from typing import Dict, Any
-from ....common_blocks.base_resnet_block import BaseResNetBlock
+from src.models.common_blocks.base_resnet_block import BaseResNetBlock
 
 
 class BasicBlock(BaseResNetBlock):

@@ -4,7 +4,7 @@ Only expose stable, up-to-date symbols. Legacy helpers are intentionally
 not imported here to avoid pulling outdated dependencies.
 """
 
-from .datasets import (
+from src.data.datasets import (
     build_datasets,
     PairVerificationDataset,
     PairSubmissionDataset,

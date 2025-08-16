@@ -18,8 +18,8 @@ from torch.utils.data import Dataset
 from torchvision.transforms import v2
 from torch.nn import CrossEntropyLoss
 
-from .base_factory import BasePipelineFactory
-from ..data.label_mixing import FMix
+from src.pipelines.base_factory import BasePipelineFactory
+from src.data.label_mixing import FMix
 
 # =============================================================================
 # Component Factories

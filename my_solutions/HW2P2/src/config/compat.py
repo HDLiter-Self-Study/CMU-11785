@@ -3,7 +3,7 @@ Backward compatibility layer for existing config usage
 """
 
 from omegaconf import DictConfig
-from .config_manager import get_config
+from src.config.config_manager import get_config
 
 
 class ConfigDict(dict):

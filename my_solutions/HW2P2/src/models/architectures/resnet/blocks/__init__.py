@@ -2,7 +2,7 @@
 ResNet blocks with optional SE module support
 """
 
-from .basic_block import BasicBlock
-from .bottleneck_block import BottleneckBlock
+from src.models.architectures.resnet.blocks.basic_block import BasicBlock
+from src.models.architectures.resnet.blocks.bottleneck_block import BottleneckBlock
 
 __all__ = ["BasicBlock", "BottleneckBlock"]

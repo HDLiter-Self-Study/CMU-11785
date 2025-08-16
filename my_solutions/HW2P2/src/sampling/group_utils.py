@@ -9,7 +9,7 @@ unsupported modes raise immediately.
 from __future__ import annotations
 
 from typing import Any, Dict, List, Set, Union
-from .enums import SelectionMode
+from src.sampling.enums import SelectionMode
 
 
 class CategoryPolicy:

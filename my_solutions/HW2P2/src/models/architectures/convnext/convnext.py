@@ -5,10 +5,10 @@ ConvNeXt Architecture with optional SE support
 import torch
 import torch.nn as nn
 from typing import Dict, Any, List
-from ..base import BaseArchitecture
-from .blocks import InvertedBottleneckBlock
-from ...common_blocks.stem import ConvNeXtStem
-from ...common_blocks.convolution_block import PreActivationConvBlock
+from src.models.architectures.base import BaseArchitecture
+from src.models.architectures.convnext.blocks import InvertedBottleneckBlock
+from src.models.common_blocks.stem import ConvNeXtStem
+from src.models.common_blocks.convolution_block import PreActivationConvBlock
 
 
 class ConvNeXt(BaseArchitecture):

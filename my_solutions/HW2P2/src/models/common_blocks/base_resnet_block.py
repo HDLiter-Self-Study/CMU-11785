@@ -7,9 +7,9 @@ import torch.nn as nn
 from torchvision.ops import StochasticDepth
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from .se_module import SEModule
-from .convolution_block import ConvolutionBlock, PreActivationConvBlock
-from ..utils import get_activation
+from src.models.common_blocks.se_module import SEModule
+from src.models.common_blocks.convolution_block import ConvolutionBlock, PreActivationConvBlock
+from src.models.utils import get_activation
 
 
 class BaseResNetBlock(nn.Module, ABC):
