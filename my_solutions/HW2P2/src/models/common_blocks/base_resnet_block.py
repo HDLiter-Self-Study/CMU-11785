@@ -129,7 +129,7 @@ class BaseResNetBlock(nn.Module, ABC):
             out = out * self.layer_scale
         # Stochastic depth (if enabled)
         if self.stochastic_depth_prob > 0:
-            out = StochasticDepth(self.stochastic_depth_prob)(out)
+            out = StochasticDepth(self.stochastic_depth_prob, "row")(out)
         # Residual connection
         shortcut = self.shortcut(residual)
 
