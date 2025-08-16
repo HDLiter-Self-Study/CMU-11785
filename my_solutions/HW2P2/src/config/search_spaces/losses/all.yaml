@@ -119,9 +119,50 @@ metric_learning_paradigm_losses:
       class: "param"
       param_name: "metric_contrastive_margin"
       type: "float"
-      low: 0.5
-      high: 2.0
-      description: "Contrastive loss margin"
+      low: "$0.1 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 0.5"
+      high: "$1.0 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 5.0"
+      description: "Triplet loss margin (cosine/normalized distance: 0.1-1.0, euclidean/manhattan: 0.5-5.0)"
+      depends_on: ["metric_contrastive_distance", "metric_contrastive_normalize"]
+
+    distance_metric:
+      class: "param"
+      param_name: "metric_contrastive_distance"
+      type: "categorical"
+      choices: ["euclidean", "cosine", "manhattan", "dot"]
+      description: "Distance metric for triplet loss"
+
+    normalize_embeddings:
+      class: "param"
+      param_name: "metric_contrastive_normalize"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to L2-normalize embeddings before distance calculation."
+
+    squared_distance:
+      class: "param"
+      param_name: "metric_contrastive_squared"
+      type: "categorical"
+      choices: [true]
+      description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
+      condition: "$metric_contrastive_distance == 'euclidean'"
+      depends_on: ["metric_contrastive_distance"]
+
+    miner_type:
+      class: "param"
+      param_name: "metric_contrastive_miner_type"
+      type: "categorical"
+      choices: ["pair_margin", "batch_hard"]
+      description: "Type of miner to use for contrastive loss"
+
+    miner_margin_factor:
+      class: "param"
+      param_name: "metric_contrastive_miner_margin_factor"
+      type: "float"
+      low: 0.8
+      high: 1.2
+      description: "Margin factor for contrastive miner"
+      condition: "$metric_contrastive_miner_type == 'pair_margin'"
+      depends_on: ["metric_contrastive_miner_type"]
       
     pos_weight:
       class: "param"
@@ -145,6 +186,13 @@ metric_learning_paradigm_losses:
       type: "categorical"
       choices: ["global", "posneg"]
       description: "Averaging strategy to handle class imbalance."
+
+    sampler_m:
+      class: "param"
+      param_name: "metric_contrastive_sampler_m"
+      type: "categorical"
+      choices: [4,8]
+      description: "Number of samples per-class to draw from each batch"
   
   triplet_margin_with_distance_loss:
     class: "instance"
@@ -154,8 +202,8 @@ metric_learning_paradigm_losses:
       class: "param"
       param_name: "metric_triplet_margin"
       type: "float"
-      low: "$metric_triplet_distance == 'cosine' || $metric_triplet_normalize ? 0.1 : 0.5"
-      high: "$metric_triplet_distance == 'cosine' || $metric_triplet_normalize ? 1.0 : 5.0"
+      low: "$0.1 if metric_triplet_distance == 'cosine' or metric_triplet_normalize else 0.5"
+      high: "$1.0 if metric_triplet_distance == 'cosine' or metric_triplet_normalize else 5.0"
       description: "Triplet loss margin (cosine/normalized distance: 0.1-1.0, euclidean/manhattan: 0.5-5.0)"
       depends_on: ["metric_triplet_distance", "metric_triplet_normalize"]
 
@@ -177,7 +225,7 @@ metric_learning_paradigm_losses:
       class: "param"
       param_name: "metric_triplet_squared"
       type: "categorical"
-      choices: [true, false]
+      choices: [true]
       description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
       condition: "$metric_triplet_distance == 'euclidean'"
       depends_on: ["metric_triplet_distance"]
@@ -207,3 +255,48 @@ metric_learning_paradigm_losses:
       description: "Margin factor for triplet miner"
       condition: "$metric_triplet_miner_type == 'triplet'"
       depends_on: ["metric_triplet_miner_type"]
+
+    sampler_m:
+      class: "param"
+      param_name: "metric_triplet_sampler_m"
+      type: "categorical"
+      choices: [4,8]
+      description: "Number of samples per-class to draw from each batch"
+  
+  center_loss:
+    class: "instance"
+    condition: "$metric_loss_type == 'center_loss'"
+    
+    distance_metric:
+      class: "param"
+      param_name: "metric_center_distance"
+      type: "categorical"
+      choices: ["euclidean", "cosine", "manhattan", "dot"]
+      description: "Distance metric for center loss"
+
+    normalize_embeddings:
+      class: "param"
+      param_name: "metric_center_normalize"
+      type: "categorical"
+      choices: [true, false]
+      description: "Whether to L2-normalize embeddings before distance calculation."
+    
+    squared_distance:
+      class: "param"
+      param_name: "metric_center_squared"
+      type: "categorical"
+      choices: [true]
+      description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
+      condition: "$metric_center_distance == 'euclidean'"
+      depends_on: ["metric_center_distance"]
+
+    distance_scale:
+      class: "param"
+      param_name: "metric_center_distance_scale"
+      type: "categorical"
+      choices: [1, 5, 10, 20]
+      description: "Scale for center loss distance"
+      condition: "$metric_center_distance == 'cosine' or metric_center_normalize == true"
+      depends_on: ["metric_center_distance", "metric_center_normalize"]
+
+    

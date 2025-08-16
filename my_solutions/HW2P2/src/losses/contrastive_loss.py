@@ -1,91 +1,93 @@
 import torch
 import torch.nn as nn
+from pytorch_metric_learning import losses, miners
+from pytorch_metric_learning.reducers import BaseReducer
+from pytorch_metric_learning.samplers import MPerClassSampler
 from typing import Optional
+
+from src.losses.utils import _get_pml_distance
+
+
+class PosNegWeightedReducer(BaseReducer):
+    """Custom reducer to support weighted averaging of positive and negative losses."""
+
+    def __init__(self, pos_weight: float = 1.0, neg_weight: float = 1.0, avg_by: str = "posneg"):
+        super().__init__()
+        self.pos_weight = pos_weight
+        self.neg_weight = neg_weight
+        self.avg_by = avg_by
+
+    def forward(self, loss: torch.Tensor, embeddings: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Compute mean of positive and negative losses separately, then average."""
+        pos_mask = labels == 1
+        neg_mask = labels == 0
+        pos_loss = loss[pos_mask] * self.pos_weight
+        neg_loss = loss[neg_mask] * self.neg_weight
+        if self.avg_by == "posneg":
+            # Compute mean of positive and negative losses separately, then average
+            pos_avg = pos_loss.mean() if pos_loss.numel() > 0 else torch.tensor(0.0, device=loss.device)
+            neg_avg = neg_loss.mean() if neg_loss.numel() > 0 else torch.tensor(0.0, device=loss.device)
+            return (pos_avg + neg_avg) * 0.5
+        elif self.avg_by == "global":
+            # Compute mean of all losses together, weighted by pos_weight and neg_weight
+            return (pos_loss.sum() + neg_loss.sum()) / (loss.numel() or 1) * 0.5
+        else:
+            raise ValueError(f"Unknown avg_by: {self.avg_by}")
 
 
 class ContrastiveLoss(nn.Module):
     """
-    Contrastive loss with enhancements for robustness, efficiency, and soft labels.
+    A PML-based ContrastiveLoss with support for posneg averaging and miner encapsulation.
+    No soft labels support, as requested.
     """
 
     def __init__(
         self,
-        margin: float = 1.0,
-        squared: bool = True,
+        margin,
+        miner_type: str = "pair_margin",
+        distance_metric: str = "euclidean",
+        normalize_embeddings: bool = False,
+        squared_distance: bool = False,
         pos_weight: float = 1.0,
         neg_weight: float = 1.0,
-        reduction: str = "mean",
         avg_by: str = "posneg",
-        soft_labels: bool = False,
+        miner_margin_factor: float = 1.0,
+        sampler_m: int = 4,
     ):
         super().__init__()
-        if reduction not in ("mean", "sum", "none"):
-            raise ValueError("reduction must be 'mean'|'sum'|'none'")
         if avg_by not in ("global", "posneg"):
             raise ValueError("avg_by must be 'global' or 'posneg'")
-        if soft_labels and avg_by == "posneg":
-            raise ValueError("soft_labels=True is incompatible with avg_by='posneg'. Use avg_by='global'.")
 
         self.margin = float(margin)
-        self.squared = bool(squared)
         self.pos_weight = float(pos_weight)
         self.neg_weight = float(neg_weight)
-        self.reduction = reduction
         self.avg_by = avg_by
-        self.soft_labels = bool(soft_labels)
+        self.sampler_m = sampler_m
 
-    def forward(self, embedding1: torch.Tensor, embedding2: torch.Tensor, label: torch.Tensor) -> torch.Tensor:
-        if embedding1.shape != embedding2.shape:
-            raise ValueError("embedding1 and embedding2 must have the same shape")
+        distance = _get_pml_distance(distance_metric, squared_distance, normalize_embeddings)
+        reducer = PosNegWeightedReducer(pos_weight, neg_weight, avg_by)
+        self.loss = losses.ContrastiveLoss(margin=margin, distance=distance, reducer=reducer)
 
-        # Directly compute squared euclidean distance to avoid sqrt
-        diff = embedding1 - embedding2
-        sq_dist = torch.sum(diff * diff, dim=1)
+        miner_margin = margin * miner_margin_factor
 
-        if self.squared:
-            # Hinge loss on squared distance
-            pos_loss = sq_dist
-            margin_sq = self.margin * self.margin
-            neg_loss = torch.clamp(margin_sq - sq_dist, min=0.0)
+        if miner_type == "pair_margin":
+            self.miner = miners.PairMarginMiner(distance=distance, neg_margin=miner_margin, pos_margin=miner_margin)
+        elif miner_type == "batch_hard":
+            self.miner = miners.BatchHardMiner(distance=distance)  # No margin needed
         else:
-            # For non-squared, we still use sq_dist for the positive loss part
-            # as it's often defined as 0.5 * d^2
-            dist = torch.sqrt(sq_dist + 1e-8)
-            pos_loss = sq_dist
-            neg_term = torch.clamp(self.margin - dist, min=0.0)
-            neg_loss = neg_term * neg_term
+            raise ValueError(f"Unknown miner type: {miner_type}")
 
-        labels_float = label.view(-1).to(dtype=embedding1.dtype, device=embedding1.device)
+    def get_sampler(self, labels: torch.Tensor) -> MPerClassSampler:
+        # Appoint the sampler for the loss so that
+        # We can get different sampler for different losses in pipeline
+        return MPerClassSampler(labels, self.sampler_m)
 
-        if not self.soft_labels:
-            if not ((labels_float == 0) | (labels_float == 1)).all():
-                raise ValueError("labels must be binary (0 or 1) unless soft_labels=True")
+    def forward(self, embeddings: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        """Compute contrastive loss with optional miner."""
+        if not ((labels == 0) | (labels == 1)).all():
+            raise ValueError("labels must be binary (0 or 1)")
 
-        loss_pos = labels_float * self.pos_weight * 0.5 * pos_loss
-        loss_neg = (1.0 - labels_float) * self.neg_weight * 0.5 * neg_loss
-        loss_all = loss_pos + loss_neg
+        indices_tuple = self.miner(embeddings, labels) if self.miner else None
+        loss = self.loss(embeddings, labels, indices_tuple)
 
-        if self.reduction == "sum":
-            return loss_all.sum()
-        if self.reduction == "none":
-            return loss_all
-
-        # Mean reduction logic
-        if self.avg_by == "global" or self.soft_labels:
-            return loss_all.mean()
-        else:  # avg_by == 'posneg' and not soft_labels
-            pos_mask = labels_float == 1
-            neg_mask = labels_float == 0
-
-            # Use item() to get scalar count, prevent holding tensor in memory
-            pos_count = pos_mask.sum().item()
-            neg_count = neg_mask.sum().item()
-
-            pos_sum = loss_all[pos_mask].sum()
-            neg_sum = loss_all[neg_mask].sum()
-
-            # Handle cases where one class is not present in the batch
-            pos_avg = pos_sum / pos_count if pos_count > 0 else torch.tensor(0.0, device=loss_all.device)
-            neg_avg = neg_sum / neg_count if neg_count > 0 else torch.tensor(0.0, device=loss_all.device)
-
-            return 0.5 * (pos_avg + neg_avg)
+        return loss  # Default reducer: mean (handled by reducer or PML)
