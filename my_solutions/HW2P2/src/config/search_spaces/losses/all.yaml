@@ -146,7 +146,6 @@ metric_learning_paradigm_losses:
       choices: ["global", "posneg"]
       description: "Averaging strategy to handle class imbalance."
   
-  # Triplet loss implementation
   triplet_margin_with_distance_loss:
     class: "instance"
     condition: "$metric_loss_type == 'triplet_margin_with_distance_loss'"
@@ -155,10 +154,11 @@ metric_learning_paradigm_losses:
       class: "param"
       param_name: "metric_triplet_margin"
       type: "float"
-      low: 0.1
-      high: 1.0
-      description: "Triplet loss margin"
-      
+      low: "$metric_triplet_distance == 'cosine' || $metric_triplet_normalize ? 0.1 : 0.5"
+      high: "$metric_triplet_distance == 'cosine' || $metric_triplet_normalize ? 1.0 : 5.0"
+      description: "Triplet loss margin (cosine/normalized distance: 0.1-1.0, euclidean/manhattan: 0.5-5.0)"
+      depends_on: ["metric_triplet_distance", "metric_triplet_normalize"]
+
     distance_metric:
       class: "param"
       param_name: "metric_triplet_distance"
@@ -181,3 +181,29 @@ metric_learning_paradigm_losses:
       description: "Whether to use squared Euclidean distance (valid only for euclidean metric)."
       condition: "$metric_triplet_distance == 'euclidean'"
       depends_on: ["metric_triplet_distance"]
+
+    miner_type:
+      class: "param"
+      param_name: "metric_triplet_miner_type"
+      type: "categorical"
+      choices: ["triplet", "batch_hard"]
+      description: "Type of miner to use for triplet loss"
+
+    type_of_triplets:
+      class: "param"
+      param_name: "metric_triplet_type"
+      type: "categorical"
+      choices: ["semihard", "hard", "all"]
+      description: "Type of triplets to use for triplet loss"
+      condition: "$metric_triplet_miner_type == 'triplet'"
+      depends_on: ["metric_triplet_miner_type"]
+
+    miner_margin_factor:
+      class: "param"
+      param_name: "metric_triplet_miner_margin_factor"
+      type: "float"
+      low: 0.8
+      high: 1.2
+      description: "Margin factor for triplet miner"
+      condition: "$metric_triplet_miner_type == 'triplet'"
+      depends_on: ["metric_triplet_miner_type"]
