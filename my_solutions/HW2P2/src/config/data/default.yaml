@@ -13,6 +13,7 @@ paths:
   # Verification dataset paths (relative to images_dir)
   val_pairs_dir: "ver_data"              # Will become: data/ver_data
   val_pairs_txt: "val_pairs.txt"         # Will become: data/val_pairs.txt
+  test_pairs_dir: "ver_data"              # Will become: data/ver_data
   test_pairs_txt: "test_pairs.txt"       # Will become: data/test_pairs.txt
   
   # Optional: specific directories can override images_dir
