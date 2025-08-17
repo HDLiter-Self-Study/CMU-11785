@@ -143,6 +143,9 @@ lr_scheduler_techniques:
 
 warmup_technique:
   class: "technique"
+  condition: "$lr_scheduler_strategy != 'reduce_lr_on_plateau'"
+  # SequentialLR does not support `ReduceLROnPlateau` scheduler as it requires additional kwargs to be specified when calling `step`
+  depends_on: ["lr_scheduler_techniques"]
 
   warmup:
     class: "instance"
