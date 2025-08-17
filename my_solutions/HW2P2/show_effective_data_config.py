@@ -20,13 +20,9 @@ import argparse
 import tempfile
 from pathlib import Path
 
-# add src to PYTHONPATH
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SRC_PATH = PROJECT_ROOT / "src"
-sys.path.insert(0, str(SRC_PATH))
 
-from sampling.generation_entry import generate_configs_from_template
-from sampling.data_resolver import resolve_effective_data_config
+from src.sampling.generation_entry import generate_configs_from_template
+from src.sampling.data_resolver import resolve_effective_data_config
 
 
 def build_min_template(task: str, epochs: int = 5, batch_size: int = 64, n_trials: int = 1) -> str:
