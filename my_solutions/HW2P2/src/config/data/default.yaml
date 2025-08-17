@@ -11,7 +11,7 @@ paths:
 
 image_settings:
   image_size: 112
-  in_channels: 3
+  image_channels: 3
 
 # Loader runtime settings (not searched). Can be overridden in task_configs.<task>.yaml
 loader_settings:
