@@ -66,7 +66,7 @@ class BaseArchitecture(nn.Module, ABC):
 
         # Apply width multiplier
         self.out_channels = [int(c * width_multiplier) for c in out_channels]
-
+        self.num_features = self.out_channels[-1]  # Used for head input features and verification task
         # Create architecture components
         self.stem = self._create_stem(in_channels, stem_channels, stem_params)
         self.backbone = self._create_backbone(
