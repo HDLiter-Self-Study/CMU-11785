@@ -175,7 +175,7 @@ def _normalize_strategy_levels(template: Dict[str, Any]) -> Dict[str, Any]:
 
     New format (level-centric):
       strategy_levels:
-        basic: [augmentation, data_sampling]
+        basic: [augmentation, dataset]
         robust: [losses, training]
         custom:
           architectures:

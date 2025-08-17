@@ -1,5 +1,5 @@
 # Data Sampling Strategies Search Space Configuration
-# @package search_spaces.data_sampling
+# @package search_spaces.dataset
 # Strategies that modify how data is sampled rather than transformed
 
 # =============================================================================
@@ -15,7 +15,7 @@
 # DATA SAMPLING STRATEGY CONFIGURATION
 # =============================================================================
 class: "strategy"
-# Same-level dependency: ensure data_sampling runs after architectures for naming.
+# Same-level dependency: ensure dataset runs after architectures for naming.
 depends_on: ["architectures"]
 
 # Meta-configuration: manually set by researcher (not searched)
@@ -33,7 +33,7 @@ sampling_techniques:
   
   selection:
     class: "param"
-    param_name: "data_sampling_technique"
+    param_name: "dataset_technique"
     type: "categorical"
     dependency_order: ["strategy_level"]
     choices:
@@ -46,7 +46,7 @@ sampling_techniques:
   # Repeated Augmentation technique
   repeated_augmentation:
     class: "instance"
-    condition: "$data_sampling_technique == 'repeated_augmentation'"
+    condition: "$dataset_technique == 'repeated_augmentation'"
 
     num_repeats:
       class: "param"

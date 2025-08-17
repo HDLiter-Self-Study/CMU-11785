@@ -33,6 +33,8 @@ class PipelineBuilder:
     # Define dependencies between components (dependent -> dependencies)
     _DEPENDENCIES = {
         "scheduler": ["optimizer"],  # scheduler depends on optimizer
+        "loader": ["dataset"],  # loader depends on dataset
+        "dataset": ["augmentation"],  # dataset depends on augmentation(need to insert transforms)
         # All other components are independent
     }
 
@@ -121,13 +123,13 @@ class PipelineBuilder:
                     from a JSON or YAML file.
         """
         self.config = config
-        self.datasets = self._build_datasets()
+        self.datasets = None
         self.data_config = self._compose_data_config()
         self.model = self._build_model()
         self.pipeline_config = config.get("pipelines", {})
         self._built_components = {}  # Store built components by name
 
-    def _build_datasets(self) -> Dict[str, Dataset]:
+    def _build_unwrapped_datasets(self) -> Dict[str, Dataset]:
         """Builds the datasets."""
         data_paths = self.config.get("paths", {})
         if not data_paths:
@@ -219,6 +221,10 @@ class PipelineBuilder:
         """
         return factory.build(config)
 
+    def _build_loader_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
+        """Builds the loader component."""
+        return factory.build(config, dataset_train=self.datasets["train"], dataset_eval=self.datasets["val"])
+
     def _build_optimizer_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optimizer:
         """Builds the optimizer component."""
         # The optimizer config in the JSON is a list containing one item.
@@ -236,22 +242,26 @@ class PipelineBuilder:
     def _build_label_mixing_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optional[nn.Module]:
         """Builds label mixing strategies. Optionally injects num_classes if available."""
         # Try to extract num_classes from config (optional injection)
-        num_classes: Optional[int] = None
-        if "model" in self.config:
-            model_config = self.config["model"]
-            num_classes = model_config.get("num_classes")
-            if num_classes is None and "architectures" in model_config:
-                arch_config = model_config["architectures"]
-                num_classes = arch_config.get("num_classes")
-
-        if num_classes is None and "data" in self.config:
-            num_classes = self.config["data"].get("num_classes")
+        num_classes: Optional[int] = self.data_config.get("num_classes")
 
         if num_classes is not None:
             return factory.build(config, num_classes=num_classes)
         # If num_classes is not found, build without it. Components will fast-fail
         # at runtime if indices are used and num_classes is required.
         return factory.build(config)
+
+    def _build_dataset_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
+        """Builds the dataset component, use the unwrapped datasets to build the wrapped datasets."""
+        unwrapped_datasets = self._build_unwrapped_datasets()
+        # Attach augmentation to the datasets
+        for key in unwrapped_datasets.keys():
+            if key == "train":
+                transforms = self.augmentation[0]  # Augmentation for training
+            else:
+                transforms = self.augmentation[1]  # Base transform for validation and testing
+            unwrapped_datasets[key].transforms = transforms
+        # Build the wrapped datasets
+        return factory.build(config, datasets=unwrapped_datasets)
 
     def __getattr__(self, name: str) -> Any:
         """

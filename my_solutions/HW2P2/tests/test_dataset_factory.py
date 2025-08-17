@@ -2,7 +2,7 @@ import unittest
 
 from torch.utils.data import Dataset
 
-from src.pipelines.factories import DataSamplingFactory
+from src.pipelines.factories import DatasetFactory
 
 
 class _DummyDataset(Dataset):
@@ -16,26 +16,28 @@ class _DummyDataset(Dataset):
         return idx
 
 
-class TestDataSamplingFactory(unittest.TestCase):
+class TestDatasetFactory(unittest.TestCase):
     def setUp(self):
-        self.factory = DataSamplingFactory()
+        self.factory = DatasetFactory()
 
     def test_repeated_augmentation_dataset_length(self):
         base = _DummyDataset(length=7)
-        wrapper = self.factory.create({"repeated_augmentation": {"base_dataset": base, "num_repeats": 3}})
-        self.assertEqual(len(wrapper), 21)
+        wrapper = self.factory.create({"repeated_augmentation": {"num_repeats": 3}})
+        wrappered = wrapper(base)
+        self.assertEqual(len(wrappered), 21)
 
     def test_repeated_augmentation_dataset_index_mapping(self):
         base = _DummyDataset(length=4)
-        wrapper = self.factory.create({"repeated_augmentation": {"base_dataset": base, "num_repeats": 2}})
+        wrapper = self.factory.create({"repeated_augmentation": {"num_repeats": 2}})
+        wrappered = wrapper(base)
         # indices 0..7 map to base indices 0,0,1,1,2,2,3,3
-        mapped = [wrapper[i] for i in range(len(wrapper))]
+        mapped = [wrappered[i] for i in range(len(wrappered))]
         self.assertEqual(mapped, [0, 0, 1, 1, 2, 2, 3, 3])
 
     def test_invalid_repeats_fast_fail(self):
         base = _DummyDataset(length=2)
         with self.assertRaises(RuntimeError) as ctx:
-            self.factory.create({"repeated_augmentation": {"base_dataset": base, "num_repeats": 0}})
+            self.factory.create({"repeated_augmentation": {"num_repeats": 0}})
         self.assertIn("num_repeats", str(ctx.exception))
 
 

@@ -12,7 +12,7 @@ from typing import Any, Tuple
 from torch.utils.data import Dataset
 
 
-class RepeatedAugmentation(Dataset):
+class RepeatedAugmentationWrapper(Dataset):
     """Wrap a dataset to repeat each sample multiple times per epoch.
 
     The wrapper expands dataset length to ``len(base_dataset) * num_repeats`` and
@@ -50,3 +50,23 @@ class RepeatedAugmentation(Dataset):
         """Get item by mapping wrapped index to base dataset index."""
         base_index = index // self.num_repeats
         return self.base_dataset[base_index]
+
+
+class RepeatedAugmentation:
+    """Wrapper for repeated augmentation, use it as a transform for datasets.
+
+    Args:
+        num_repeats: Number of times each sample should be revisited per epoch.
+        distinct: Whether repeated visits should be considered distinct. This
+            flag is informational for future extension; randomness is expected
+            to be provided by transforms.
+    """
+
+    def __init__(self, num_repeats: int = 2, distinct: bool = True) -> None:
+        if num_repeats < 1:
+            raise ValueError("'num_repeats' must be >= 1 for RepeatedAugmentation")
+        self.num_repeats = int(num_repeats)
+        self.distinct = bool(distinct)
+
+    def __call__(self, dataset: Dataset) -> Dataset:
+        return RepeatedAugmentationWrapper(dataset, self.num_repeats, self.distinct)

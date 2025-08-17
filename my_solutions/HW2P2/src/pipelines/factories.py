@@ -95,7 +95,7 @@ class AugmentationFactory(BasePipelineFactory):
         else:
             return transform
 
-    def build(self, configs: List[Dict[str, Any]]) -> v2.Compose:
+    def build(self, configs: List[Dict[str, Any]], return_base_transform: bool = True) -> Any:
         """
         Builds the augmentation pipeline from a list of configurations.
 
@@ -139,7 +139,11 @@ class AugmentationFactory(BasePipelineFactory):
         ]
 
         full_pipeline = augmentations + final_transforms
-        return v2.Compose(full_pipeline)
+        if not return_base_transform:
+            return v2.Compose(full_pipeline)
+        else:
+            # Also return the base transform pipeline for validation and testing
+            return v2.Compose(full_pipeline), v2.Compose(final_transforms)
 
 
 class OptimizerFactory(BasePipelineFactory):
@@ -553,7 +557,7 @@ class EvaluatorsFactory(BasePipelineFactory):
     }
 
 
-class DataSamplingFactory(BasePipelineFactory):
+class DatasetFactory(BasePipelineFactory):
     """
     Factory for creating data sampling wrappers, such as repeated augmentation.
 
@@ -562,7 +566,27 @@ class DataSamplingFactory(BasePipelineFactory):
     transform pipeline.
     """
 
-    SEARCH_MODULES = ["src.data.sampling"]
+    SEARCH_MODULES = ["src.data.dataset"]
+
+    def build(
+        self,
+        configs: List[Dict[str, Any]],
+        datasets: Dict[str, Dataset],
+        target_keys: List[str] = ["train"],  # only build for these keys
+    ) -> Dict[str, Dataset]:
+        dataset_wrappers = self.super().build(configs)
+        if dataset_wrappers is None:
+            # no dataset wrappers, return original datasets
+            return datasets
+        if not isinstance(dataset_wrappers, list):
+            dataset_wrappers = [dataset_wrappers]
+        for key in target_keys:
+            # For each target key, apply all dataset wrappers
+            if key not in datasets:
+                raise ValueError(f"Dataset key '{key}' not found in datasets")
+            for wrapper in dataset_wrappers:
+                datasets[key] = wrapper(datasets[key])
+        return datasets
 
 
 class EmaFactory(BasePipelineFactory):
