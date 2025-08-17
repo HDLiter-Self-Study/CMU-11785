@@ -219,7 +219,7 @@ class TestAugmentationFactory(unittest.TestCase):
 
         configs = [{"mode": "single", "instances": {"gaussian_noise": {"sigma": 0.1}}}]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Should have gaussian_noise + ToDtype + Normalize
         self.assertIsInstance(pipeline, v2.Compose)

@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from torchvision.transforms import v2
 
 from src.pipelines.factories import LossesFactory
+from src.losses.contrastive_loss import ContrastiveLoss
 
 
 class TestLossesFactory(unittest.TestCase):
@@ -74,7 +75,7 @@ class TestLossesFactory(unittest.TestCase):
                 "mode": "random_choice",
                 "instances": {
                     "triplet_loss": {"margin": 1.0},
-                    "contrastive_loss": {"margin": 1.0},
+                    "contrastive_loss": {"neg_margin": 1.0, "pos_margin": 0.1},
                 },
             }
         ]
@@ -84,7 +85,9 @@ class TestLossesFactory(unittest.TestCase):
         self.assertIsInstance(loss_fn_choice, v2.RandomChoice)
         # Optionally, check that the contained transforms are correct
         self.assertEqual(len(loss_fn_choice.transforms), 2)
-        self.assertTrue(any(isinstance(t, torch.nn.BCEWithLogitsLoss) for t in loss_fn_choice.transforms))
+        self.assertTrue(any(isinstance(t, ContrastiveLoss) for t in loss_fn_choice.transforms))
+        self.assertTrue(any(hasattr(t, "neg_margin") for t in loss_fn_choice.transforms))
+        self.assertTrue(any(hasattr(t, "pos_margin") for t in loss_fn_choice.transforms))
         self.assertTrue(any(hasattr(t, "margin") for t in loss_fn_choice.transforms))
 
     def test_fail_fast_on_unknown_loss(self):
