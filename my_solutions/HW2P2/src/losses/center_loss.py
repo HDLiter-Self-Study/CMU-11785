@@ -9,13 +9,13 @@ class CenterLoss(nn.Module):
 
     Args:
         num_classes (int): number of classes
-        feat_dim (int): feature dimension
+        in_features (int): feature dimension
     """
 
     def __init__(
         self,
         num_classes: int,
-        feat_dim: int,
+        in_features: int,
         distance_metric: str = "euclidean",
         normalize_embeddings: bool = False,
         squared_distance: bool = False,
@@ -23,22 +23,22 @@ class CenterLoss(nn.Module):
     ):
         super(CenterLoss, self).__init__()
         self.num_classes = num_classes
-        self.feat_dim = feat_dim
+        self.in_features = in_features
         self.distance = _get_pml_distance(distance_metric, squared_distance, normalize_embeddings)
         self.distance_scale = distance_scale  # Scale distance for small distance like cosine distance
         # Learnable class centers, automatically registered to parameters()
-        self.centers = nn.Parameter(torch.randn(num_classes, feat_dim))
+        self.centers = nn.Parameter(torch.randn(num_classes, in_features))
 
     def forward(self, x: torch.Tensor, labels: torch.LongTensor) -> torch.Tensor:
         """
         Args:
-            x: (batch_size, feat_dim) feature embeddings
+            x: (batch_size, in_features) feature embeddings
             labels: (batch_size,) ground truth class labels
         Returns:
             loss: scalar tensor
         """
-        if x.shape[1] != self.feat_dim:
-            raise ValueError(f"Expected feature dim {self.feat_dim}, got {x.shape[1]}")
+        if x.shape[1] != self.in_features:
+            raise ValueError(f"Expected feature dim {self.in_features}, got {x.shape[1]}")
         if labels.max() >= self.num_classes or labels.min() < 0:
             raise ValueError(f"Labels must be in [0, {self.num_classes-1}]")
         # Select class centers according to labels (keep gradient flow)
