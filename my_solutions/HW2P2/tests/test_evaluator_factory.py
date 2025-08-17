@@ -11,7 +11,7 @@ class TestEvaluatorFactory(unittest.TestCase):
 
     def test_create_argmax_evaluator(self):
         """Test creating the custom 'argmax' evaluator."""
-        config = [{"mode": "single", "instances": {"argmax": None}}]
+        config = [{"mode": "single", "instances": {"argmax": {"dim": 1}}}]
 
         evaluator_fn = self.factory.build(config)
         self.assertTrue(callable(evaluator_fn))
@@ -36,7 +36,7 @@ class TestEvaluatorFactory(unittest.TestCase):
     def test_build_multiple_evaluators_returns_list(self):
         """Test that building multiple evaluators returns a list of instances."""
         configs = [
-            {"mode": "single", "instances": {"argmax": None}},
+            {"mode": "single", "instances": {"argmax": {"dim": 1}}},
             {"mode": "single", "instances": {"cosine_similarity": {"use_l2_norm": False}}},
         ]
 
