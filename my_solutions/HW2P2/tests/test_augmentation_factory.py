@@ -49,7 +49,7 @@ class TestAugmentationFactory(unittest.TestCase):
             },  # No probability - should not be wrapped
         ]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Basic pipeline structure validation
         self.assertIsInstance(pipeline, v2.Compose)
@@ -96,7 +96,7 @@ class TestAugmentationFactory(unittest.TestCase):
             {"mode": "single", "instances": {"trivial_augment_wide": {"prob": 1.5}}},  # Invalid prob - should not wrap
         ]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Check wrapping behavior
         self.assertIsInstance(pipeline.transforms[0], v2.RandomApply)  # p=0.0 wrapped
@@ -114,7 +114,7 @@ class TestAugmentationFactory(unittest.TestCase):
         Tests if the factory correctly raises FileNotFoundError when stats are missing.
         """
         with self.assertRaises(FileNotFoundError) as context:
-            self.factory.build([])
+            self.factory.build([], return_base_transform=False)
 
         # Verify error message contains helpful information
         self.assertIn("Dataset statistics file not found", str(context.exception))
@@ -128,7 +128,7 @@ class TestAugmentationFactory(unittest.TestCase):
             "pathlib.Path.read_text", return_value=self.stats_data
         ):
 
-            pipeline = self.factory.build([])
+            pipeline = self.factory.build([], return_base_transform=False)
 
             # Should only contain the mandatory final transforms
             self.assertIsInstance(pipeline, v2.Compose)
@@ -181,7 +181,7 @@ class TestAugmentationFactory(unittest.TestCase):
             {"mode": "single", "instances": {"impulse_noise": {"amount": 0.2, "p": 0.7}}},
         ]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Both should be wrapped but with different probabilities
         self.assertIsInstance(pipeline.transforms[0], v2.RandomApply)
@@ -242,7 +242,7 @@ class TestAugmentationFactory(unittest.TestCase):
             }
         ]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Should have 1 RandomChoice (containing 2 transforms) + ToDtype + Normalize
         self.assertIsInstance(pipeline, v2.Compose)
@@ -272,7 +272,7 @@ class TestAugmentationFactory(unittest.TestCase):
             {"mode": "single", "instances": {"gaussian_noise": {"sigma": 0.1}}},
         ]
 
-        pipeline = self.factory.build(configs)
+        pipeline = self.factory.build(configs, return_base_transform=False)
 
         # Should have trivial_augment_wide + gaussian_noise + ToDtype + Normalize
         self.assertIsInstance(pipeline, v2.Compose)
@@ -294,7 +294,7 @@ class TestAugmentationFactory(unittest.TestCase):
         ]
 
         with self.assertRaises(ValueError) as context:
-            self.factory.build(configs)
+            self.factory.build(configs, return_base_transform=False)
         self.assertIn("Single mode requires exactly one instance", str(context.exception))
 
 
