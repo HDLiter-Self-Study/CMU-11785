@@ -29,7 +29,7 @@ def build_min_template(task: str, epochs: int = 5, batch_size: int = 64, n_trial
     return (
         f"task: {task}\n"
         "strategy_levels:\n"
-        "  basic: [augmentation, data_sampling, label_mixing]\n"
+        "  basic: [augmentation, dataset, label_mixing]\n"
         "  robust: [optimizer, scheduler]\n"
         "  custom:\n"
         "    architectures:\n"
