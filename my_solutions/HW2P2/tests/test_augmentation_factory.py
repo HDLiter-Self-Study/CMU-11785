@@ -41,7 +41,7 @@ class TestAugmentationFactory(unittest.TestCase):
             },  # With 'p' - should be wrapped
             {
                 "mode": "single",
-                "instances": {"impulse_noise": {"amount": 0.03, "prob": 0.7}},
+                "instances": {"impulse_noise": {"ratio": 0.03, "prob": 0.7}},
             },  # With 'prob' - should be wrapped
             {
                 "mode": "single",
@@ -88,7 +88,7 @@ class TestAugmentationFactory(unittest.TestCase):
 
         configs = [
             {"mode": "single", "instances": {"gaussian_noise": {"sigma": 0.1, "p": 0.0}}},  # p=0.0 should still wrap
-            {"mode": "single", "instances": {"impulse_noise": {"amount": 0.03, "p": 1.0}}},  # p=1.0 should still wrap
+            {"mode": "single", "instances": {"impulse_noise": {"ratio": 0.03, "p": 1.0}}},  # p=1.0 should still wrap
             {
                 "mode": "single",
                 "instances": {"grid_mask": {"d_ratio_range": (0.1, 0.2), "p": -0.5}},
@@ -144,10 +144,10 @@ class TestAugmentationFactory(unittest.TestCase):
 
     def test_create_custom_noise_component(self):
         """Tests direct creation of custom noise components."""
-        config = {"impulse_noise": {"amount": 0.1}}
+        config = {"impulse_noise": {"ratio": 0.1}}
         component = self.factory.create(config)
         self.assertIsInstance(component, ImpulseNoise)
-        self.assertEqual(component.amount, 0.1)
+        self.assertEqual(component.ratio, 0.1)
 
     def test_create_custom_spatial_component(self):
         """Tests direct creation of custom spatial components."""
@@ -177,8 +177,8 @@ class TestAugmentationFactory(unittest.TestCase):
 
         # Create configs with same structure but different probability values
         configs = [
-            {"mode": "single", "instances": {"impulse_noise": {"amount": 0.1, "p": 0.3}}},
-            {"mode": "single", "instances": {"impulse_noise": {"amount": 0.2, "p": 0.7}}},
+            {"mode": "single", "instances": {"impulse_noise": {"ratio": 0.1, "p": 0.3}}},
+            {"mode": "single", "instances": {"impulse_noise": {"ratio": 0.2, "p": 0.7}}},
         ]
 
         pipeline = self.factory.build(configs, return_base_transform=False)
@@ -196,8 +196,8 @@ class TestAugmentationFactory(unittest.TestCase):
 
         self.assertIsInstance(first_transform, ImpulseNoise)
         self.assertIsInstance(second_transform, ImpulseNoise)
-        self.assertEqual(first_transform.amount, 0.1)
-        self.assertEqual(second_transform.amount, 0.2)
+        self.assertEqual(first_transform.ratio, 0.1)
+        self.assertEqual(second_transform.ratio, 0.2)
 
     def test_malformed_config_handling(self):
         """Tests handling of malformed configurations."""
