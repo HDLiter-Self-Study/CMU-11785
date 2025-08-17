@@ -488,13 +488,13 @@ class LoaderFactory(BasePipelineFactory):
         train_loader = super().create({"data_loader": train_params}, dataset=dataset_train, collate_fn=collate_train)
 
         # Eval parameters: copy and remove shuffle/drop_last/sampler keys
-        eval_params = dict(loader_params)
+        val_params = dict(loader_params)
         for k in ["shuffle", "drop_last", "sampler", "batch_sampler"]:
-            if k in eval_params:
-                eval_params.pop(k)
-        eval_loader = super().create({"data_loader": eval_params}, dataset=dataset_eval, collate_fn=collate_eval)
+            if k in val_params:
+                val_params.pop(k)
+        val_loader = super().create({"data_loader": val_params}, dataset=dataset_eval, collate_fn=collate_eval)
 
-        return train_loader, eval_loader
+        return {"train": train_loader, "val": val_loader}
 
 
 class LossesFactory(BasePipelineFactory):

@@ -32,7 +32,7 @@ class PipelineBuilder:
 
     # Define dependencies between components (dependent -> dependencies)
     _DEPENDENCIES = {
-        "scheduler": ["optimizer"],  # scheduler depends on optimizer
+        "scheduler": ["optimizer", "loader"],  # scheduler depends on optimizer and loader (to get steps_per_epoch)
         "loader": ["dataset"],  # loader depends on dataset
         "dataset": ["augmentation"],  # dataset depends on augmentation(need to insert transforms)
         # All other components are independent
@@ -236,16 +236,21 @@ class PipelineBuilder:
     def _build_optimizer_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optimizer:
         """Builds the optimizer component."""
         # The optimizer config in the JSON is a list containing one item.
-        optimizer_config = config[0]["instances"]
         model_params = self.model.parameters() if self.model else []
-        return factory.create(optimizer_config, params=model_params)
+        return factory.build(config, params=model_params)
 
     def _build_scheduler_impl(self, factory: Any, config: List[Dict[str, Any]]) -> _LRScheduler:
         """Builds the learning rate scheduler, injecting the optimizer."""
         if not self.optimizer:
             raise ValueError("Scheduler requires an optimizer to be built first")
-        scheduler_config = config[0]["instances"]
-        return factory.create(scheduler_config, optimizer=self.optimizer)
+        total_epochs = self.config.get("run", {}).get("epochs")
+        if not total_epochs:
+            raise ValueError("Total epochs are not found!")
+        train_loader = self.loader["train"]
+        steps_per_epoch = len(train_loader)
+        return factory.build(
+            config, optimizer=self.optimizer, total_epochs=total_epochs, steps_per_epoch=steps_per_epoch
+        )
 
     def _build_label_mixing_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optional[nn.Module]:
         """Builds label mixing strategies. Optionally injects num_classes if available."""

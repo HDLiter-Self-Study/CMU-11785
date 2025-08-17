@@ -1,10 +1,10 @@
 ## Architecture search template (entry format)
 
 task: verification_finetune
+# paradigm: metric_learning # One of ["classification", "metric_learning"]
 
 strategy_levels:
-  basic: [augmentation, data_sampling, label_mixing]
-  robust: [optimizer, scheduler, losses]
+  comprehensive: [augmentation, dataset, label_mixing, architectures,optimizer, scheduler, losses]
   custom:
     architectures:
       # Expand stage count options
@@ -12,8 +12,8 @@ strategy_levels:
       # Allow per-stage block types
       block_type_params.selection.choices.custom: [stage]
       # Enable stage/global choices for activation / normalization
-      activation_params.selection.choices.custom: [stage, global]
-      normalization_params.selection.choices.custom: [stage, global]
+      activation_params.selection.choices.custom: [stage, all_stage]
+      normalization_params.selection.choices.custom: [stage, block_type, block_stage]
 
 shortcuts:
   # Training epochs will be written to task_configs.training.epochs (from task_config)
@@ -21,7 +21,7 @@ shortcuts:
   # batch_size can be scalar or list; scalar will be converted to [value]
   batch_size: 256
   # Number of trials to sample search space
-  n_trials: 3
+  n_trials: 200
 
 overrides:
   # Additional config path overrides (dictionary path mapping)
