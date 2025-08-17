@@ -105,9 +105,9 @@ metric_learning_paradigm_losses:
     dependency_order: ["strategy_level"]
     choices:
       basic: ["contrastive_loss"]
-      robust: ["contrastive_loss", "triplet_margin_with_distance_loss"]
-      comprehensive: ["contrastive_loss", "triplet_margin_with_distance_loss"]
-      custom: ["contrastive_loss", "triplet_margin_with_distance_loss"]
+      robust: ["contrastive_loss", "triplet_loss"]
+      comprehensive: ["contrastive_loss", "triplet_loss"]
+      custom: ["contrastive_loss", "triplet_loss"]
     description: "Metric learning loss function selection"
   
   # Contrastive loss implementation
@@ -194,9 +194,9 @@ metric_learning_paradigm_losses:
       choices: [4,8]
       description: "Number of samples per-class to draw from each batch"
   
-  triplet_margin_with_distance_loss:
+  triplet_loss:
     class: "instance"
-    condition: "$metric_loss_type == 'triplet_margin_with_distance_loss'"
+    condition: "$metric_loss_type == 'triplet_loss'"
     
     margin:
       class: "param"

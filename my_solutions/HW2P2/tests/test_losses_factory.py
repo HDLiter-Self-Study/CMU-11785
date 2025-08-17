@@ -73,7 +73,7 @@ class TestLossesFactory(unittest.TestCase):
             {
                 "mode": "random_choice",
                 "instances": {
-                    "bce_with_logits_loss": None,
+                    "triplet_loss": {"margin": 1.0},
                     "contrastive_loss": {"margin": 1.0},
                 },
             }

@@ -7,7 +7,7 @@ from torch import nn
 from src.losses.utils import _get_pml_distance
 
 
-class TripletMarginWithDistanceLoss(nn.Module):
+class TripletLoss(nn.Module):
     def __init__(
         self,
         margin,
