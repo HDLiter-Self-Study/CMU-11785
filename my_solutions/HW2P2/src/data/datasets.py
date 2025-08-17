@@ -190,17 +190,23 @@ def build_datasets(paths: Dict[str, str]) -> Dict[str, object]:
     """Build datasets dict from a `paths` description (no transforms attached).
 
     Recognized keys (all optional):
+      - Common image root directory:
+          images_dir: Common root directory for all image files
       - Classification datasets (ImageFolder-like):
-          train_dir, eval_dir, test_dir
+          train_dir, val_dir, test_dir
       - Verification pair datasets (require dir+txt pairs):
           train_pairs_dir + train_pairs_txt
-          val_pairs_dir + val_pairs_txt  (mapped to eval_pair)
-          eval_pairs_dir + eval_pairs_txt (alternative naming for eval)
+          val_pairs_dir + val_pairs_txt
           test_pairs_dir + test_pairs_txt
+
+    When images_dir is provided, it serves as the common root for all image paths.
+    All other directory paths will be joined with images_dir to form the final path.
+    For example, if images_dir="data/images" and train_dir="train", the final path
+    will be "data/images/train".
 
     Returns:
         Dict containing available splits with keys among:
-        {"train", "eval", "test", "train_pair", "eval_pair", "test_pair"}.
+        {"train", "val", "test", "train_pair", "val_pair", "test_pair"}.
 
     Raises:
         ValueError: If a pair split specifies only one of dir/txt.
@@ -213,28 +219,67 @@ def build_datasets(paths: Dict[str, str]) -> Dict[str, object]:
     except Exception:  # noqa: BLE001
         ImageFolder = None  # type: ignore
 
+    # Get common images directory if provided
+    images_dir = Path(paths.get("images_dir")) if paths.get("images_dir") else None
+    if images_dir and not images_dir.is_dir():
+        raise ValueError(f"images_dir does not exist or is not a directory: {images_dir}")
+
+    def _resolve_path(path_key: str) -> Optional[Path]:
+        """Resolve a path, joining with images_dir if it exists."""
+        if path_key not in paths:
+            return None
+
+        path_value = paths[path_key]
+        if images_dir is not None:
+            # Join with images_dir if it exists
+            return images_dir / path_value
+        else:
+            # Use as absolute path if no images_dir
+            return Path(path_value)
+
     def _make_folder_split(dir_key: str, drop_label: bool = False) -> Optional[object]:
-        if dir_key in paths:
-            if ImageFolder is None:
-                raise ImportError("torchvision is required to build ImageFolder datasets")
-            root_dir = Path(paths[dir_key])
-            if not root_dir.is_dir():
-                raise ValueError(f"{dir_key} does not exist or is not a directory: {root_dir}")
-            # No transform here; builder/pipeline will attach transforms later
-            ds = ImageFolder(root=str(root_dir), transform=None)
-            return ImageOnlyWrapper(ds) if drop_label else ds
-        return None
+        root_dir = _resolve_path(dir_key)
+        if root_dir is None:
+            return None
+
+        if ImageFolder is None:
+            raise ImportError("torchvision is required to build ImageFolder datasets")
+
+        if not root_dir.is_dir():
+            raise ValueError(f"{dir_key} does not exist or is not a directory: {root_dir}")
+
+        # No transform here; builder/pipeline will attach transforms later
+        ds = ImageFolder(root=str(root_dir), transform=None)
+        return ImageOnlyWrapper(ds) if drop_label else ds
 
     def _make_pair_split(dir_key: str, txt_key: str, is_test: bool = False) -> Optional[Dataset]:
-        if dir_key in paths and txt_key in paths:
-            root_dir = Path(paths[dir_key])
-            pairs_txt = Path(paths[txt_key])
-            if is_test:
-                return PairSubmissionDataset(root_dir=root_dir, pairs_txt=pairs_txt, transform=None)
-            return PairVerificationDataset(root_dir=root_dir, pairs_txt=pairs_txt, transform=None)
-        elif dir_key in paths or txt_key in paths:
-            raise ValueError(f"Both '{dir_key}' and '{txt_key}' are required to build the pair dataset.")
-        return None
+        # Check if we have the txt file
+        if txt_key not in paths:
+            return None
+
+        # Determine the root directory for images
+        if dir_key in paths:
+            # Use the specific directory (joined with images_dir if it exists)
+            root_dir = _resolve_path(dir_key)
+            if root_dir is None:
+                return None
+        else:
+            return None
+
+        if not root_dir.is_dir():
+            raise ValueError(f"Root directory does not exist or is not a directory: {root_dir}")
+
+        # Resolve txt file path (also join with images_dir if it exists)
+        pairs_txt = _resolve_path(txt_key)
+        if pairs_txt is None:
+            raise ValueError(f"Could not resolve path for {txt_key}")
+
+        if not pairs_txt.is_file():
+            raise ValueError(f"Pairs file does not exist: {pairs_txt}")
+
+        if is_test:
+            return PairSubmissionDataset(root_dir=root_dir, pairs_txt=pairs_txt, transform=None)
+        return PairVerificationDataset(root_dir=root_dir, pairs_txt=pairs_txt, transform=None)
 
     datasets: Dict[str, object] = {}
 
@@ -242,9 +287,9 @@ def build_datasets(paths: Dict[str, str]) -> Dict[str, object]:
     train_cls = _make_folder_split("train_dir", drop_label=False)
     if train_cls is not None:
         datasets["train"] = train_cls
-    eval_cls = _make_folder_split("eval_dir", drop_label=False)
-    if eval_cls is not None:
-        datasets["eval"] = eval_cls
+    val_cls = _make_folder_split("val_dir", drop_label=False)
+    if val_cls is not None:
+        datasets["val"] = val_cls
     # Test classification split has no labels
     test_cls = _make_folder_split("test_dir", drop_label=True)
     if test_cls is not None:
@@ -254,12 +299,10 @@ def build_datasets(paths: Dict[str, str]) -> Dict[str, object]:
     train_pair = _make_pair_split("train_pairs_dir", "train_pairs_txt", is_test=False)
     if train_pair is not None:
         datasets["train_pair"] = train_pair
-    # Support both val_* and eval_* naming; map to eval_pair
-    eval_pair = _make_pair_split("val_pairs_dir", "val_pairs_txt", is_test=False)
-    if eval_pair is None:
-        eval_pair = _make_pair_split("eval_pairs_dir", "eval_pairs_txt", is_test=False)
-    if eval_pair is not None:
-        datasets["eval_pair"] = eval_pair
+    # Only support val_pairs (no eval_pairs)
+    val_pair = _make_pair_split("val_pairs_dir", "val_pairs_txt", is_test=False)
+    if val_pair is not None:
+        datasets["val_pair"] = val_pair
     # Test pair split (no labels in file, returns only image pairs)
     test_pair = _make_pair_split("test_pairs_dir", "test_pairs_txt", is_test=True)
     if test_pair is not None:
