@@ -21,7 +21,7 @@ import inspect
 import optuna
 from omegaconf import DictConfig, OmegaConf, ListConfig
 
-from config.config_manager import get_config
+from src.config.config_manager import get_config
 from src.sampling.parameter_naming import ParameterNaming
 
 

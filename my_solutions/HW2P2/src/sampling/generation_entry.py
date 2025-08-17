@@ -16,8 +16,8 @@ import json
 
 from omegaconf import DictConfig, OmegaConf
 
-from config.config_manager import get_config
-from sampling.sampler import SearchSpaceSampler
+from src.config.config_manager import get_config
+from src.sampling.sampler import SearchSpaceSampler
 
 
 def _load_task_config(task: str) -> DictConfig:
