@@ -22,6 +22,7 @@ class TripletLoss(nn.Module):
         super().__init__()
 
         distance = _get_pml_distance(distance_metric, squared_distance, normalize_embeddings)
+        self.margin = margin
         self.sampler_m = sampler_m
         self.loss = losses.TripletMarginLoss(margin=margin, distance=distance)
         miner_margin = margin * miner_margin_factor
@@ -30,7 +31,7 @@ class TripletLoss(nn.Module):
                 type_of_triplets=type_of_triplets, distance=distance, margin=miner_margin
             )
         elif miner_type == "batch_hard":
-            self.miner = miners.BatchHardMiner(distance=distance, margin=miner_margin)
+            self.miner = miners.BatchHardMiner(distance=distance)
         else:
             raise ValueError(f"Unknown miner type: {miner_type}")
 

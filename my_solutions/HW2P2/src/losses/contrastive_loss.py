@@ -69,7 +69,9 @@ class ContrastiveLoss(nn.Module):
 
         distance = _get_pml_distance(distance_metric, squared_distance, normalize_embeddings)
         reducer = PosNegWeightedReducer(pos_weight, neg_weight, avg_by)
-        self.loss = losses.ContrastiveLoss(margin=margin, distance=distance, reducer=reducer)
+        self.loss = losses.ContrastiveLoss(
+            neg_margin=neg_margin, pos_margin=pos_margin, distance=distance, reducer=reducer
+        )
 
         pos_miner_margin = pos_margin * miner_margin_factor
         neg_miner_margin = neg_margin * miner_margin_factor
