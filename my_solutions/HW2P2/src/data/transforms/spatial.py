@@ -4,6 +4,8 @@ Vectorized and batch-safe spatial transforms.
 
 import torch
 from torch import nn, Tensor
+from torchvision import transforms
+from PIL import Image
 
 
 class GridMask(nn.Module):
@@ -71,3 +73,45 @@ class GridMask(nn.Module):
         x_out = x * mask
 
         return x_out if is_batch else x_out.squeeze(0)
+
+
+class AutoRandomResizedCrop(torch.nn.Module):
+    """
+    Randomly crop and resize the image to the original size.
+    """
+
+    def __init__(
+        self, scale=(0.08, 1.0), ratio=(3.0 / 4.0, 4.0 / 3.0), interpolation=transforms.InterpolationMode.BILINEAR
+    ):
+        """
+        Initialize the transform with the same parameters as torchvision.transforms.RandomResizedCrop.
+        """
+        super().__init__()
+        self.scale = scale
+        self.ratio = ratio
+        self.interpolation = interpolation
+
+    def forward(self, img):
+        """
+        Apply the transform to the image.
+
+        Args:
+            img (PIL Image): The image to be cropped and resized.
+
+        Returns:
+            PIL Image: The transformed image, with the same size as the original image.
+        """
+        # Get the original image size
+        original_width, original_height = img.size
+
+        # Define RandomResizedCrop
+        # Note: The size parameter is set to (original_height, original_width)
+        # This ensures the cropped image is automatically resized to the original size
+        random_crop = transforms.RandomResizedCrop(
+            size=(original_height, original_width), scale=self.scale, ratio=self.ratio, interpolation=self.interpolation
+        )
+
+        # Apply the transform
+        transformed_img = random_crop(img)
+
+        return transformed_img

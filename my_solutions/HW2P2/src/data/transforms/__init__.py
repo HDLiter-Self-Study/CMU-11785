@@ -8,7 +8,7 @@ from src.data.transforms.noises import (
     SpeckleNoise,
     NoiseAugmentationBase,
 )
-from src.data.transforms.spatial import GridMask
+from src.data.transforms.spatial import GridMask, AutoRandomResizedCrop
 
 __all__ = [
     "ImpulseNoise",
@@ -16,4 +16,5 @@ __all__ = [
     "SpeckleNoise",
     "NoiseAugmentationBase",
     "GridMask",
+    "AutoRandomResizedCrop",
 ]

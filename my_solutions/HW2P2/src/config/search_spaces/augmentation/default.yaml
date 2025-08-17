@@ -53,9 +53,9 @@ spatial_augmentation:
     dependency_order: ["strategy_level"]
     choices:
       basic: ["none", "random_erasing"]
-      robust: ["none", "random_erasing", "gridmask", "random_resized_crop"]  
-      comprehensive: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
-      custom: ["none", "random_erasing", "gridmask", "random_resized_crop", "random_choice"]
+      robust: ["none", "random_erasing", "gridmask", "auto_random_resized_crop"]  
+      comprehensive: ["none", "random_erasing", "gridmask", "auto_random_resized_crop", "random_choice"]
+      custom: ["none", "random_erasing", "gridmask", "auto_random_resized_crop", "random_choice"]
     description: "Spatial and geometric augmentation techniques"
 
   # Random Erasing technique
@@ -128,13 +128,13 @@ spatial_augmentation:
       description: "Ratio of grid to spacing in GridMask"
   
   # RandomResizedCrop technique
-  random_resized_crop:
+  auto_random_resized_crop:
     class: "instance"
-    condition: "$spatial_augmentation_strategy in ['random_resized_crop', 'random_choice']"
+    condition: "$spatial_augmentation_strategy in ['auto_random_resized_crop', 'random_choice']"
 
     scale_min:
       class: "param"
-      param_name: "random_resized_crop_scale_min"
+      param_name: "auto_random_resized_crop_scale_min"
       type: "float"
       low: 0.75
       high: 0.9
@@ -142,16 +142,16 @@ spatial_augmentation:
         
     scale_max:
       class: "param"
-      param_name: "random_resized_crop_scale_max"
+      param_name: "auto_random_resized_crop_scale_max"
       type: "float"
-      low: "$max(0.9, random_resized_crop_scale_min)"
+      low: "$max(0.9, auto_random_resized_crop_scale_min)"
       high: 1.0
       description: "Maximum scale for RandomResizedCrop"
-      depends_on: ["random_resized_crop_scale_min"]
+      depends_on: ["auto_random_resized_crop_scale_min"]
 
     ratio_min:
       class: "param"
-      param_name: "random_resized_crop_ratio_min"
+      param_name: "auto_random_resized_crop_ratio_min"
       type: "float"
       low: 0.75
       high: 1.0
@@ -159,12 +159,12 @@ spatial_augmentation:
 
     ratio_max:
       class: "param"
-      param_name: "random_resized_crop_ratio_max"
+      param_name: "auto_random_resized_crop_ratio_max"
       type: "float"
-      low: "$max(1.0, random_resized_crop_ratio_min)"
+      low: "$max(1.0, auto_random_resized_crop_ratio_min)"
       high: 1.33
       description: "Maximum aspect ratio for RandomResizedCrop"
-      depends_on: ["random_resized_crop_ratio_min"]
+      depends_on: ["auto_random_resized_crop_ratio_min"]
 
 # Noise augmentation strategy (influenced by primary augmentation strategy)
 noise_augmentation:
@@ -177,9 +177,9 @@ noise_augmentation:
     dependency_order: ["strategy_level"]
     choices:
       basic: ["none"]
-      robust: ["none", "gaussian", "quality_degradation"]
-      comprehensive: ["none", "gaussian", "impulse", "quality_degradation", "blur", "poisson", "speckle", "random_choice"]
-      custom: ["none", "gaussian", "impulse", "quality_degradation", "blur", "poisson", "speckle", "random_choice"]
+      robust: ["none", "gaussian", "jpeg"]
+      comprehensive: ["none", "gaussian", "impulse", "jpeg", "blur", "poisson", "speckle", "random_choice"]
+      custom: ["none", "gaussian", "impulse", "jpeg", "blur", "poisson", "speckle", "random_choice"]
     description: "Noise and corruption augmentations"
 
   # Gaussian noise technique (additive random noise)
@@ -225,25 +225,25 @@ noise_augmentation:
       description: "Probability of applying impulse noise"
   
   # Quality degradation technique (JPEG compression)
-  quality_degradation:
+  jpeg:
     class: "instance"
-    condition: "$noise_augmentation_strategy in ['quality_degradation', 'random_choice']"
+    condition: "$noise_augmentation_strategy in ['jpeg', 'random_choice']"
 
-    jpeg_quality:
+    quality:
       class: "param"
       param_name: "jpeg_quality"
       type: "int"
-      low: 70
+      low: 50
       high: 90
       description: "JPEG quality (lower = more artifacts)"
 
     prob:
       class: "param"
-      param_name: "quality_degradation_prob"
+      param_name: "jpeg_prob"
       type: "float"
       low: 0.1
       high: 0.7
-      description: "Probability of applying quality degradation"
+      description: "Probability of applying JPEG compression"
 
   # Gaussian blur technique (simulates camera blur, motion blur, etc.)
   gaussian_blur:
