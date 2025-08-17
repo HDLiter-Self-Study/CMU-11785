@@ -470,7 +470,7 @@ class LossesFactory(BasePipelineFactory):
     It provides special handling for CrossEntropyLoss to support class weighting.
     """
 
-    SEARCH_MODULES = ["torch.nn", "src.losses"]
+    SEARCH_MODULES = ["src.losses", "torch.nn"]
     STATS_FILE = Path("configs/data/dataset_stats.json")
 
     @staticmethod

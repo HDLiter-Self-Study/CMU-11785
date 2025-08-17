@@ -6,7 +6,8 @@ of the entire training pipeline from a configuration dictionary.
 from typing import Any, Dict, List, Optional, Callable, Set
 import importlib
 from collections import defaultdict, deque
-
+import torch
+from PIL import Image
 from torch import nn
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -14,6 +15,8 @@ from torchvision.transforms import v2
 from torch.utils.data import Dataset
 
 from src.pipelines import factories
+from src.models.model_factory import ModelFactory
+from src.data.datasets import build_datasets
 
 
 class PipelineBuilder:
@@ -109,20 +112,59 @@ class PipelineBuilder:
 
         return result
 
-    def __init__(self, config: Dict[str, Any], model: Optional[nn.Module] = None):
+    def __init__(self, config: Dict[str, Any]):
         """
         Initializes the builder with the application's configuration.
 
         Args:
             config: The effective configuration dictionary, typically loaded
                     from a JSON or YAML file.
-            model: An optional `nn.Module` whose parameters will be passed to
-                   the optimizer.
         """
         self.config = config
-        self.model = model
+        self.datasets = self._build_datasets()
+        self.data_config = self._compose_data_config()
+        self.model = self._build_model()
         self.pipeline_config = config.get("pipelines", {})
         self._built_components = {}  # Store built components by name
+
+    def _build_datasets(self) -> Dict[str, Dataset]:
+        """Builds the datasets."""
+        data_paths = self.config.get("paths", {})
+        if not data_paths:
+            raise ValueError("Dataset paths are empty!")
+        datasets = build_datasets(data_paths)
+        return datasets
+
+    def _compose_data_config(self) -> Dict[str, Any]:
+        """Composes the data configuration."""
+        train_dataset = self.datasets.get("train")
+        if not train_dataset:
+            raise ValueError("train dataset is not found!")
+
+        # Get dataset config dynamically
+        num_classes = len(train_dataset.class_to_idx)
+        first_image, first_label = train_dataset[0]
+        # if transform contains ToTensor(), the shape is (C, H, W)
+        if isinstance(first_image, torch.Tensor):
+            channels, height, width = first_image.shape
+        # if transform only contains PIL.Image, the shape is (H, W, C)
+        elif isinstance(first_image, Image.Image):
+            width, height = first_image.size
+            channels = len(first_image.getbands())
+        else:
+            raise ValueError(f"Unsupported image type: {type(first_image)}")
+        return {
+            "num_classes": num_classes,
+            "image_size": (height, width),
+            "image_channels": channels,
+        }
+
+    def _build_model(self) -> nn.Module:
+        """Builds the model."""
+        arch_config = self.config.get("model", {}).get("architectures", {})
+        if not isinstance(arch_config, dict):
+            raise ValueError("model.architectures is not a dictionary!")
+        return ModelFactory().build(arch_config, self.data_config)
 
     def build(self) -> "PipelineBuilder":
         """
