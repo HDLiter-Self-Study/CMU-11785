@@ -8,7 +8,7 @@ from src.utils.grad_clip import ClipNorm
 # GradClipFactory Tests
 # =============================================================================
 
-GRAD_CLIP_CONFIG = [{"mode": "single", "instances": {"gradient_clipper": {"max_norm": 1.0}}}]
+GRAD_CLIP_CONFIG = [{"mode": "single", "instances": {"norm_clip": {"max_norm": 1.0}}}]
 
 
 def test_grad_clip_factory_builds_gradient_clipper():
