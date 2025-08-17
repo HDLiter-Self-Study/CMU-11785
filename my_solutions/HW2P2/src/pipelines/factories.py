@@ -238,10 +238,39 @@ class SchedulerFactory(BasePipelineFactory):
         if optimizer is None:
             raise ValueError("optimizer is required for CosineAnnealingLR")
 
+        params = SchedulerFactory.compute_eta_min(optimizer, **params)
+
+        # Do not filter parameters; let constructor fast-fail on invalid kwargs
+        return CosineAnnealingLR(optimizer=optimizer, **params)
+
+    @staticmethod
+    def create_cosine_annealing_warm_restarts(
+        optimizer: optim.Optimizer, **params: Any
+    ) -> "optim.lr_scheduler.CosineAnnealingWarmRestarts":
+        """
+        Static method to instantiate CosineAnnealingWarmRestarts.
+        """
+        from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+
+        if optimizer is None:
+            raise ValueError("optimizer is required for CosineAnnealingWarmRestarts")
+
+        params = SchedulerFactory.compute_eta_min(optimizer, **params)
+
+        # Do not filter parameters; let constructor fast-fail on invalid kwargs
+        return CosineAnnealingWarmRestarts(optimizer=optimizer, **params)
+
+    @staticmethod
+    def compute_eta_min(optimizer: optim.Optimizer, **params: Any) -> Dict[str, Any]:
+        """
+        Compute eta_min for CosineAnnealingWarmRestarts.
+        """
+        if optimizer is None:
+            raise ValueError("optimizer is required for CosineAnnealingWarmRestarts")
+
         params = dict(params or {})
-        # Fast-fail when both provided
         if "eta_min" in params and "eta_min_ratio" in params:
-            raise ValueError("Provide either 'eta_min' or 'eta_min_ratio', not both, for CosineAnnealingLR")
+            raise ValueError("Provide either 'eta_min' or 'eta_min_ratio', not both, for CosineAnnealingWarmRestarts")
         if "eta_min" not in params and "eta_min_ratio" in params:
             ratio = float(params.pop("eta_min_ratio"))
             try:
@@ -249,9 +278,7 @@ class SchedulerFactory(BasePipelineFactory):
             except Exception as exc:
                 raise RuntimeError("Failed to infer base lr from optimizer.param_groups") from exc
             params["eta_min"] = base_lr * ratio
-
-        # Do not filter parameters; let constructor fast-fail on invalid kwargs
-        return CosineAnnealingLR(optimizer=optimizer, **params)
+        return params
 
     @staticmethod
     def create_warmup(
@@ -329,6 +356,8 @@ class SchedulerFactory(BasePipelineFactory):
         "CosineAnnealingLR": create_cosine_annealing_lr.__func__,
         "multi_step_lr": create_multi_step_lr.__func__,
         "MultiStepLR": create_multi_step_lr.__func__,
+        "cosine_annealing_warm_restarts": create_cosine_annealing_warm_restarts.__func__,
+        "CosineAnnealingWarmRestarts": create_cosine_annealing_warm_restarts.__func__,
         "warmup": create_warmup.__func__,  # Register warmup creator
     }
 
@@ -574,7 +603,7 @@ class DatasetFactory(BasePipelineFactory):
         datasets: Dict[str, Dataset],
         target_keys: List[str] = ["train"],  # only build for these keys
     ) -> Dict[str, Dataset]:
-        dataset_wrappers = self.super().build(configs)
+        dataset_wrappers = super().build(configs)
         if dataset_wrappers is None:
             # no dataset wrappers, return original datasets
             return datasets
