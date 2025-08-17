@@ -72,17 +72,12 @@ def _resolve_category(
 
 
 def _resolve_paths(cfg: Dict[str, Any]) -> Dict[str, Optional[str]]:
-    data_cfg = _get(cfg, "task_configs.data", {})
+    data_cfg = _get(cfg, "data", {})
+    task_data_cfg = _get(cfg, "task_configs.data", {})
+    data_cfg.update(task_data_cfg)
     if not isinstance(data_cfg, dict):
         data_cfg = {}
-    out: Dict[str, Optional[str]] = {
-        "train_dir": data_cfg.get("train_dir"),
-        "val_dir": data_cfg.get("val_dir"),
-        "train_pairs": data_cfg.get("train_pairs"),
-        "val_pairs": data_cfg.get("val_pairs"),
-        "images_dir": data_cfg.get("images_dir"),
-    }
-    return out
+    return data_cfg["paths"]
 
 
 def _resolve_loader(cfg: Dict[str, Any], sampled: Dict[str, Any], policies: Dict[str, Any]) -> List[Dict[str, Any]]:
