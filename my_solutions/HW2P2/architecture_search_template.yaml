@@ -1,7 +1,7 @@
 ## Architecture search template (entry format)
 
 task: verification_finetune
-# paradigm: metric_learning # One of ["classification", "metric_learning"]
+paradigm: metric_learning # One of ["classification", "metric_learning"]
 
 strategy_levels:
   comprehensive: [augmentation, dataset, label_mixing, architectures,optimizer, scheduler, losses]
