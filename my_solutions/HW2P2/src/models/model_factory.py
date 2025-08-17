@@ -14,7 +14,7 @@ class ModelFactory:
         "convnext": ConvNeXt,
     }
 
-    def create(self, arch_config: Dict[str, Any], data_config: Dict[str, Any]) -> nn.Module:
+    def build(self, arch_config: Dict[str, Any], data_config: Dict[str, Any]) -> nn.Module:
         """
         Creates a model backbone instance from configuration dictionaries.
 
@@ -24,7 +24,7 @@ class ModelFactory:
         Args:
             arch_config: The architecture configuration dictionary.
             data_config: The data configuration dictionary, used to extract
-                         parameters like `in_channels`.
+                         parameters like `image_channels`.
 
         Returns:
             An instantiated model backbone (nn.Module).
@@ -36,7 +36,7 @@ class ModelFactory:
         build_spec = build_spec_from_planned(planned_stages.__dict__)
 
         # 3. Inject data-dependent parameters and instantiate the model
-        build_spec["in_channels"] = data_config["in_channels"]
+        build_spec["in_channels"] = data_config["image_channels"]
 
         arch_type = build_spec.pop("type", None)
         if arch_type not in self.ARCHITECTURE_MAP:

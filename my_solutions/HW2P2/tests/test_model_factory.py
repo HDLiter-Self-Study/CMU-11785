@@ -34,7 +34,7 @@ def model_factory():
 @pytest.fixture
 def data_config():
     """Provides a mock data config for tests."""
-    return {"in_channels": 3}
+    return {"image_channels": 3}
 
 
 @pytest.mark.skipif(RESNET_ARCH_CONFIG is None, reason="No ResNet config found in effective_latest.json")
@@ -42,7 +42,7 @@ def test_model_factory_creates_resnet(model_factory, data_config):
     """
     Tests if the ModelFactory correctly creates a ResNet model from config.
     """
-    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
     assert isinstance(model, ResNet)
 
 
@@ -51,7 +51,7 @@ def test_model_factory_creates_convnext(model_factory, data_config):
     """
     Tests if the ModelFactory correctly creates a ConvNeXt model from config.
     """
-    model = model_factory.create(CONVNEXT_ARCH_CONFIG, data_config)
+    model = model_factory.build(CONVNEXT_ARCH_CONFIG, data_config)
     assert isinstance(model, ConvNeXt)
 
 
@@ -62,7 +62,7 @@ def test_model_factory_raises_error_on_unknown_type(model_factory, data_config):
     bad_config = {"type": "unknown_arch", "regnet_rule": {}, "num_stages": 1, "block_type": ["basic"]}
     with pytest.raises(ValueError, match="Unsupported architecture type"):
         # The error is raised by the StagePlanner for unsupported architecture types
-        model_factory.create(bad_config, data_config)
+        model_factory.build(bad_config, data_config)
 
 
 # =============================================================================
@@ -75,7 +75,7 @@ def test_resnet_model_structure(model_factory, data_config):
     """
     Tests ResNet model structure matches configuration expectations.
     """
-    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
 
     # Verify it's the correct type
     assert isinstance(model, ResNet)
@@ -85,7 +85,7 @@ def test_resnet_model_structure(model_factory, data_config):
     assert hasattr(model, "stem")
 
     # Check input channels match
-    assert model.in_channels == data_config["in_channels"]
+    assert model.in_channels == data_config["image_channels"]
 
     # Verify backbone structure (backbone contains all blocks in a single Sequential)
     backbone = model.backbone
@@ -109,7 +109,7 @@ def test_convnext_model_structure(model_factory, data_config):
     """
     Tests ConvNeXt model structure matches configuration expectations.
     """
-    model = model_factory.create(CONVNEXT_ARCH_CONFIG, data_config)
+    model = model_factory.build(CONVNEXT_ARCH_CONFIG, data_config)
 
     # Verify it's the correct type
     assert isinstance(model, ConvNeXt)
@@ -119,7 +119,7 @@ def test_convnext_model_structure(model_factory, data_config):
     assert hasattr(model, "stem")
 
     # Check input channels match
-    assert model.in_channels == data_config["in_channels"]
+    assert model.in_channels == data_config["image_channels"]
 
     # Verify backbone structure (backbone contains all blocks in a single Sequential)
     backbone = model.backbone
@@ -139,7 +139,7 @@ def test_resnet_forward_pass(model_factory, data_config):
     """
     Tests ResNet forward pass functionality and output shapes.
     """
-    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
 
     # Test with different input sizes
     test_sizes = [(1, 3, 224, 224), (2, 3, 112, 112), (1, 3, 64, 64)]
@@ -180,7 +180,7 @@ def test_convnext_forward_pass(model_factory, data_config):
     """
     Tests ConvNeXt forward pass functionality and output shapes.
     """
-    model = model_factory.create(CONVNEXT_ARCH_CONFIG, data_config)
+    model = model_factory.build(CONVNEXT_ARCH_CONFIG, data_config)
 
     # Test with different input sizes
     test_sizes = [(1, 3, 224, 224), (2, 3, 112, 112)]
@@ -217,7 +217,7 @@ def test_gradient_flow(model_factory, data_config):
     if RESNET_ARCH_CONFIG is None:
         pytest.skip("No ResNet config found in effective_latest.json")
 
-    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
 
     # Enable gradient computation
     model.train()
@@ -261,7 +261,7 @@ def test_model_parameter_count(model_factory, data_config):
         configs_to_test.append(("convnext", CONVNEXT_ARCH_CONFIG))
 
     for arch_type, config in configs_to_test:
-        model = model_factory.create(config, data_config)
+        model = model_factory.build(config, data_config)
 
         # Count parameters
         total_params = sum(p.numel() for p in model.parameters())
@@ -282,7 +282,7 @@ def test_model_device_compatibility(model_factory, data_config):
     if RESNET_ARCH_CONFIG is None:
         pytest.skip("No ResNet config found in effective_latest.json")
 
-    model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
+    model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
 
     # Test CPU functionality
     model = model.cpu()
@@ -312,17 +312,17 @@ def test_different_input_channels(model_factory):
 
     # Test different input channel counts
     channel_configs = [
-        {"in_channels": 1},  # Grayscale
-        {"in_channels": 3},  # RGB
-        {"in_channels": 4},  # RGBA
+        {"image_channels": 1},  # Grayscale
+        {"image_channels": 3},  # RGB
+        {"image_channels": 4},  # RGBA
     ]
 
     for data_config in channel_configs:
-        model = model_factory.create(RESNET_ARCH_CONFIG, data_config)
-        assert model.in_channels == data_config["in_channels"]
+        model = model_factory.build(RESNET_ARCH_CONFIG, data_config)
+        assert model.in_channels == data_config["image_channels"]
 
         # Test forward pass
-        input_tensor = torch.randn(1, data_config["in_channels"], 64, 64)
+        input_tensor = torch.randn(1, data_config["image_channels"], 64, 64)
         model.eval()
         with torch.no_grad():
             output = model(input_tensor)
@@ -342,7 +342,7 @@ def test_config_parameter_propagation(model_factory, data_config):
         configs_to_test.append(CONVNEXT_ARCH_CONFIG)
 
     for config in configs_to_test:
-        model = model_factory.create(config, data_config)
+        model = model_factory.build(config, data_config)
 
         # Verify backbone has reasonable number of blocks
         # (backbone contains all blocks, not just stage count)
@@ -351,7 +351,7 @@ def test_config_parameter_propagation(model_factory, data_config):
         assert actual_blocks >= expected_stages, f"Expected at least {expected_stages} blocks, got {actual_blocks}"
 
         # Test model can handle the expected stages without errors
-        input_tensor = torch.randn(1, data_config["in_channels"], 64, 64)
+        input_tensor = torch.randn(1, data_config["image_channels"], 64, 64)
         model.eval()
         with torch.no_grad():
             output = model(input_tensor)
