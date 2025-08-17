@@ -47,7 +47,7 @@ class ImpulseNoise(NoiseAugmentationBase):
     Noise is applied independently per sample with probability `p`.
 
     Args:
-        amount (float): Proportion of pixels to corrupt with salt or pepper noise.
+        ratio (float): Proportion of pixels to corrupt with salt or pepper noise.
         salt_vs_pepper (float): Proportion of salt noise relative to total noise.
             Must be between 0 and 1.
         clip (bool): Whether to clip output values to `value_range`.
@@ -55,9 +55,9 @@ class ImpulseNoise(NoiseAugmentationBase):
             allowed pixel values after adding noise.
     """
 
-    def __init__(self, amount: float = 0.05, salt_vs_pepper: float = 0.5, **kwargs):
+    def __init__(self, ratio: float = 0.05, salt_vs_pepper: float = 0.5, **kwargs):
         super().__init__(**kwargs)
-        self.amount = amount
+        self.ratio = ratio
         self.salt_vs_pepper = salt_vs_pepper
 
     def _generate_noise(self, x: Tensor) -> Tensor:
@@ -66,8 +66,8 @@ class ImpulseNoise(NoiseAugmentationBase):
 
         rand_matrix = torch.rand(b, c, h, w, device=x.device)
 
-        salt_mask = rand_matrix < (self.amount * self.salt_vs_pepper)
-        pepper_mask = (rand_matrix >= (self.amount * self.salt_vs_pepper)) & (rand_matrix < self.amount)
+        salt_mask = rand_matrix < (self.ratio * self.salt_vs_pepper)
+        pepper_mask = (rand_matrix >= (self.ratio * self.salt_vs_pepper)) & (rand_matrix < self.ratio)
 
         noise = torch.zeros_like(x)
         noise = torch.where(salt_mask, torch.full_like(x, max_val), noise)
