@@ -8,7 +8,7 @@ def _get_pml_distance(metric_name: str, squared: bool = False, normalize: bool =
     elif metric_name == "manhattan":
         return distances.LpDistance(p=1, power=1, normalize_embeddings=normalize)
     elif metric_name == "cosine":
-        return distances.CosineSimilarity(normalize_embeddings=normalize)
+        return distances.CosineSimilarity()
     elif metric_name == "dot":
         return distances.DotProductSimilarity(normalize_embeddings=normalize)
     else:
