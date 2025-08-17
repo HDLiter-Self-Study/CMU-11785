@@ -43,7 +43,8 @@ class ContrastiveLoss(nn.Module):
 
     def __init__(
         self,
-        margin=1.0,
+        pos_margin: float = 0,
+        neg_margin: float = 1,
         miner_type: str = "pair_margin",
         distance_metric: str = "euclidean",
         normalize_embeddings: bool = False,
@@ -53,12 +54,14 @@ class ContrastiveLoss(nn.Module):
         avg_by: str = "posneg",
         miner_margin_factor: float = 1.0,
         sampler_m: int = 4,
+        eps: float = 0.1,  # For MultiSimilarityMiner
     ):
         super().__init__()
         if avg_by not in ("global", "posneg"):
             raise ValueError("avg_by must be 'global' or 'posneg'")
 
-        self.margin = float(margin)
+        self.pos_margin = float(pos_margin)
+        self.neg_margin = float(neg_margin)
         self.pos_weight = float(pos_weight)
         self.neg_weight = float(neg_weight)
         self.avg_by = avg_by
@@ -68,12 +71,17 @@ class ContrastiveLoss(nn.Module):
         reducer = PosNegWeightedReducer(pos_weight, neg_weight, avg_by)
         self.loss = losses.ContrastiveLoss(margin=margin, distance=distance, reducer=reducer)
 
-        miner_margin = margin * miner_margin_factor
+        pos_miner_margin = pos_margin * miner_margin_factor
+        neg_miner_margin = neg_margin * miner_margin_factor
 
         if miner_type == "pair_margin":
-            self.miner = miners.PairMarginMiner(distance=distance, neg_margin=miner_margin, pos_margin=miner_margin)
+            self.miner = miners.PairMarginMiner(
+                distance=distance, neg_margin=neg_miner_margin, pos_margin=pos_miner_margin
+            )
         elif miner_type == "batch_hard":
             self.miner = miners.BatchHardMiner(distance=distance)  # No margin needed
+        elif miner_type == "multi_similarity":
+            self.miner = miners.MultiSimilarityMiner(epsilon=eps, distance=distance)
         else:
             raise ValueError(f"Unknown miner type: {miner_type}")
 

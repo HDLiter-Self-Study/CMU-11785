@@ -115,14 +115,24 @@ metric_learning_paradigm_losses:
     class: "instance"
     condition: "$metric_loss_type == 'contrastive_loss'"
     
-    margin:
+    neg_margin:
       class: "param"
-      param_name: "metric_contrastive_margin"
+      param_name: "metric_contrastive_neg_margin"
       type: "float"
       low: "$0.1 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 0.5"
       high: "$1.0 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 5.0"
-      description: "Triplet loss margin (cosine/normalized distance: 0.1-1.0, euclidean/manhattan: 0.5-5.0)"
+      description: "Margin for negative pairs"
       depends_on: ["metric_contrastive_distance", "metric_contrastive_normalize"]
+
+    pos_margin:
+      class: "param"
+      param_name: "metric_contrastive_pos_margin"
+      type: "float"
+      low: "$0.1 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 0.5"
+      high: "$min(1.0 if metric_contrastive_distance == 'cosine' or metric_contrastive_normalize else 5.0, metric_contrastive_neg_margin)"
+      # Make sure the pos_margin is not larger than the neg_margin
+      description: "Margin for positive pairs"
+      depends_on: ["metric_contrastive_distance", "metric_contrastive_normalize", "metric_contrastive_neg_margin"]
 
     distance_metric:
       class: "param"
@@ -151,7 +161,7 @@ metric_learning_paradigm_losses:
       class: "param"
       param_name: "metric_contrastive_miner_type"
       type: "categorical"
-      choices: ["pair_margin", "batch_hard"]
+      choices: ["pair_margin", "batch_hard", "multi_similarity"]
       description: "Type of miner to use for contrastive loss"
 
     miner_margin_factor:
@@ -163,7 +173,17 @@ metric_learning_paradigm_losses:
       description: "Margin factor for contrastive miner"
       condition: "$metric_contrastive_miner_type == 'pair_margin'"
       depends_on: ["metric_contrastive_miner_type"]
-      
+
+    eps:
+      class: "param"
+      param_name: "metric_contrastive_eps"
+      type: "float"
+      low: 0.05
+      high: 0.2
+      description: "Epsilon for MultiSimilarityMiner"
+      condition: "$metric_contrastive_miner_type == 'multi_similarity'"
+      depends_on: ["metric_contrastive_miner_type"]
+
     pos_weight:
       class: "param"
       param_name: "metric_contrastive_pos_weight"
