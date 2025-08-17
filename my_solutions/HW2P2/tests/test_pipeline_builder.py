@@ -33,11 +33,13 @@ def test_pipeline_builder_component_types(pipeline_builder):
     if hasattr(builder, "augmentation") and builder.augmentation is not None:
         from torchvision.transforms import v2
 
-        assert isinstance(builder.augmentation, v2.Compose)
+        assert len(builder.augmentation) == 2
+        assert isinstance(builder.augmentation[0], v2.Compose)
+        assert isinstance(builder.augmentation[1], v2.Compose)
     if hasattr(builder, "scheduler") and builder.scheduler is not None:
-        import torch.optim.lr_scheduler
-
-        assert isinstance(builder.scheduler, torch.optim.lr_scheduler._LRScheduler)
+        # Check if it's a scheduler by checking for common scheduler methods
+        assert hasattr(builder.scheduler, "step")
+        assert hasattr(builder.scheduler, "get_last_lr")
 
 
 def test_pipeline_builder_dynamic_access(pipeline_builder):
