@@ -124,7 +124,7 @@ def _resolve_loader(cfg: Dict[str, Any], sampled: Dict[str, Any], policies: Dict
             final_params = {**accumulated_params, **settings} if settings else dict(accumulated_params)
 
             new_group = dict(rendered)
-            new_group["instances"] = {"batch_configuration": final_params}
+            new_group["instances"] = {"data_loader": final_params}
             merged_groups.append(new_group)
         else:
             merged_groups.append(rendered)
