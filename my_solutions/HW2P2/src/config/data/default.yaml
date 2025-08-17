@@ -18,9 +18,6 @@ paths:
   # Optional: specific directories can override images_dir
   # train_pairs_dir: "ver_data/train"    # Will become: data/ver_data/train
 
-image_settings:
-  image_size: 112
-  image_channels: 3
 
 # Loader runtime settings (not searched). Can be overridden in task_configs.<task>.yaml
 loader_settings:
