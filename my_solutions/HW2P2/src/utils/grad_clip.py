@@ -3,7 +3,7 @@ import torch.nn as nn
 from typing import Iterable, Union
 
 
-class GradientClipper(nn.Module):
+class ClipNorm(nn.Module):
     """
     A module wrapper for torch.nn.utils.clip_grad_norm_.
 

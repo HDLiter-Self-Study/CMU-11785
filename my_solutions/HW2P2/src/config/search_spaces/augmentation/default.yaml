@@ -250,6 +250,13 @@ noise_augmentation:
     class: "instance"
     condition: "$noise_augmentation_strategy in ['blur', 'random_choice']"
 
+    kernel_size:
+      class: "param"
+      param_name: "gaussian_blur_kernel_size"
+      type: "categorical"
+      choices: [3, 5, 7, 9]
+      description: "Kernel size for Gaussian blur"
+
     sigma_min:
       class: "param"
       param_name: "gaussian_blur_sigma_min"

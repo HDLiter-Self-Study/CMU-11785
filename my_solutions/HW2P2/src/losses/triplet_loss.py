@@ -10,7 +10,7 @@ from src.losses.utils import _get_pml_distance
 class TripletLoss(nn.Module):
     def __init__(
         self,
-        margin,
+        margin=1.0,
         miner_type: str = "triplet",
         distance_metric: str = "cosine",
         normalize_embeddings: bool = True,

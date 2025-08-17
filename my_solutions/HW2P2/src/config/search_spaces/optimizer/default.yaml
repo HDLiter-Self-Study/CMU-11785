@@ -117,8 +117,8 @@ optimizer_techniques:
       type: "float"
       low: 0.0
       high: 0.1
-      condition: "$sgd_momentum > 0.0"
-      depends_on: ["sgd_momentum"]
+      condition: "$sgd_momentum > 0.0 and sgd_nesterov == False"
+      depends_on: ["sgd_momentum", "sgd_nesterov"]
 
   adamw:
     class: "instance"

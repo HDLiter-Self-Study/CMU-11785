@@ -2,7 +2,7 @@ import pytest
 import torch
 from torch import nn
 from src.pipelines.factories import GradClipFactory
-from src.utils.grad_clip import GradientClipper
+from src.utils.grad_clip import ClipNorm
 
 # =============================================================================
 # GradClipFactory Tests
@@ -14,12 +14,12 @@ GRAD_CLIP_CONFIG = [{"mode": "single", "instances": {"gradient_clipper": {"max_n
 def test_grad_clip_factory_builds_gradient_clipper():
     factory = GradClipFactory()
     clipper = factory.build(GRAD_CLIP_CONFIG)
-    assert isinstance(clipper, GradientClipper)
+    assert isinstance(clipper, ClipNorm)
     assert clipper.max_norm == 1.0
 
 
 def test_gradient_clipper_forward_pass():
-    clipper = GradientClipper(max_norm=1.0)
+    clipper = ClipNorm(max_norm=1.0)
     params = [torch.nn.Parameter(torch.randn(10, 10))]
 
     # Assign a gradient with a norm > 1.0

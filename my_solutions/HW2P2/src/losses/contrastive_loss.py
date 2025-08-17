@@ -43,7 +43,7 @@ class ContrastiveLoss(nn.Module):
 
     def __init__(
         self,
-        margin,
+        margin=1.0,
         miner_type: str = "pair_margin",
         distance_metric: str = "euclidean",
         normalize_embeddings: bool = False,
