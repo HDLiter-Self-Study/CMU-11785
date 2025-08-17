@@ -46,12 +46,6 @@ lr_scheduler_techniques:
       high: 0.5
       log: true
 
-    last_epoch:
-      class: "param"
-      param_name: "cosine_last_epoch"
-      type: "int"
-      low: -1
-      high: 0
 
   multi_step_lr:
     class: "instance"
@@ -124,9 +118,9 @@ lr_scheduler_techniques:
     T_mult:
       class: "param"
       param_name: "warm_restarts_T_mult"
-      type: "float"
-      low: 1.0
-      high: 2.0
+      type: "int"
+      low: 1
+      high: 10
 
     eta_min_ratio:
       class: "param"
