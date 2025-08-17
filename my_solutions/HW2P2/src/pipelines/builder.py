@@ -123,7 +123,7 @@ class PipelineBuilder:
                     from a JSON or YAML file.
         """
         self.config = config
-        self.datasets = None
+        self.unwrapped_datasets = self._build_unwrapped_datasets()
         self.data_config = self._compose_data_config()
         self.model = self._build_model()
         self.pipeline_config = config.get("pipelines", {})
@@ -139,7 +139,7 @@ class PipelineBuilder:
 
     def _compose_data_config(self) -> Dict[str, Any]:
         """Composes the data configuration."""
-        train_dataset = self.datasets.get("train")
+        train_dataset = self.unwrapped_datasets.get("train")
         if not train_dataset:
             raise ValueError("train dataset is not found!")
 
@@ -221,9 +221,17 @@ class PipelineBuilder:
         """
         return factory.build(config)
 
+    def _build_ema_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
+        """Builds the EMA component."""
+        return factory.build(config, model=self.model)
+
+    def _build_heads_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
+        """Builds the head component."""
+        return factory.build(config, in_features=self.model.num_features, num_classes=self.data_config["num_classes"])
+
     def _build_loader_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
         """Builds the loader component."""
-        return factory.build(config, dataset_train=self.datasets["train"], dataset_eval=self.datasets["val"])
+        return factory.build(config, dataset_train=self.dataset["train"], dataset_eval=self.dataset["val"])
 
     def _build_optimizer_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Optimizer:
         """Builds the optimizer component."""
@@ -252,16 +260,15 @@ class PipelineBuilder:
 
     def _build_dataset_impl(self, factory: Any, config: List[Dict[str, Any]]) -> Any:
         """Builds the dataset component, use the unwrapped datasets to build the wrapped datasets."""
-        unwrapped_datasets = self._build_unwrapped_datasets()
         # Attach augmentation to the datasets
-        for key in unwrapped_datasets.keys():
+        for key in self.unwrapped_datasets.keys():
             if key == "train":
                 transforms = self.augmentation[0]  # Augmentation for training
             else:
                 transforms = self.augmentation[1]  # Base transform for validation and testing
-            unwrapped_datasets[key].transforms = transforms
+            self.unwrapped_datasets[key].transforms = transforms
         # Build the wrapped datasets
-        return factory.build(config, datasets=unwrapped_datasets)
+        return factory.build(config, datasets=self.unwrapped_datasets)
 
     def __getattr__(self, name: str) -> Any:
         """
