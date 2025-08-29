@@ -1,0 +1,51 @@
+# Error Handling and Defensive Programming Standards
+
+## Fail-Fast Principle
+
+- **Validate inputs early** and raise explicit exceptions on invalid state
+- **Avoid silent fallbacks**, implicit defaults, or broad `except` blocks that swallow errors
+- **Prefer guard clauses** and clear error messages over continuing in unknown state
+- **CLI entry points** should exit with non-zero status and print actionable message
+
+## Error Handling Guidelines
+
+- **Catch only expected exceptions** and re-raise with context; never mask root cause
+- **Log details at failure site**; do not defer critical checks
+- **Include concise docstrings** and high-signal comments explaining intent and invariants
+- **Remove outdated comments** during edits
+
+## No Superficial Fallbacks or Hardcoding
+
+- **Avoid superficial fallbacks:**
+  - Do not silently bypass failures with implicit defaults or broad catch-all handlers
+  - Do not add hidden auto-retry loops or quiet degradations unless justified, documented, and test-covered
+  - Prefer explicit validation and raise actionable errors
+
+- **Avoid hardcoding:**
+  - Avoid magic numbers, inline constants, and environment-dependent paths
+  - Prefer configuration, typed parameters, or centralized constants with single source of truth
+  - If default necessary, centralize it and document rationale, scope, and removal plan
+
+## Design for Clarity and Extensibility
+
+- **Prefer dependency injection** and clear interfaces over scattered conditionals
+- **Make behavior discoverable** via configuration/specs instead of ad-hoc code paths
+- **Address root causes** rather than layering wrappers/guards to silence failures
+- **Respect existing architecture** and implement changes within established boundaries
+
+## Testing and Validation
+
+- **Add unit/integration tests** for new/changed behavior, including failure paths
+- **Tests should validate intended behavior/spec**; do not contort production code for brittle tests
+- **When fixing bugs:** add focused regression test capturing root cause and expected behavior
+- **If temporary guard required:** use feature flag with explicit owner and removal timeline
+
+## When in Doubt
+
+- **If instruction requires fallback/hardcode:** pause and request confirmation (see `confirm-on-concerns.mdc`)
+- **Accompany every edit** with concise explanation (see `edit-explanation.mdc`)
+- **Related rules:** `confirm-on-concerns.mdc`, `edit-explanation.mdc`
+---
+alwaysApply: true
+description: Error handling standards covering fail-fast principles, defensive programming, and testing
+---

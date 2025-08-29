@@ -1,0 +1,45 @@
+# Workflow Control and Task Management
+
+## Q&A Behavior: Answer Without Editing Code
+
+- **When user asks a question:** answer directly without modifying code, even if issues are discovered
+- **Do not execute unrelated tasks** after answering; keep responses scoped strictly to the question
+- **Code changes require explicit instruction:** do not modify code unless explicitly requested
+
+## Workflow Boundaries and Handoff
+
+- **After completing requested work:** stop and provide concise status update and summary
+- **Do not proactively start new tasks** without user instruction
+- **Wait for user review** and follow-up instructions before proceeding
+
+## Stop After Each Unit of Work
+
+- **After completing any single item:** TODO item, discrete debug/fix, or functional unit
+- **Provide status update** and wait for user review before continuing
+- **Do not proactively continue** to next item without approval
+
+## Explicit Stop Points
+
+- **If user specifies stop points:** follow explicit instructions (e.g., "finish A and B before stopping")
+- **If unit boundaries ambiguous:** ask for clarification before proceeding
+
+## Conversation Scope
+
+- **Do not modify code** not mentioned in conversation, even if in pending TODO list
+- **Follow `todo-confirmation.mdc`** before proposing or committing any TODO list
+- **If potential problem identified:** present brief analysis and request confirmation (see `confirm-on-concerns.mdc`)
+
+## Clarifications and Exceptions
+
+- **If blocking error/ambiguity:** surface issue promptly with brief analysis and request guidance
+- **If obvious follow-ups exist:** present as options with estimated scope/impact and ask for confirmation
+
+## Related Rules
+
+- `todo-confirmation.mdc` — TODO proposal and confirmation requirements
+- `edit-explanation.mdc` — include concise rationale when edits are explicitly requested
+- `confirm-on-concerns.mdc` — pause and request confirmation when risks/ambiguities arise
+---
+alwaysApply: true
+description: Workflow control and task management rules for AI assistant behavior
+---

@@ -1,0 +1,43 @@
+# Code Quality Standards
+
+## Code Elegance and Proactive Refactoring
+
+- **Strive for clear, elegant, and maintainable code**
+- **Proactively identify and eliminate:**
+  - Duplication and near-duplication (DRY violations)
+  - Redundant logic, dead code, and outdated/deprecated paths
+  - Overly complex or deeply nested control flow
+  - Magic numbers and environment-coupled constants
+
+## Refactoring Guidelines
+
+- **Prefer small, cohesive functions** with descriptive names
+- **Use early returns/guard clauses** to reduce nesting
+- **Keep modules focused** with clear boundaries and responsibilities
+- **Replace ad-hoc conditionals** with clear interfaces or dependency injection
+- **Match repository style** and prioritize readability over cleverness
+
+## Coding Standards and Consistency
+
+- **Follow existing conventions** without introducing ad-hoc variations
+- **Prefer reuse over reinvention:** leverage base classes, shared utilities, established helpers
+- **Maintain consistency across modules:**
+  - Mirror public interfaces, naming, error handling, edge-case behavior
+  - Keep configuration patterns, dependency injection, module boundaries aligned
+  - Avoid duplicating logic; extract shared pieces into common modules
+
+## Safety and Collaboration
+
+- **For significant changes:** prepare proposal and wait for confirmation (see `complex-edits-confirm.mdc`)
+- **Every edit must include** concise textual explanation (see `edit-explanation.mdc`)
+- **Communicate in Chinese** with users; keep code comments/docstrings in English
+
+## Deviation Protocol
+
+- **If deviation beneficial:** propose design note and wait for approval
+- **Provide edit explanation** and tests validating new pattern
+- **Related rules:** `complex-edits-confirm.mdc`, `edit-explanation.mdc`
+---
+alwaysApply: true
+description: Comprehensive code quality standards covering elegance, consistency, and collaboration
+---
