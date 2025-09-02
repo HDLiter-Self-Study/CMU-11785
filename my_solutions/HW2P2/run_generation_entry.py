@@ -27,9 +27,28 @@ def main():
     src_path = project_root / "src"
     sys.path.insert(0, str(src_path))
 
-    from src.sampling.generation_entry import generate_configs_from_template
+    from src.sampling.generation_entry import ConfigTemplateProcessor, TrialConfigGenerator
+    import optuna
 
-    result = generate_configs_from_template(args.template, allow_new_paths=args.allow_new_paths)
+    # Process template once
+    processor = ConfigTemplateProcessor(args.template, allow_new_paths=args.allow_new_paths)
+
+    # Create study and generate trials
+    study = optuna.create_study(storage="sqlite:///:memory:", study_name="entry_trials", direction="maximize")
+
+    # Generate all trial configs
+    generator = TrialConfigGenerator(processor)
+    sampled_list = []
+
+    for _ in range(processor.get_n_trials()):
+        trial = study.ask()
+        trial_config = generator.generate_trial_config(trial)
+        # Extract the single trial parameters from sampled list
+        sampled_list.append(trial_config["sampled"][0])
+
+    # Build final result using standard format
+    final_config = generator.generate_trial_config(study.ask())
+    final_config["sampled"] = sampled_list
 
     out_path = args.output
     if not out_path:
@@ -37,7 +56,7 @@ def main():
         out_path = f"generated_config_{ts}.json"
 
     out_path = Path(out_path)
-    out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    out_path.write_text(json.dumps(final_config, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Saved: {out_path.resolve()}")
 
 

@@ -21,7 +21,7 @@ import tempfile
 from pathlib import Path
 
 
-from src.sampling.generation_entry import generate_configs_from_template
+from src.sampling.generation_entry import ConfigTemplateProcessor, TrialConfigGenerator
 from src.sampling.data_resolver import resolve_effective_data_config
 
 
@@ -102,13 +102,29 @@ def main():
             Path(p).write_text(build_min_template(task, args.epochs, args.batch_size, args.n_trials), encoding="utf-8")
             template_path = Path(p)
 
-        # Generate config + trials
-        cfg = generate_configs_from_template(str(template_path))
-        sampled_list = cfg.get("sampled", [])
+        # Generate config + trials using new class structure
+        processor = ConfigTemplateProcessor(str(template_path))
+        generator = TrialConfigGenerator(processor)
+
+        # Generate all trial configs
+        import optuna
+
+        study = optuna.create_study(storage="sqlite:///:memory:", study_name="demo_trials", direction="maximize")
+
+        sampled_list = []
+        for _ in range(processor.get_n_trials()):
+            trial = study.ask()
+            trial_config = generator.generate_trial_config(trial)
+            sampled_list.append(trial_config["sampled"][0])
+
+        # Build final config using standard format
+        final_config = generator.generate_trial_config(study.ask())
+        final_config["sampled"] = sampled_list
+
         if not sampled_list:
             raise RuntimeError("No sampled results found. Ensure n_trials >= 1 in template.")
         for idx, sampled in enumerate(sampled_list):
-            eff = resolve_effective_data_config(cfg, sampled)
+            eff = resolve_effective_data_config(final_config, sampled)
             effective_list.append({"trial_index": idx, **eff})
 
     output_payload = {"n_trials": len(effective_list), "effective_data": effective_list}
