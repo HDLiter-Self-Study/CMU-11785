@@ -208,7 +208,9 @@ class ConfigTemplateProcessor:
                 kv[path] = coerced
 
         # derive n_trials from kv (fallback 1)
-        n_trials = int(kv.get("optuna.n_trials", 1))
+        n_trials = int(kv.get("optuna.n_trials", None))
+        if n_trials is None:
+            raise ValueError("n_trials is required")
         return kv, n_trials, allowed_targets
 
     def _normalize_strategy_levels(self) -> Dict[str, Any]:
