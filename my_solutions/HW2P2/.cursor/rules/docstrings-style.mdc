@@ -1,13 +1,23 @@
 ---
 alwaysApply: true
-description: Write comments/docstrings in English, timeless, and oriented to new developers; avoid change-log phrasing
+description: Write comments/docstrings in English from developer's perspective, timeless, and oriented to new developers; avoid AI assistant phrasing and change-log style
 ---
 ### Comments and docstrings style
 
 - Write all comments and docstrings in English.
-- Document for a new developer, not for the current change process.
-  - Avoid phrasing like "this function adds parameter X" or "now supports Y".
-  - Prefer timeless descriptions like "This function has five parameters" and describe each parameter's role.
+- **Write from the developer's perspective, not AI assistant's perspective**
+  - Use first-person or neutral voice as if written by the original developer
+  - Avoid AI assistant phrasing like "this function adds user-requested validation" or "now supports new feature"
+  - Write as if explaining to a colleague who will maintain the code later
+- **Document for a new developer, not for the current change process**
+  - Avoid change-log phrasing like "this function adds parameter X" or "now supports Y"
+  - Prefer timeless descriptions like "This function has five parameters" and describe each parameter's role
+  - Focus on what the code does, not what was recently changed
+- **Examples of good vs bad comment style:**
+  - ❌ Bad: "Added user-requested validation feature"
+  - ✅ Good: "Validates data format: checks if input parameters match expected format"
+  - ❌ Bad: "This function now supports the new feature"
+  - ✅ Good: "This function processes user input and validates against business rules"
 - Focus on purpose, inputs, outputs, side effects, invariants, and error conditions.
 - Keep comments concise and high-signal; explain "why" more than "how" when the code is clear.
 - Remove outdated or misleading comments; do not keep change-log style notes in code.
